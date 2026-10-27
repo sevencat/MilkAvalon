@@ -162,10 +162,92 @@ src\MilkAvalon\bin\Debug\net10.0\MilkAvalon.exe --shot artifacts\p0-ui.png
 | 文件 | 内容 |
 |---|---|
 | `<stem>.png` | Avalonia 视觉树（UI、主题、文字；**不含** GL 内容） |
-| `<stem>-gl.png` | 从宿主 FBO 读的 GL 首帧（真正"引擎出图"的证据） |
-| `<stem>-gl-resized.png` | 把窗口改成 900×600 之后再读一帧（回归 resize） |
+| `<stem>-gl.png` | 从宿主 FBO 读的一帧（真正"引擎出图"的证据）。**P3 起先等引擎出 40 帧再读**，见 §7.6 |
+| `<stem>-gl-resized.png` | 把窗口改成 900×600 之后再读一帧（回归 resize；同样先等 +10 帧） |
 
 这套东西就是后面 P3/P4 的验收手段：换引擎后仍然是"读 FBO 存图 + 看图"。
+
+### 1.7 P2 实测记录：输出重定向与输入桥接（2026-10-27）
+
+#### A2-1 坐标契约（写死，别再各转各的）
+
+| 层 | 坐标系 | 说明 |
+|---|---|---|
+| Avalonia 事件 | 控件内像素、左上原点 | `e.GetPosition(this)`，除以 `Bounds` 得到 0..1 |
+| `GlControlBase` 对外 | **0..1、左上原点** | `OnPointerMoved(nx, ny)`，与 `Pointer` 属性一致 |
+| projectM | -1..1、**y 向上** | 直接喂 `ProjectMEngine.SetMousePosition(nx, ny)` —— 它内部做 `nx*2-1` 与 `1-ny*2` |
+| ShaderToy | **左下原点、像素** | `MouseState.FromWindowPoint(point, windowSize, framebufferSize)`；`zw` 在松开后取负（判断拖拽就靠 `z > 0`） |
+
+> 归一化坐标里 **y 向下**是 Avalonia 的口径，两个引擎都需要不同形式，所以**只在子类里转**，基类不做假设。
+
+#### A2-2 Avalonia 键盘的两个坑
+
+1. **收不到按键**：控件必须 `Focusable = true` 且真的拿到焦点 —— 在 `OnPointerPressed` 里 `Focus()`。
+2. **按键被界面偷走**：`TabControl` / `ScrollViewer` 会消费方向键、空格、Tab。必须在 `OnKeyDown` 里
+   `e.Handled = true`（本仓库只对"映射得到 keyCode 的键"这么做，Tab 留给界面导航）。
+
+#### A2-3 keyCode 表来源
+
+`Input/BrowserKeyMap.cs` 是上游 `KeyboardKeyMap`（GLFW `Key` → 浏览器 keyCode）的 Avalonia 版：
+**数值必须与上游逐条一致**，否则同一作品在两条线里表现不同。以后加键位时两个表要一起改。
+
+`KeyboardChannel` 的用法（帧序很重要）：
+- 帧首 `BeginFrame()`（把 CPU 侧按键状态传到 256×3 纹理），
+- 渲染时作品读纹理，
+- 帧尾 `EndFrame()`（清掉"刚按下/刚松开"两行）。
+边沿行只存在一帧，所以**漏调 `EndFrame` 会让作品觉得"一直在按"**。
+
+#### A2-4 P-5 review 结论（`Framebuffer.Unbind()` 全部调用点）
+
+| 位置 | 后面有没有 Draw | 结论 |
+|---|---|---|
+| `ImagePassRenderer.cs:140`（Draw）→ `:143`（Unbind） | 绘制在解绑**之前** | 安全，且正是"画到宿主 FBO" |
+| `ShaderToyPipeline.cs:332` / `SoundPassRenderer.cs:179` | 无 | 安全（收尾解绑） |
+| `PassTarget.cs:97,112` / `Gles3/CopyTexture.cs:163,198,207` | 无 | 安全（切目标/清屏/读像素后的收尾） |
+
+以后新增代码要"画到默认帧缓冲"，**必须走 `Framebuffer.Unbind()`**，不能自己 `BindFramebuffer(..., 0)`。
+
+#### A2-5 自检注入（`--shot` 里的用法）
+
+```csharp
+main.InjectInput(0.25, 0.25, keyCode: 65);   // 左上象限 + 按住 A
+main.RequestGlCapture(path);
+```
+
+出图核对三点：准星在**左上**（坐标没翻）、准星是**绿色**（键盘到位）、改尺寸后位置比例不变。
+`InjectPointer` / `InjectKey` 直接调子类的 `On*` 回调，**绕过 Avalonia 事件层** ——
+所以它证明的是"引擎侧契约正确"，真实鼠标键盘仍要人工试一次（P3 起每阶段都试）。
+
+### 1.8 P3 实测记录：projectM 页接入（2026-10-27）
+
+运行时环境：ANGLE 2.1.1 → D3D11，AMD Radeon 780M；`RenderScaling` = 1.25，窗口位图 2240×1400，GL 目标 1715×996。
+
+| 项 | 实测 |
+|---|---|
+| 预设扫描 | **9795** 个（`D:\media\MilkDropSharp\presets` 下按子目录递归；`presets/` 存在即用它，否则用数据根本身） |
+| 音频 | `WASAPI 环回 48000 Hz / 2 ch / 32 bit`，采集正常；无设备时自动退到 `SyntheticAudio` |
+| 渲染节奏 | 启动首秒 ≈1 帧（见 §7.6），之后稳定 **92～112 FPS**（48×36 网格，1715×996） |
+| 单帧 CPU | 该预设 15.11 ms/帧（`EngineFrameMs`，指数平滑 0.9/0.1） |
+| 进度 | 40 帧后 `7%`，与预设时长一致；`PresetProgress` 取自引擎，不自己算 |
+| resize | 1050×646 重抓一次，内容接着动、无变形 |
+
+底部信息条字段（`ProjectMPage.axaml` 底部 + `UpdateOverlay`，400ms 定时器刷新，不靠事件）：
+
+```
+预设 : beta106i - Potion of Ink - mrt cope n777.milk
+进度 : 7%  (8177/9795)  自动切换
+尺寸 : 1715×996  网格 48×36  0.6 FPS
+引擎 : 15.11 ms/帧（CPU 侧，FPS 会被合成器节奏压住）
+音频 : WASAPI 环回
+```
+
+> 界面上的 FPS 偏低（0.6）不是渲染慢：首秒那 1 帧把 1 秒统计窗口占满了，第二秒起才是真值。
+> 要看真帧率用 `MILKAVALON_VERBOSE=1`（每秒打一行 `[GL] xx FPS ... frames=N`）。
+
+已知的两个"看起来像 bug"的现象，结论都在 §7：截图全黑（§7.6，截图时机）和画面只剩灰块（§7.7，缺贴图）。
+
+**P3 还没验的三件事**（验收标准里剩下的）：与 `MilkDropSharp --smoke 600` 的 FPS 偏差 ≤10%、
+连续切 20 个预设不崩、放音乐时频谱有反应。
 
 ---
 
@@ -379,6 +461,36 @@ MilkdropPreset.cs 初始化里也有一次（unbind 后没有 Draw，安全）
 - 上游 `PassTarget` / `Framebuffer` / `Texture` 的 Dispose 都要在有 current 上下文的线程调用，
   否则删的是"另一个上下文的同名对象"或直接无效 → 泄漏。
 
+### 7.5 暂停时空转（已知，P2 遗留）
+
+- 现象：`IsPaused` 时仍然每帧 `RequestNextFrameRendering()`，只冻结时间（画面不动但 GPU 还在跑）。
+- 原因：暂停后如果不再要帧，恢复时靠 UI 线程 `RequestNextFrameRendering()` 能否可靠唤醒帧泵还没验证。
+- 待办（P5）：改成事件驱动（resize/内容变化才画），省电；同时验证"UI 线程唤醒帧泵"这条路。
+
+### 7.6 ✅ `--shot` 截到"启动期第 1 帧" → 出图全黑、进度 0%、FPS 0.0
+
+- 现象：P3 首轮自检的 `*-gl.png` 几乎全黑，信息条显示 `进度 0% (1/9795)`、`引擎 0.00 ms/帧`、`0.0 FPS`，
+  很像"引擎没起来 / FBO 读错"。
+- 依据（`MILKAVALON_VERBOSE=1` 的每秒统计）：
+  - `--shot` 模式：`[GL] 0.6 FPS frames=1` → 改窗口尺寸之后才跳到 `[GL] 31.7 FPS frames=33`；
+  - 不带 `--shot` 正常跑：`frames=1` → `92.3` → `110.9` → `112.0 FPS`。
+  即**启动的一两秒里只画了 1 帧**（布局、引擎初始化、着色器编译、9795 个预设扫描都在抢），
+  而原先 `CaptureAfterStartup` 是"`Opened` → `Task.Delay(1500)` → 截图"，正好撞在这个窗口里。
+- 结论：渲染链路没问题，是**截图时机**问题；预设本身也可能是"渐黑转场"类，第一帧天然接近黑。
+- 对策（已落地）：`App.axaml.cs` 加 `WaitForEngineAsync(main, minFrames: 40, timeoutMs: 8000)`，
+  截 UI 图和读 GL 帧之前都先等 `GlControlBase.FrameIndex` 涨上去；resize 后也先等 `+10` 帧。
+  超时只打一行日志，不阻塞退出。
+
+### 7.7 ⚠️ 预设引用的贴图缺失 → 引擎降级 1×1 占位（画面只剩灰块）
+
+- 现象：`beta106i - Potion of Ink ...` 出图中央一大块灰白，四周效果正常。
+- 日志：`[projectM] 预设降级：... 预设引用的纹理 worms 不存在，已用 1×1 占位纹理代替，画面可能只有纯色
+  ——这些贴图来自 MilkDrop3 自带的 textures 目录，需要放进纹理搜索路径。`
+- 原因：预设 `sampler_*.milk` 里写的 `worms` 等贴图来自 MilkDrop3 发行包的 `textures/`，
+  本机 `D:\media\MilkDropSharp\textures` 里没有同名文件。
+- 对策：把贴图放进纹理搜索路径（`<数据根>/textures`、`<数据根>/res`、数据根本身，按序找）。
+  引擎已通过 `PresetLoadDegraded` 事件把话说到界面上（底部"⚠"行），不会静默变丑。
+
 ---
 
 ## 8. 常用命令
@@ -390,8 +502,18 @@ dotnet build F:\github\MilkAvalon\MilkAvalon.slnx -c Debug
 # 测试（搬入的 Eval 基线，纯 CPU）
 dotnet test F:\github\MilkAvalon\tests\MilkDrop.Eval.Tests\MilkDrop.Eval.Tests.csproj
 
-# 界面自检截图（启动 → 1.5s → 截图 → 退出）
-F:\github\MilkAvalon\src\MilkAvalon\bin\Debug\net10.0\MilkAvalon.exe --shot F:\github\MilkAvalon\artifacts\ui.png
+# 界面自检截图（启动 → 等引擎出 40 帧 → 截 UI 图 + 读 GL 帧 + resize 再读一次 → 退出）
+#   产出 <stem>.png / <stem>-gl.png / <stem>-gl-resized.png 三个文件
+#   注意用 net10.0-windows 这个 TFM 的产物（见 csproj），路径别写成 net10.0
+F:\github\MilkAvalon\src\MilkAvalon\bin\Debug\net10.0-windows\MilkAvalon.exe `
+  --projectm-data D:\media\MilkDropSharp --shot F:\github\MilkAvalon\artifacts\ui.png
+
+# 指定首播预设（自检某个特定效果时用；路径要写全）
+F:\github\MilkAvalon\src\MilkAvalon\bin\Debug\net10.0-windows\MilkAvalon.exe `
+  --projectm-data D:\media\MilkDropSharp --preset "D:\...\xxx.milk" --shot F:\github\MilkAvalon\artifacts\p.png
+
+# 盯渲染节奏（每秒一行 [GL] xx FPS ... frames=N；首秒 frames=1 是正常的启动预热）
+$env:MILKAVALON_VERBOSE=1
 
 # 运行（JIT）—— 开发期直接指向现成测试数据，不复制 9795 个预设
 dotnet run --project F:\github\MilkAvalon\src\MilkAvalon -- `

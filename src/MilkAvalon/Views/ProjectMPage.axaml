@@ -1,0 +1,64 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:MilkAvalon.Controls"
+             xmlns:services="using:MilkAvalon.Services"
+             x:Class="MilkAvalon.Views.ProjectMPage">
+
+  <Grid ColumnDefinitions="300,*">
+
+    <!-- 左栏：预设库（ListBox 默认虚拟化，9795 个也不卡） -->
+    <Border Grid.Column="0" Background="#161616" BorderBrush="#2A2A2A" BorderThickness="0,0,1,0">
+      <DockPanel>
+        <TextBox Name="SearchBox"
+                 DockPanel.Dock="Top"
+                 Margin="8,8,8,4"
+                 PlaceholderText="过滤预设（文件名）"
+                 TextChanged="OnSearchChanged" />
+
+        <TextBlock Name="LibraryText"
+                   DockPanel.Dock="Bottom"
+                   Margin="8,4,8,8"
+                   FontSize="11"
+                   Opacity="0.6"
+                   TextWrapping="Wrap"
+                   Text="正在扫描预设…" />
+
+        <ListBox Name="PresetList"
+                 Margin="4,0"
+                 SelectionChanged="OnPresetSelected">
+          <ListBox.ItemTemplate>
+            <!-- 只显示文件名：9795 个预设全是同一条长路径，显示全路径没法看 -->
+            <DataTemplate x:DataType="services:PresetItem">
+              <TextBlock Text="{Binding Name}"
+                         ToolTip.Tip="{Binding Path}"
+                         TextTrimming="CharacterEllipsis" />
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </DockPanel>
+    </Border>
+
+    <!-- 右栏：GL 画面 + 底部信息条 -->
+    <DockPanel Grid.Column="1">
+      <!--
+        信息条放底部而不是浮在画面上：实测"浮在 GL 控件上方的 Border"会被布局压到
+        几十像素宽、文字被裁掉（misc.md §A3-2）；DockPanel 的停靠条则量得很正常。
+      -->
+      <Border DockPanel.Dock="Bottom" Background="#161616" BorderBrush="#2A2A2A"
+              BorderThickness="0,1,0,0" Padding="10,6">
+        <StackPanel Classes="overlay" Spacing="1">
+          <TextBlock Name="InfoPreset" Text="正在初始化引擎…" />
+          <TextBlock Name="InfoProgress" />
+          <TextBlock Name="InfoSize" />
+          <TextBlock Name="InfoEngine" />
+          <TextBlock Name="InfoAudio" />
+          <TextBlock Name="InfoWarning" Foreground="#FFAB40" />
+        </StackPanel>
+      </Border>
+
+      <controls:ProjectMControl Name="ProjectMView" />
+    </DockPanel>
+
+  </Grid>
+
+</UserControl>

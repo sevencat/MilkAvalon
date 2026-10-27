@@ -141,11 +141,18 @@ MilkAvalon/
 | P-2 | `MilkDrop.Rendering.Gles3/GlContext.cs` | 不动（`Initialize/Reset` 已够用） | Avalonia 上下文在 `OnOpenGlInit/Deinit` 注入/清空 |
 | P-3 | `MilkDrop.Rendering.Gles3/ImguiGles3Renderer.cs`、`ImguiInput.cs` | **不进本仓库** | 界面换 Avalonia，产物不带 `cimgui.dll` |
 | P-4 | `MilkDrop.ProjectM/MilkdropPreset/MilkdropPreset.cs:365` 附近 | **不需要改**（末端走 `Framebuffer.Unbind()`，自动跟随 P-1） | — |
-| P-5 | `MilkDrop.ShaderToy/Renderer/ShaderToyPipeline.cs:332`、`ImagePassRenderer.cs:141,177`、`SoundPassRenderer.cs:179`、`PassTarget.cs:97,112`、`CopyTexture.cs:163,198,207` | **逐点 review**：这些是"切目标"的中转 Unbind，跟随 P-1 后会把宿主 FBO 当跳板；只要"Unbind 之后没有直接 Draw"就安全 | 需实际跑图验证，异常就改成显式 `BindFramebuffer(target)` |
+| P-5 | `MilkDrop.ShaderToy/Renderer/ShaderToyPipeline.cs:332`、`ImagePassRenderer.cs:141-143,177`、`Audio/SoundPassRenderer.cs:179`、`PassTarget.cs:97,112`、`Gles3/CopyTexture.cs:163,198,207` | **已逐点 review（P2），结论：一处都不用改** | 详见下方说明 |
 | P-6 | `MilkDrop.ShaderToy/MilkDrop.ShaderToy.csproj` | 显式加 `Silk.NET.Input` 2.23.0 | 上游靠 Gles3 传递引用拿到这个包（`KeyboardKeyMap.cs` 用 `Key`）；P-3 删掉 ImGui 后端后这条链断了（P0 实测 CS0234） |
 | P-7 | `MilkDrop.Rendering.Gles3/Screenshot.cs` | 加 `Save(GL, uint framebuffer, int, int, string)` 重载，原 `Save` 转调 `Framebuffer.DefaultHandle` | 托管渲染时"默认帧缓冲"不是 0，截图必须读宿主给的 FBO（P1 实测读写都能出图） |
 
-> 补丁总量：**P-1 约 10 行**，其余都是 csproj 级别的依赖显式化，**引擎语义 0 改动**。
+> 补丁总量：**P-1 约 10 行 + P-7 约 8 行**，其余都是 csproj 级别的依赖显式化，**引擎语义 0 改动**。
+>
+> **P-5 review 结论（P2 逐点看过）**：
+> - `ImagePassRenderer.cs:140` 先 `_quad.Draw()`、到 `:143` 才 `Framebuffer.Unbind()` —— **绘制发生在解绑之前**，
+>   而解绑前绑着的是调用方（`ShaderToyPipeline` 末尾 `Framebuffer.Unbind()`）留下的宿主 FBO，正是我们要的。
+> - `ShaderToyPipeline.cs:332`、`SoundPassRenderer.cs:179`、`PassTarget.cs:97,112`、`Gles3/CopyTexture.cs:163,198,207`：
+>   全是"设置/清屏/读像素结束后的收尾解绑"，**后面没有 Draw**，改成绑宿主 FBO 无副作用。
+> - 唯一需要长期盯的是：**任何新代码如果想"画到默认帧缓冲"，必须走 `Framebuffer.Unbind()`**，不能自己写 `BindFramebuffer(..., 0)`。
 
 ### 5.3 从上游 `.App` 挑出来复用的**逻辑**（界面重写、代码照抄）
 
@@ -183,6 +190,11 @@ MilkAvalon/
 
 - **左栏**（可折叠）：projectM 页显示预设库（9795 个 `.milk`，必须虚拟化 + 后台扫描）；
   ShaderToy 页显示作品库（见 §6.2 的双数据源）。
+- **页内底部信息条**（P3 已落地）：每条都是"随时间变"的量，用 400ms 定时器刷，不靠事件驱动
+  （否则会出现"框里停在第一行 / 0.0 FPS"的假象）：
+  `预设 : <文件名>` / `进度 : xx%  (i/n)  自动切换|已锁定` / `尺寸 : W×H  网格 48×36  xx FPS` /
+  `引擎 : xx.xx ms/帧（CPU 侧）` / `音频 : WASAPI 环回|合成|不可用(原因)` / `⚠ 降级或失败提示`。
+  注意"界面 FPS"会首秒被预热帧拖低，看真值用 `MILKAVALON_VERBOSE=1`。
 - **编辑面板**：**本期不做**，工具栏按钮先占位（§6.3）。后续实现在右侧抽屉 / 底部 `GridSplitter`，
   用 `AvaloniaEdit` + GLSL/INI XSHD 高亮，带「应用并重编译」与错误列表。
 - **抓取**：**本期不做**，工具栏按钮先占位（§6.3）。后续实现截图/下载。
@@ -296,23 +308,36 @@ MilkAvalon/
   方案 B（`NativeControlHost` + 自有 EGL 上下文）不再需要，仅作为记录保留在 `misc.md` D2。
 - 遗留：70 FPS 是"合成器上限"还是"本机刷新率"未确认（`RequestNextFrameRendering` 的节奏 P2 再看）。
 
-### P2 输出重定向与输入桥接（1.5 天）
+### P2 输出重定向与输入桥接（1.5 天）· ✅ 已完成（2026-10-27）
 
-- [ ] 控件把 `fbo` 写进 `Framebuffer.DefaultHandle`；尺寸（含 DPI 缩放）→ `SetWindowSize` / `Pipeline.Resize`。
-- [ ] review §5.2 的 P-5 各点，确认没有"Unbind 后直接画"的路径。
-- [ ] 鼠标 → `iMouse` / `SetMousePosition`（用上游 `MouseState`，注意松开取负的语义）；
-      键盘 → `KeyboardChannel`（Avalonia `Key` → 浏览器 `keyCode`，复用 `KeyboardKeyMap` 思路）。
-- [ ] 暂停/继续、重置时间、`--fixed-dt` 等价开关。
-- **验收**：一个棋盘 shader 全屏无拉伸、无上下翻转；窗口缩放实时跟随；鼠标轨迹与网页一致；键盘通道自测 shader（按 A 变色）通过。
+- [x] 控件每帧把 `fb` 写进 `Framebuffer.DefaultHandle`（P-1），并绑 viewport/FBO；尺寸（含 DPI）变化 → `OnSizeChanged`。
+- [x] review §5.2 的 P-5 各点 → **结论：一处都不用改**（推理见 §5.2 末尾）。
+- [x] 指针桥接：Avalonia 事件 → 归一化 0..1（左上原点）→ `OnPointerMoved/Pressed/Released/Exited`（引擎侧各转各的坐标系）。
+- [x] 键盘桥接：新增 `Input/BrowserKeyMap.cs`（Avalonia `Key` → 浏览器 `keyCode`，数值与上游 `KeyboardKeyMap` 一致），
+      并在 `OnKeyDown` 里 `e.Handled = true`（否则方向键/空格会被 `TabControl`/`ScrollViewer` 吃掉）。
+- [x] 暂停/继续（`TogglePause`，时间冻结）、重置时间（`ResetTime`），工具栏两个按钮已接上。
+- [x] 自检注入：`InjectPointer` / `InjectKey`，让 `--shot` 能无人值守验证"坐标没翻 + 键盘到位"。
+- **验收结果**（`artifacts/p2-gl.png`、`p2-gl-resized.png`）：
+  - 注入左上象限的指针 (0.25, 0.25) → 准星**出现在左上象限**（x≈0.248、y≈0.250），没有上下/左右翻转；
+  - 注入 `keyCode 65`（A）→ 准星由红变绿，键盘确实到了渲染层；
+  - 改窗口到 900×600 后重新读帧 → 准星仍在同一相对位置、网格仍是正方形、目标尺寸 1575×827 正确跟随；
+  - `dotnet build` 0 警告 0 错误。
+- 说明：真正的"引擎输出到宿主 FBO"要等 P3/P4 接上 projectM/ShaderToy 才能端到端证明；
+  本阶段证明的是**通道打通**（同一个 FBO、同一套坐标系、同一份输入契约）。
 
-### P3 projectM 页接入（2 天）
+### P3 projectM 页接入（2 天）· 🟨 主体已完成（2026-10-27）
 
-- [ ] 数据根 = `<exe>/projectm`（`--projectm-data` 可覆盖）；按 `presets/**/*.milk` 扫描（`presets/` 不存在则退回数据根本身）。
-- [ ] `ProjectMEngine` 生命周期 + `PresetLibrary` 扫描 + 上一个/下一个/随机/软切。
-- [ ] 音频：`AudioCapture`（WASAPI 环回）→ `engine.Pcm`；无设备时 `SyntheticAudio` 兜底。
-- [ ] 左栏预设列表（虚拟化）+ 过滤框；状态栏显示 FPS/预设名/降级提示（`PresetLoadDegraded`）。
-- **验收**：指到 `D:\media\MilkDropSharp\presets`（9795 个）能列出来且不卡；
-      同尺寸下与 `MilkDropSharp --smoke 600` 的 FPS 偏差 ≤ 10%；连续切 20 个预设不崩；放音乐时频谱有反应。
+- [x] 数据根 = `<exe>/projectm`（`--projectm-data` 可覆盖）；按 `presets/**/*.milk` 扫描（`presets/` 不存在则退回数据根本身）。
+      实测扫到 **9795** 个（`presets/` 下按子目录递归），后台线程扫描，UI 不卡。
+- [x] `ProjectMEngine` 生命周期 + `PresetLibrary` 扫描 + 上一个/下一个/随机/重载（软切走 `LoadPresetFile(..., smooth)`）；
+      所有引擎调用走 `ConcurrentQueue` 命令队列，在 render 线程的帧首执行。
+- [x] 音频：`AudioCapture`（WASAPI 环回）→ `engine.Pcm`；无设备时 `SyntheticAudio` 兜底（`--synthetic-audio` 可强制）。
+      实测 `WASAPI 环回 48000 Hz / 2 ch / 32 bit`，采集正常。
+- [x] 左栏预设列表（虚拟化）+ 过滤框；底部信息条：预设名 / 进度（含自动切换·锁定）/ 尺寸+网格+FPS / 引擎 ms / 音频；
+      降级与失败提示单独一行（`PresetLoadDegraded` / `PresetSwitchFailed`）。
+- [x] 新增 `--preset <file>`（调试/自检直接指定首播预设），由 `AppOptions.InitialPreset` → `FindInitialIndex` 选中。
+- [ ] **验收剩余项**：列出 9795 个且不卡 ✅；
+      与 `MilkDropSharp --smoke 600` 的 FPS 偏差 ≤ 10% ⬜；连续切 20 个预设不崩 ⬜；放音乐时频谱有反应 ⬜。
 
 ### P4 ShaderToy 页接入（2 天）
 
@@ -384,8 +409,8 @@ MilkAvalon/
 |---|---|---|---|---|
 | P0 | 骨架 + 搬入 5 个库 + 补丁 P-1 | 0.5d | ✅ 2026-10-27 | 0 警告 0 错误；187 测试绿；`--shot` 出图；ANGLE 已加载 |
 | P1 | GL 宿主 spike（方案 A/B 决策） | 1d | ✅ 2026-10-27 | ES3 + 浮点 FBO 全通，锁方案 A；70 FPS |
-| P2 | 输出重定向 + 输入桥接 | 1.5d | ⬜ | |
-| P3 | projectM 页 | 2d | ⬜ | |
+| P2 | 输出重定向 + 输入桥接 | 1.5d | ✅ 2026-10-27 | P-5 无需改；指针/键盘自检通过 |
+| P3 | projectM 页 | 2d | 🟨 2026-10-27 | 列表/切换/音频/底部信息条已就位，出图正常；余 FPS 对比、20 次切换压测、频谱反应 |
 | P4 | ShaderToy 页 | 2d | ⬜ | |
 | P5 | Tab 生命周期/回收 | 1d | ⬜ | R2 的核心 |
 | P6 | 编辑按钮（占位）+ 接口 | 0.3d | ⬜ | 功能推迟到 P10 |
@@ -406,6 +431,8 @@ MilkAvalon/
 | 2026-10-27 | `shadertoy.db` **由用户稍后解决**：本期 ShaderToy 验收基线改为文件布局（`shaders/<id>/project.json`），db 分支只保证不崩、不做端到端验收 |
 | 2026-10-27 | **P0 完成**：搬入 5 库 + 187 测试通过 + Avalonia 暗色骨架 + P-1 补丁 + `--shot` 自检；确认 ANGLE 真在跑；新增补丁 P-6（ShaderToy 显式引 `Silk.NET.Input`） |
 | 2026-10-27 | **P1 完成**：Avalonia 上下文实测为 **ES 3.0（ANGLE 2.1.1→D3D11）**，128 扩展齐全，RGBA16F/32F FBO 完整可回读，ES3 着色器编译通过，≈70 FPS，resize 不变形 → **锁定方案 A**；新增补丁 P-7（Screenshot 支持指定 FBO） |
+| 2026-10-27 | **P2 完成**：输出重定向（`DefaultHandle`）+ 尺寸/DPI 跟踪 + 指针/键盘桥接 + 暂停/重置；P-5 逐点 review 结论为"无需改动"；新增 `Input/BrowserKeyMap.cs` |
+| 2026-10-27 | **P3 主体落地**：projectM 页接上 9795 个预设 + WASAPI 环回音频（合成兜底）+ 底部信息条（预设/进度/尺寸+网格+FPS/引擎 ms/音频/降级告警）；新增 `--preset`；修 `ProjectMPage.axaml` 多余的嵌套 `<Grid>`；`--shot` 改为"等引擎出 40 帧再截图"（原来固定 1.5s 会截到启动期第 1 帧，看着像全黑 + 0% 进度） |
 
 ---
 
@@ -424,6 +451,8 @@ MilkAvalon/
 | R-9 | ShaderToy 站点 403（Cloudflare） | 「抓取作品」不可用 | 明确提示 + 以 `shadertoy.db` / 本地 JSON 为唯一可靠来源（上游已确认） |
 | ~~R-10~~ | ~~GPLv3（上游）与本仓库 MIT 冲突~~ | — | **已解决**：本仓库许可证已改为 GPLv3（2026-10-27） |
 | R-11 | ShaderToy **文件布局扫描是新写的代码**（上游已删除该扫描器，只留 `LocalJsonImporter`），而当前测试数据**正是文件布局** | 新增 bug 面，且是 P4 的必经路径 | 控制在 ~120 行、纯只读、带单测；JSON 解析一律复用 `ShaderToyJsonImporter` / `ShaderMeta`，不自己碰原文 |
+| R-12 | 预设引用的 MilkDrop3 贴图（如 `textures/worms`）在本机数据里缺失 | 引擎降级成 1×1 占位纹理，画面只剩纯色/灰块，容易被误判成"渲染坏了" | 引擎已发 `PresetLoadDegraded` → 界面底部单独一行提示；把贴图放进纹理搜索路径（`<root>/textures`、`<root>/res`、根目录本身）即恢复 |
+| R-13 | `--shot` 固定延时截图会截到"启动期第 1 帧" | 自检出图全黑、进度 0%、FPS 0.0，误判为渲染失败 | 已改为等 `FrameIndex ≥ 40` 再截（超时 8s）；见 `misc.md` §7.6 |
 
 ---
 

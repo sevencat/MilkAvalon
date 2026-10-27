@@ -315,13 +315,17 @@ public sealed class ProjectMEngine : IDisposable
         _activePreset.RenderFrame(audioData, renderContext);
 
         // 画回默认帧缓冲。
+        // 本仓库的补丁 P-8：独立运行时"默认"是 0；被 Avalonia 托管渲染时是它每帧给的 FBO
+        // （见 plan.md §5.2）。上游这里写死 0，导致画面画到窗口后台缓冲而不是控件的纹理上。
         var gl = GlContext.Gl;
-        gl.BindFramebuffer(GLEnum.Framebuffer, 0);
+        uint targetFramebuffer = MilkDrop.Rendering.Gles3.Framebuffer.DefaultHandle;
+        gl.BindFramebuffer(GLEnum.Framebuffer, targetFramebuffer);
         gl.Viewport(0, 0, (uint)renderContext.ViewportSizeX, (uint)renderContext.ViewportSizeY);
 
-        // WebGL2/ANGLE 上预设渲染会污染 FBO 0 的 draw buffer 状态，必须显式设回 GL_BACK。
-        GLEnum backBuffer = GLEnum.Back;
-        gl.DrawBuffers(1, ref backBuffer);
+        // WebGL2/ANGLE 上预设渲染会污染目标 FBO 的 draw buffer 状态，必须显式设回：
+        // 0 号帧缓冲是 GL_BACK；用户帧缓冲（Avalonia 给的）只能是 GL_COLOR_ATTACHMENT0。
+        GLEnum drawBuffer = targetFramebuffer == 0 ? GLEnum.Back : GLEnum.ColorAttachment0;
+        gl.DrawBuffers(1, ref drawBuffer);
 
         if (_transition is not null && _transitioningPreset is not null)
         {

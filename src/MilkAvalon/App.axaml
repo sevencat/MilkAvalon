@@ -6,6 +6,8 @@
   <Application.Styles>
     <!-- Material Design 暗色主题（plan.md R5）。PrimaryColor / SecondaryColor 取 Material 调色板名 -->
     <themes:MaterialTheme BaseTheme="Dark" PrimaryColor="DeepPurple" SecondaryColor="Teal" />
+    <!-- 应用自己的样式（目前只有工具栏按钮模板，见 misc.md §A3-1） -->
+    <StyleInclude Source="avares://MilkAvalon/Styles/AppStyles.axaml" />
   </Application.Styles>
 
 </Application>

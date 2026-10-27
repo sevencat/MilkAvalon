@@ -1,0 +1,56 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!--
+    工具栏按钮自绘模板。
+    原因：Material.Avalonia 3.19.0 的 Button 主题在 Avalonia 12.1.3 下只画出背景、ContentPresenter
+    不呈现内容（文字完全不显示，嵌套 TextBlock 也一样）。这里不依赖它的模板，自己给一个最小可用的，
+    颜色仍跟随 Material 的强调色资源。见 misc.md §A3-1。
+  -->
+  <Style Selector="Button.toolbar">
+    <Setter Property="Background" Value="#5E35B1" />
+    <Setter Property="Foreground" Value="#FFFFFF" />
+    <Setter Property="Padding" Value="12,6" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Name="PART_Border"
+                Background="{TemplateBinding Background}"
+                BorderBrush="{TemplateBinding BorderBrush}"
+                BorderThickness="{TemplateBinding BorderThickness}"
+                CornerRadius="{TemplateBinding CornerRadius}"
+                Padding="{TemplateBinding Padding}">
+          <ContentPresenter Content="{TemplateBinding Content}"
+                            ContentTemplate="{TemplateBinding ContentTemplate}"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center" />
+        </Border>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+
+  <Style Selector="Button.toolbar:pointerover /template/ Border#PART_Border">
+    <Setter Property="Background" Value="#7E57C2" />
+  </Style>
+
+  <Style Selector="Button.toolbar:pressed /template/ Border#PART_Border">
+    <Setter Property="Background" Value="#4527A0" />
+  </Style>
+
+  <Style Selector="Button.toolbar:disabled /template/ Border#PART_Border">
+    <Setter Property="Background" Value="#2A2A2A" />
+  </Style>
+
+  <Style Selector="Button.toolbar:disabled">
+    <Setter Property="Foreground" Value="#777777" />
+  </Style>
+
+  <!-- 播放区左上角的诊断浮层（StackPanel 本身没有字体/前景属性，只能给子 TextBlock 设） -->
+  <Style Selector="StackPanel.overlay TextBlock">
+    <Setter Property="FontFamily" Value="Consolas,Consolas,monospace" />
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="Foreground" Value="#DDDDDD" />
+  </Style>
+
+</Styles>
