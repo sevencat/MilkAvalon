@@ -2,10 +2,13 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
   <!--
-    工具栏按钮自绘模板。
-    原因：Material.Avalonia 3.19.0 的 Button 主题在 Avalonia 12.1.3 下只画出背景、ContentPresenter
-    不呈现内容（文字完全不显示，嵌套 TextBlock 也一样）。这里不依赖它的模板，自己给一个最小可用的，
-    颜色仍跟随 Material 的强调色资源。见 misc.md §A3-1。
+    自绘按钮模板，**挂在 `Button.toolbar` 类上**。
+    原因：Material.Avalonia 的 Button 主题在 Avalonia 12 下只画出背景、ContentPresenter
+    不呈现内容（文字完全不显示，嵌套 TextBlock 也一样）。这里不依赖它的模板，自己给一个最小可用的。
+
+    为什么不直接选择 `Button`：`RepeatButton`（滚动条）和 `ToggleButton` 都继承 Button，
+    全局换模板会把滚动条/下拉框画坏。所以**所有需要文字的按钮都要显式加 `Classes="toolbar"`**
+    —— 忘了加就会得到"空白紫块"（P7 踩过）。见 misc.md §A3-1 / §A7-1。
   -->
   <Style Selector="Button.toolbar">
     <Setter Property="Background" Value="#5E35B1" />
@@ -44,6 +47,37 @@
 
   <Style Selector="Button.toolbar:disabled">
     <Setter Property="Foreground" Value="#777777" />
+  </Style>
+
+  <!-- 自绘标题栏上的窗口按钮（— □ ✕）：小方块、透明底、悬停才亮 -->
+  <Style Selector="Button.caption">
+    <Setter Property="Width" Value="42" />
+    <Setter Property="Height" Value="28" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="CornerRadius" Value="3" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="#DDDDDD" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Name="PART_Border"
+                Background="{TemplateBinding Background}"
+                CornerRadius="{TemplateBinding CornerRadius}">
+          <ContentPresenter Content="{TemplateBinding Content}"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center" />
+        </Border>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+
+  <Style Selector="Button.caption:pointerover /template/ Border#PART_Border">
+    <Setter Property="Background" Value="#3A3A3A" />
+  </Style>
+
+  <!-- 关闭按钮：悬停红底（Windows 习惯） -->
+  <Style Selector="Button.caption#CloseButton:pointerover /template/ Border#PART_Border">
+    <Setter Property="Background" Value="#C42B1C" />
   </Style>
 
   <!-- 播放区左上角的诊断浮层（StackPanel 本身没有字体/前景属性，只能给子 TextBlock 设） -->

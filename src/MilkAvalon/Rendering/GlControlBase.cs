@@ -37,6 +37,21 @@ public abstract class GlControlBase : OpenGlControlBase
     /// <summary>单帧 delta 的上限：断点/最小化回来时不要给引擎一个巨大的时间跳变。</summary>
     private const double MaxDeltaSeconds = 0.25;
 
+    /// <summary>当前活着的 GL 控件数（P5 的泄漏自检用：切页后应该回到 0 或 1）。</summary>
+    private static int _liveCount;
+
+    /// <summary>最后初始化的控件"代号"：只有它才有资格 <see cref="GlContext.Reset"/>。</summary>
+    /// <remarks>
+    /// 切页时旧控件的 <c>OnOpenGlDeinit</c> 有可能排在新控件的 <c>OnOpenGlInit</c> 之后
+    /// （Avalonia 的渲染线程按合成批次处理），那时若无条件 Reset，
+    /// 新控件的引擎就会拿到 null 的 <see cref="GlContext.Gl"/> 直接崩。
+    /// </remarks>
+    private static int _currentGeneration;
+
+    private static int _generationSeed;
+
+    private readonly int _generation = Interlocked.Increment(ref _generationSeed);
+
     private ApolloGL? _gl;
     private readonly Stopwatch _clock = new();
     private long _lastTicks;
@@ -44,6 +59,9 @@ public abstract class GlControlBase : OpenGlControlBase
     private int _fpsFrames;
     private double _elapsedSeconds;
     private string? _pendingCapturePath;
+
+    /// <summary>当前活着的 GL 控件数（诊断用）。</summary>
+    public static int LiveCount => Volatile.Read(ref _liveCount);
 
     protected GlControlBase()
     {
@@ -170,6 +188,11 @@ public abstract class GlControlBase : OpenGlControlBase
     {
         _gl = new ApolloGL(new LamdaNativeContext(glInterface.GetProcAddress));
         GlContext.Initialize(_gl);
+
+        // 记住"我是最新的那个"：后面旧的控件被拆时不能把全局 GL 入口清掉。
+        Interlocked.Exchange(ref _currentGeneration, _generation);
+        Interlocked.Increment(ref _liveCount);
+
         GlFramebuffer.DefaultHandle = 0;
 
         Info = GlInfo.Query(_gl);
@@ -258,14 +281,26 @@ public abstract class GlControlBase : OpenGlControlBase
     {
         try
         {
+            // 引擎的 Dispose 必须在这里（上下文仍然 current 的渲染线程上）。
             OnGlReleased();
         }
         finally
         {
-            GlContext.Reset();
+            Interlocked.Decrement(ref _liveCount);
+
+            // 只有"最新的那个控件"才能清全局入口：旧控件的 Deinit 可能晚于新控件的 Init。
+            if (Interlocked.CompareExchange(ref _currentGeneration, 0, _generation) == _generation)
+            {
+                GlContext.Reset();
+            }
+
             _gl?.Dispose();
             _gl = null;
             _clock.Stop();
+
+            Console.WriteLine(
+                $"[GL] 控件释放：存活 {LiveCount} 个，{GlObjectStats.Describe()}"
+                + (GlObjectStats.LiveTextures > 0 ? $"，残留纹理 {GlObjectStats.DescribeTexturesByName()}" : string.Empty));
         }
     }
 

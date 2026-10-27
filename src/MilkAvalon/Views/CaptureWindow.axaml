@@ -1,0 +1,40 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:wv="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls.WebView"
+        x:Class="MilkAvalon.Views.CaptureWindow"
+        Title="抓取 Shadertoy 作品"
+        Width="1120" Height="780"
+        MinWidth="820" MinHeight="560"
+        Background="#121212"
+        WindowStartupLocation="CenterOwner">
+
+  <DockPanel>
+    <!-- 地址栏：粘贴作品链接或短 ID，回车即打开 -->
+    <Border DockPanel.Dock="Top" Background="#1E1E1E" Padding="12,8">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="8">
+        <TextBlock Text="ID / 链接" VerticalAlignment="Center" FontSize="12" Opacity="0.7" />
+        <TextBox Grid.Column="1" Name="IdBox"
+                 Watermark="flGyWc 或 https://www.shadertoy.com/view/flGyWc"
+                 KeyDown="OnIdKeyDown" />
+        <Button Grid.Column="2" Classes="toolbar" Content="打开" Click="OnOpenClick" MinWidth="72" />
+
+        <!-- 只在浏览器当前页是 /view/<id> 时可用：ID 直接从地址里取，不用手抄 -->
+        <Button Grid.Column="3" Classes="toolbar" Name="GrabCurrentButton" Content="抓取当前页面"
+                Click="OnGrabCurrentClick" IsEnabled="False" MinWidth="118"
+                ToolTip.Tip="当前页面是 shadertoy.com/view/&lt;id&gt; 时可用，ID 自动取自地址栏" />
+
+        <Button Grid.Column="4" Classes="toolbar" Name="GrabButton" Content="抓取并入库"
+                Click="OnGrabClick" MinWidth="110" />
+      </Grid>
+    </Border>
+
+    <!-- 状态栏：站点加载 / Cloudflare 等待 / 下载进度都写在这里 -->
+    <Border DockPanel.Dock="Bottom" Background="#1E1E1E" Padding="12,6">
+      <TextBlock Name="StatusText" Text="正在加载 shadertoy.com…" FontSize="12" Opacity="0.8"
+                 TextWrapping="Wrap" />
+    </Border>
+
+    <!-- 内嵌浏览器（Windows 下是 WebView2）。登录态/Cloudflare 指纹靠持久化的用户数据目录 -->
+    <wv:NativeWebView Name="Web" />
+  </DockPanel>
+</Window>

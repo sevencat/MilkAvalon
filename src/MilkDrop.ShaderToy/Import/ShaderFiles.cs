@@ -17,8 +17,8 @@ namespace MilkDrop.ShaderToy.Import;
 /// </code>
 /// <para>
 /// 播放侧只认 <c>shadertoy.db</c> + <c>media/</c>（见 <see cref="ShaderDatabase"/>、
-/// <see cref="ShaderLibrary"/>）；下面的常量留给文件布局的写侧（<see cref="ShaderToyDownloader"/>、
-/// <see cref="LocalJsonImporter"/>）与它们的测试，改名时保持一致。
+/// <see cref="ShaderLibrary"/>）；下面的常量留给文件布局的写侧（<see cref="LocalJsonImporter"/>），改名时保持一致。
+/// 联网抓取（下载整件作品 / 补齐缺失资源 / 解析站点页面）的代码已删除，本项目只处理本地数据。
 /// </para>
 /// </remarks>
 public static class ShaderFiles

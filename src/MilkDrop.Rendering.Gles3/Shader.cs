@@ -33,6 +33,7 @@ public sealed class Shader : IDisposable
     public Shader()
     {
         _shaderProgram = GlContext.Gl.CreateProgram();
+        GlObjectStats.ShaderCreated();
     }
 
     /// <summary>program 的 GL 名字。</summary>
@@ -282,6 +283,7 @@ public sealed class Shader : IDisposable
 
         GlContext.Gl.DeleteProgram(_shaderProgram);
         _shaderProgram = 0;
+        GlObjectStats.ShaderDisposed();
     }
 
     private uint CompileShader(string source, GLEnum type)

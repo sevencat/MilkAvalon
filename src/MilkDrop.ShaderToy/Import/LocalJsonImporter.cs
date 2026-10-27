@@ -50,7 +50,7 @@ public sealed record ImportResult(
 public sealed class LocalJsonImporter
 {
     /// <summary>资源子目录（相对作品目录）。</summary>
-    public const string TextureFolder = ShaderToyDownloader.TextureFolder;
+    public const string TextureFolder = ShaderFiles.TextureFolder;
 
     private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
 

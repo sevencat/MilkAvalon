@@ -1,53 +1,134 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="using:MilkAvalon.Controls"
         xmlns:views="using:MilkAvalon.Views"
+        xmlns:chrome="using:Avalonia.Controls.Chrome"
         x:Class="MilkAvalon.Views.MainWindow"
         Title="MilkAvalon"
         Width="1280" Height="800"
         MinWidth="900" MinHeight="520"
         Background="#121212"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="46"
+        WindowDecorations="BorderOnly">
 
   <DockPanel>
-    <!-- 顶部工具栏：编辑/抓取是 P6/P7 的占位按钮（plan.md §6.3） -->
-    <Border DockPanel.Dock="Top" Background="#1E1E1E" Padding="12,8">
-      <StackPanel Orientation="Horizontal" Spacing="8">
-        <TextBlock Text="MilkAvalon" FontSize="16" FontWeight="SemiBold"
-                   VerticalAlignment="Center" Margin="0,0,8,0" />
-        <Button Classes="toolbar" Name="PreviousButton" Content="上一个" Click="OnPreviousClick" />
-        <Button Classes="toolbar" Name="PauseButton" Content="暂停" Click="OnPauseClick" />
-        <Button Classes="toolbar" Name="NextButton" Content="下一个" Click="OnNextClick" />
-        <Button Classes="toolbar" Name="RandomButton" Content="随机" Click="OnRandomClick" />
-        <Button Classes="toolbar" Name="ReloadButton" Content="重载" Click="OnReloadClick" />
-        <Separator Width="1" Margin="4,2" Background="#333333" />
-        <Button Classes="toolbar" Name="EditButton" Content="编辑" IsEnabled="False" ToolTip.Tip="P10 实现" />
-        <Button Classes="toolbar" Name="CaptureButton" Content="抓取" IsEnabled="False" ToolTip.Tip="P11 实现" />
+    <!--
+      顶部工具栏同时充当**标题栏**。Avalonia 12 没有 WPF 的 WindowChrome，等价物是：
+        ExtendClientAreaToDecorationsHint="True"  客户区伸进标题栏
+        WindowDecorations="BorderOnly"            系统只画边框（保留拉伸边），标题栏自己画
+        WindowDecorationProperties.ElementRole    标记哪个区域是标题栏 / 哪些按钮要自己收点击
+      见 misc.md §A7-3（不标 User 的工具栏按钮会"点了没反应"）。
+    -->
+    <Border DockPanel.Dock="Top" Name="ToolBar" Background="#1E1E1E" Padding="12,7,10,7"
+            chrome:WindowDecorationProperties.ElementRole="TitleBar">
+      <!--
+        列含义：0 标题文字（仍属标题栏 → 可拖动）、1 工具栏按钮、2 空白（拖动/双击最大化）、3 窗口按钮。
+        按钮区必须标 ElementRole="User"：父 Border 是 TitleBar（非客户区），不标的话整块被系统当
+        "拖动窗口"吃掉，按钮点了没反应。窗口按钮那一栏一直是这么干的，所以它一直能点。
+      -->
+      <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+      <TextBlock Grid.Column="0" Text="MilkAvalon" FontSize="15" FontWeight="SemiBold"
+                 VerticalAlignment="Center" Margin="0,0,10,0" />
+
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                  chrome:WindowDecorationProperties.ElementRole="User">
+        <Button Classes="toolbar" Name="LibraryToggleButton" Content="☰"
+                Click="OnToggleLibraryClick" ToolTip.Tip="收起 / 展开左栏" MinWidth="36" />
+        <Separator Width="1" Margin="2,4" Background="#333333" />
+
+        <Button Classes="toolbar" Name="PreviousButton" Content="◀◀"
+                Click="OnPreviousClick" ToolTip.Tip="上一个" MinWidth="40" />
+        <Button Classes="toolbar" Name="PauseButton" Content="▮▮"
+                Click="OnPauseClick" ToolTip.Tip="暂停 / 继续" MinWidth="40" />
+        <Button Classes="toolbar" Name="NextButton" Content="▶▶"
+                Click="OnNextClick" ToolTip.Tip="下一个" MinWidth="40" />
+        <Button Classes="toolbar" Name="RandomButton" Content="⇄"
+                Click="OnRandomClick" ToolTip.Tip="随机" MinWidth="40" />
+        <Button Classes="toolbar" Name="ReloadButton" Content="⟳"
+                Click="OnReloadClick" ToolTip.Tip="重载当前" MinWidth="40" />
+
+        <Separator Width="1" Margin="2,4" Background="#333333" />
+
+        <Button Classes="toolbar" Name="EditButton" Content="✎"
+                Click="OnEditClick" ToolTip.Tip="编辑面板（P6 占位，实装见 P10）" MinWidth="40" />
+
+        <Button Classes="toolbar" Name="CaptureButton" Content="⧉"
+                ToolTip.Tip="抓取：保存当前画面 / 抓取站点作品" MinWidth="40">
+          <Button.Flyout>
+            <MenuFlyout>
+              <MenuItem Header="保存当前画面…" Click="OnSaveFrameClick" />
+              <MenuItem Header="抓取站点作品…" Click="OnGrabShaderClick" />
+            </MenuFlyout>
+          </Button.Flyout>
+        </Button>
+
+        <Button Classes="toolbar" Name="FullScreenButton" Content="⛶"
+                Click="OnFullScreenClick" ToolTip.Tip="全屏（F11，Esc 退出）" MinWidth="40" />
+
+        <Button Classes="toolbar" Name="SettingsButton" Content="⚙"
+                Click="OnSettingsClick" ToolTip.Tip="设置" MinWidth="40" />
       </StackPanel>
+
+      <Border Grid.Column="2" />
+
+      <!--
+        自绘窗口按钮。必须标 ElementRole="User"：标题栏区域默认是非客户区（点击会被系统吃掉），
+        标了 User 的子树才会把点击还给 Avalonia。
+      -->
+      <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center"
+                  chrome:WindowDecorationProperties.ElementRole="User">
+        <Button Classes="caption" Name="MinimizeButton" Content="—" Click="OnMinimizeClick" ToolTip.Tip="最小化" />
+        <Button Classes="caption" Name="MaximizeButton" Content="□" Click="OnMaximizeClick" ToolTip.Tip="最大化 / 还原" />
+        <Button Classes="caption" Name="CloseButton" Content="✕" Click="OnCloseClick" ToolTip.Tip="关闭" />
+      </StackPanel>
+      </Grid>
     </Border>
 
     <!-- 状态栏 -->
-    <Border DockPanel.Dock="Bottom" Background="#1E1E1E" Padding="12,6">
+    <Border DockPanel.Dock="Bottom" Name="StatusBar" Background="#1E1E1E" Padding="12,6">
       <TextBlock Name="StatusText" Text="就绪" Opacity="0.6" FontSize="12" />
     </Border>
 
-    <!-- 两个页面：切 Tab 时整页销毁重建（R2，P5 实现） -->
-    <TabControl Name="MainTabs" Padding="0">
-      <TabItem Header="projectM">
-        <views:ProjectMPage Name="ProjectM" />
-      </TabItem>
-      <TabItem Header="ShaderToy">
-        <Grid>
-          <!-- P4 接入前的占位：同时也是"GL 坏了用它对照"的探针控件 -->
-          <controls:SpikeGlControl Name="Spike" />
-          <TextBlock Text="ShaderToy 播放区（P4 接入）"
-                     Foreground="#888888"
-                     Margin="16"
-                     HorizontalAlignment="Center"
-                     VerticalAlignment="Bottom" />
+    <!--
+      两个 Tab 只是"标签条"：页面本身放在 PageHost 里，切 Tab 时整页销毁重建（R2 / plan.md §6.4）。
+      TabItem 故意不带内容 —— 内容由 MainWindow.ShowPage 动态创建。
+    -->
+    <Grid RowDefinitions="Auto,*">
+      <TabControl Grid.Row="0" Name="MainTabs" Padding="0">
+        <TabItem Header="projectM" PointerPressed="OnTabHeaderPressed" />
+        <TabItem Header="ShaderToy" PointerPressed="OnTabHeaderPressed" />
+      </TabControl>
+
+      <Grid Grid.Row="1" ColumnDefinitions="*,Auto">
+        <Grid Grid.Column="0" Name="PageSurface">
+          <ContentControl Name="PageHost" />
+
+          <!-- 数据根缺失/为空时的兜底提示（P7）：居中浮层，不影响下面的引擎继续跑 -->
+          <Border Name="EmptyState"
+                  IsVisible="False"
+                  Background="#E6121212"
+                  BorderBrush="#3A3A3A"
+                  BorderThickness="1"
+                  CornerRadius="6"
+                  Padding="24,18"
+                  HorizontalAlignment="Center"
+                  VerticalAlignment="Center">
+            <StackPanel Spacing="12" MaxWidth="520">
+              <TextBlock Text="没有可用的数据" FontSize="16" FontWeight="SemiBold" />
+              <TextBlock Name="EmptyStateText" TextWrapping="Wrap" FontSize="12" Opacity="0.8" />
+              <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                <Button Classes="toolbar" Content="选择目录…" Click="OnPickDataRootClick" Padding="16,4" />
+                <Button Classes="toolbar" Content="打开设置" Click="OnSettingsClick" Padding="16,4" />
+              </StackPanel>
+            </StackPanel>
+          </Border>
         </Grid>
-      </TabItem>
-    </TabControl>
+
+        <!-- 右侧编辑面板（P6 占位）：纯 Avalonia，不建 GL 资源，开关只触发一次 resize -->
+        <views:EditorPanel Grid.Column="1" Name="Editor" Width="360" />
+      </Grid>
+    </Grid>
   </DockPanel>
 
 </Window>

@@ -4,16 +4,20 @@
              xmlns:services="using:MilkAvalon.Services"
              x:Class="MilkAvalon.Views.ProjectMPage">
 
-  <Grid ColumnDefinitions="300,*">
+  <Grid Name="RootGrid" ColumnDefinitions="300,*">
 
     <!-- 左栏：预设库（ListBox 默认虚拟化，9795 个也不卡） -->
-    <Border Grid.Column="0" Background="#161616" BorderBrush="#2A2A2A" BorderThickness="0,0,1,0">
+    <Border Grid.Column="0" Name="LibraryPanel" Background="#161616" BorderBrush="#2A2A2A" BorderThickness="0,0,1,0">
       <DockPanel>
-        <TextBox Name="SearchBox"
-                 DockPanel.Dock="Top"
-                 Margin="8,8,8,4"
-                 PlaceholderText="过滤预设（文件名）"
-                 TextChanged="OnSearchChanged" />
+        <!-- 过滤框 + 重新扫描：清单平时来自 projectm\presets.index.json，只有点这个按钮才会重新扫盘 -->
+        <Grid DockPanel.Dock="Top" Margin="8,8,8,4" ColumnDefinitions="*,Auto" ColumnSpacing="6">
+          <TextBox Name="SearchBox"
+                   PlaceholderText="过滤预设（文件名）"
+                   TextChanged="OnSearchChanged" />
+          <Button Grid.Column="1" Classes="toolbar" Name="RescanButton" Content="重新扫描"
+                  Click="OnRescanClick" FontSize="12" Padding="12,4" MinWidth="84"
+                  ToolTip.Tip="忽略索引文件，重新扫描磁盘上的 .milk，并更新 presets.index.json" />
+        </Grid>
 
         <TextBlock Name="LibraryText"
                    DockPanel.Dock="Bottom"

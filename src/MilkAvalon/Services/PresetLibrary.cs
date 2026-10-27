@@ -11,6 +11,9 @@ public sealed class PresetLibrary
 {
     private readonly List<string> _all = [];
 
+    /// <summary>去重集合（<see cref="AddFile"/> 原来用 List.Contains，9795 个就是 O(n²)，索引加载会被拖慢）。</summary>
+    private readonly HashSet<string> _seen = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>当前清单（去重，保持插入顺序）。</summary>
     public IReadOnlyList<string> All => _all;
 
@@ -106,7 +109,7 @@ public sealed class PresetLibrary
             return false;
         }
 
-        if (_all.Contains(fullPath, StringComparer.OrdinalIgnoreCase))
+        if (!_seen.Add(fullPath))
         {
             return false;
         }

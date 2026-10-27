@@ -16,8 +16,14 @@
     <PackageReference Include="Avalonia.Native" Version="12.1.4" />
     <PackageReference Include="Avalonia.Skia" Version="12.1.4" />
     <PackageReference Include="Avalonia.Win32" Version="12.1.4" />
+    <!-- 抓取 shadertoy 作品用：官方 WebView 组件（MIT），Windows 下就是 WebView2 -->
+    <PackageReference Include="Avalonia.Controls.WebView" Version="12.1.1" />
     <PackageReference Include="Material.Avalonia" Version="3.21.0" />
+    <!-- 音频后端全在这两个包里，同一版本；App 层由 Services/Audio/AudioSources.cs 与 AudioSinks.cs 统一挑选 -->
+    <!-- WASAPI：projectM 输入（环回采集）+ sound pass 输出（首选） -->
     <PackageReference Include="NAudio.Wasapi" Version="3.3.0" />
+    <!-- winmm waveOut：sound pass 输出的第二梯队（WASAPI 起不来时兜底） -->
+    <PackageReference Include="NAudio.WinMM" Version="3.3.0" />
   </ItemGroup>
 
   <ItemGroup>

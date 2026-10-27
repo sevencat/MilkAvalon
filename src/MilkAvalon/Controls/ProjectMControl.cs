@@ -26,8 +26,9 @@ public sealed class ProjectMControl : GlControlBase
     private readonly ConcurrentQueue<Action> _commands = new();
 
     private ProjectMEngine? _engine;
-    private SyntheticAudio? _synthetic;
-    private AudioCapture? _audio;
+
+    /// <summary>音频输入源（WASAPI 环回 或 合成）：具体是哪个由 <see cref="AudioSources"/> 决定。</summary>
+    private IPcmSource? _audioSource;
 
     private IReadOnlyList<string> _presets = [];
     private int _index = -1;
@@ -37,6 +38,15 @@ public sealed class ProjectMControl : GlControlBase
 
     /// <summary>强制使用合成音频（无声卡 / 无人值守时）。</summary>
     public bool ForceSyntheticAudio { get; set; }
+
+    /// <summary>引擎起来时的网格宽（切页恢复现场用；必须在 GL 就绪前设置）。</summary>
+    public uint InitialMeshX { get; set; } = 48;
+
+    /// <summary>引擎起来时的网格高（同上）。</summary>
+    public uint InitialMeshY { get; set; } = 36;
+
+    /// <summary>引擎起来时是否锁定当前预设（切页恢复现场用）。</summary>
+    public bool StartLocked { get; set; }
 
     /// <summary>当前预设文件名（不含路径）。</summary>
     public string CurrentPresetName { get; private set; } = "(无)";
@@ -53,11 +63,14 @@ public sealed class ProjectMControl : GlControlBase
     /// <summary>引擎是否暂停（对应 <c>PresetLocked</c>）。</summary>
     public bool IsLocked { get; private set; }
 
-    /// <summary>音频采集是否真的在跑。</summary>
-    public bool IsAudioRunning => _audio?.IsRunning == true;
+    /// <summary>当前音频输入是否真的在供数据。</summary>
+    public bool IsAudioRunning => _audioSource?.IsRunning == true;
 
     /// <summary>音频不可用时的原因。</summary>
-    public string? AudioError => _audio?.LastError;
+    public string? AudioError => _audioSource?.LastError;
+
+    /// <summary>音频输入后端描述（状态栏用）。</summary>
+    public string AudioDescription => _audioSource?.Description ?? "未启动";
 
     /// <summary>引擎网格尺寸。</summary>
     public (uint X, uint Y) MeshSize => _engine?.MeshSize ?? (0, 0);
@@ -110,7 +123,9 @@ public sealed class ProjectMControl : GlControlBase
     protected override void OnGlReady()
     {
         _engine = new ProjectMEngine(TextureDirectories);
-        _engine.SetMeshSize(48, 36);
+        _engine.SetMeshSize(InitialMeshX, InitialMeshY);
+        _engine.PresetLocked = StartLocked;
+        IsLocked = StartLocked;
 
         // 播放时长到了：引擎自己喊"切"，我们按硬切/软切区分。
         _engine.PresetSwitchRequested += hardCut => Enqueue(() => Step(1, smooth: !hardCut));
@@ -156,7 +171,7 @@ public sealed class ProjectMControl : GlControlBase
             return;
         }
 
-        _synthetic?.Pump();
+        _audioSource?.Pump();
 
         _engine.SetWindowSize(PixelWidth, PixelHeight);
 
@@ -172,9 +187,8 @@ public sealed class ProjectMControl : GlControlBase
 
     protected override void OnGlReleased()
     {
-        _audio?.Dispose();
-        _audio = null;
-        _synthetic = null;
+        _audioSource?.Dispose();
+        _audioSource = null;
 
         _engine?.Dispose();
         _engine = null;
@@ -187,21 +201,8 @@ public sealed class ProjectMControl : GlControlBase
             return;
         }
 
-        if (ForceSyntheticAudio)
-        {
-            _synthetic = new SyntheticAudio(_engine.Pcm);
-            Console.WriteLine("[projectM] 使用合成音频（--synthetic-audio）");
-            return;
-        }
-
-        _audio = new AudioCapture(_engine.Pcm);
-
-        // 采集起不来（无声卡/被占用）就退回合成音频，否则依赖 bass/mid/treb 的预设会一直黑屏。
-        if (!_audio.IsRunning)
-        {
-            _synthetic = new SyntheticAudio(_engine.Pcm);
-            Console.WriteLine("[projectM] 音频采集不可用，改用合成音频");
-        }
+        // 采集起不来（无声卡/被占用）就在工厂里退回合成音频，否则依赖 bass/mid/treb 的预设会一直黑屏。
+        _audioSource = AudioSources.Create(_engine.Pcm, ForceSyntheticAudio);
     }
 
     private void DrainCommands()

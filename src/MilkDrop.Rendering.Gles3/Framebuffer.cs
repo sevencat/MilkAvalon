@@ -46,6 +46,7 @@ public sealed class Framebuffer : IDisposable
         }
 
         GlContext.Gl.GenFramebuffers(_framebufferIds.AsSpan());
+        GlObjectStats.FramebufferCreated();
     }
 
     /// <summary>FBO 数量。</summary>
@@ -283,6 +284,7 @@ public sealed class Framebuffer : IDisposable
         }
 
         Array.Clear(_framebufferIds);
+        GlObjectStats.FramebufferDisposed();
     }
 
     /// <summary>附件类型 + 索引 → GL 附件枚举。</summary>

@@ -14,7 +14,7 @@
 | 运行时 | Microsoft.NETCore.App 10.0.13 / 10.0.1 / 8.0.22 / 7.0.20 |
 | NuGet 全局包目录 | **`E:\program\nuget\cache`**（不是 `%USERPROFILE%\.nuget\packages`，那里不存在） |
 | 上游仓库 | `F:\github\MilkDropSharp`（GPLv3，`Directory.Build.props` 已是 `net10.0`） |
-| 本仓库 | `F:\github\MilkAvalon`（**GPLv3**，2026-10-27 由 MIT 改来） |
+| 本仓库 | `F:\code\MilkAvalon`（**GPLv3**，2026-10-27 由 MIT 改来） |
 
 ### 1.1 缓存里可直接用的版本（已确认）
 
@@ -64,15 +64,29 @@
 | `presets/presets-cream-of-the-crop/**/*.milk` | **9795 个预设**（一层子目录） | `<exe>/projectm/presets/` |
 | `textures/*.jpg` | 66 个预设贴图 | `<exe>/projectm/textures/` |
 | `res/MilkDrop3/` | 333 `.milk` + 146 `.milk2` + 130 jpg + 76 png + 31 `.shape` | 可选：`<exe>/projectm/res/`（第二预设源） |
-| `shaders/<id>/` | **5 个 ShaderToy 作品**：`flgywc`（带 textures）、`xsbxwt`（带 textures）、`73ysrh`、`ms2sd1`、`xlfgrj`，每个含 `project.json` + `meta.json` | `<exe>/shadertoy/shaders/` |
-| — | **没有 `shadertoy.db`**（`F:\code\ShaderToySnap\output` 也不存在） | 所以本期**必须**支持文件布局（D8），否则一份作品都读不出来 |
+| `shaders/<id>/` | 8 个 ShaderToy 作品目录（**`raw.json`** + `pass_N_*.frag`，不是 `project.json`） | **不读**（见下） |
 
 > 坑：上游 `ShaderLibrary.Scan()` 现在**只认 `<数据根>/shadertoy.db`**，db 不存在时返回空列表 + 一条警告
-> （`ShaderLibrary.cs:67-72`）。文件布局（`shaders/<id>/project.json`）的扫描代码在上游已被删除，
+> （`ShaderLibrary.cs:67-72`）。文件布局（`shaders/<id>/raw.json`）的扫描代码在上游已被删除，
 > 只有写侧的 `LocalJsonImporter` 还留着。
->
-> **db 由用户稍后解决（2026-10-27 确认）**：本期不碰抓取/建库，ShaderToy 的验收基线就是上面那 5 个文件布局作品；
-> db 分支代码（`ShaderLibrary` / `ShaderDatabase` / `Player.LoadDatabase`）原样搬入即可，不额外开发、不做端到端验收。
+
+### 1.4.1 db 已到位：`testdata/shadertoy.db`（2026-10-27 实测，python 直读 sqlite）
+
+225 KB，表结构与 `ShaderDatabase.cs` 里的 SQL **完全吻合**（`shaders` 8 / `renderpasses` 12 / `shader_inputs` 8 / `shader_outputs` 10 行）：
+
+| 项 | 实测 |
+|---|---|
+| `shaders.ShaderId` | `mtyGWy` `73KXRh` `73ySRh` `N3VXz1` `tlVGDt` `Ms2SD1` `sXKXz1` `flGyWc`（`order by Id desc`） |
+| `RawJson` | 8 个**全部非空**（1.6k–42k 字符）→ `TryLoadProject` 走"原文"分支，不会退回按表重建 |
+| `renderpasses.Code` | 12 个 pass 代码**已内联**（`CodeFile` 只是记录 `shaders/<id>/pass_N_*.frag`）→ 在库里改代码即时生效 |
+| pass 类型覆盖 | `flGyWc` = image + **sound**；`73ySRh` = image + common + buffer；`73KXRh` = image + buffer（带 texture + keyboard 通道）；其余 5 个纯 image |
+| 资源路径 | `shader_inputs.FilePath` = `/media/a/<hash>.png`（站点形式）；`LocalFilePath` = `media\a\<hash>.png`（**反斜杠**，现只用于统计缺图数） |
+| media 目录 | `testdata/media/media/{a,ap,previz}/<hash>.png`（双 `media`，与 `ShaderFiles.MediaFolder` 注释一致）；`testdata/media/presets/` 是 `keyboard` 通道的 `/presets/tex00.jpg` 位置 |
+
+> **用户明确（2026-10-27）：不要读 `shaders/` 目录，全部从 db + media 读。**
+> 播放侧只有一条路：`ShaderLibrary.Scan` → `ShaderDatabase.TryLoadProject`，图片在 `<数据根>/media/media/...` 下找。
+> 取消原计划的 `FileLayoutLibrary`（~120 行文件布局扫描器），风险 R-11 消除。
+> `ShaderFiles` / `LocalJsonImporter` / `ShaderToyDownloader` / `ShaderMeta` 保留（写侧与测试用），播放侧不碰。
 
 ### 1.5 P0 实测记录（2026-10-27）
 
@@ -248,6 +262,270 @@ main.RequestGlCapture(path);
 
 **P3 还没验的三件事**（验收标准里剩下的）：与 `MilkDropSharp --smoke 600` 的 FPS 偏差 ≤10%、
 连续切 20 个预设不崩、放音乐时频谱有反应。
+
+### 1.9 P4 实测记录：ShaderToy 页接入（2026-10-27）
+
+数据根 `F:\code\MilkAvalon\testdata`（`shadertoy.db` + `media/`），**不读 `shaders/`**。
+自检命令见 §8，出图 `artifacts/p4-*.png`。
+
+| 项 | 实测 |
+|---|---|
+| 作品列表 | **8 个**（db 的 `shaders` 表），标题 + 作者都显示；`--shader <id>` 能定位到指定作品 |
+| `flGyWc`「lunchbreak」 | `1 个 pass` + **sound pass**；音频 `waveOut 44100 Hz / 2 ch / 16 bit`；出图正常 |
+| `73ySRh`「Vor∞noi」 | `2 个 pass（buffer 1）`（image + common + buffer），Voronoi 破碎正确 |
+| `73KXRh`「tutorial by iq」 | `2 个 pass（buffer 1）`；**texture 通道**（显示器里的图）+ keyboard 通道都绑上 |
+| `Ms2SD1`「Seascape」 | 天空在上 → **上屏不需要垂直翻转**（`CopyTexture.Draw` 用默认 false） |
+| `mtyGWy` / `N3VXz1` | 出图正常（Apollonian 分形颜色正确） |
+| resize | 1715×994 → 1050×644 后继续出帧、无变形 |
+| 编译错误 | 8 个作品**全部零错误**（`CompileErrors` 空）；构建 0 错误（仅剩 5 条历史 CA1416） |
+| 帧率 | 简单作品 ~92 FPS，最重的 Apollonian ~9 FPS（1715×994，单 pass 全屏 raymarch） |
+
+#### A4-1 NAudio 3.x 的 API 变了（踩到）
+
+- `IWaveProvider.Read` 从 `Read(byte[], int, int)` 变成 **`Read(Span<byte>)`**（NAudio 3.0）；
+- `WaveOutEvent` 已标过时并**并回 `WaveOut`**（`DesiredLatency` → `BufferMilliseconds`）；
+- `WaveFormat.Create16BitWaveFormat` 不存在，用 `new WaveFormat(rate, 16, 2)`；
+- `NAudio.Wave` 里也有个 `AudioBuffer` 类型，与引擎的 `MilkDrop.ShaderToy.Audio.AudioBuffer` **同名冲突**，要 `using` 别名。
+
+#### A4-2 XAML 里给 `ComboBox` 写 `SelectedIndex="0"` 会在控件没建完时触发 `SelectionChanged`
+
+- 现象：启动即 `NullReferenceException`，栈顶是 `ShaderToyPage.OnBufferModeChanged`（此时 `ShaderToyView` 还是 null）。
+- 对策：XAML 不写 `SelectedIndex`，构造完在代码里设；处理函数里再判一次 `ShaderToyView is null`。
+
+#### A4-3 删除联网抓取代码（用户要求）
+
+删掉 4 个文件：`Import/ShaderToyDownloader.cs`（抓页面 + 下载作品）、`Import/AssetHttp.cs`（HTTP 助手）、
+`Import/MissingResourceFetcher.cs`（补齐缺失资源）、`Import/ShaderToyPage.cs`（解析网页内嵌 JSON）。
+连带改动：`LocalJsonImporter.TextureFolder` 改指 `ShaderFiles.TextureFolder`；`ShaderFiles` 的注释去掉指向下载器的 cref。
+**写侧**（`LocalJsonImporter` / `JsonTextRewriter` / `ShaderMeta`）保留，播放侧本来就不碰它们。
+
+> 顺带确认：现在整个 `MilkDrop.ShaderToy` 里**没有任何 `HttpClient`**，数据只从本地 db + media 来。
+
+#### A4-4 上屏路径（一张图记住）
+
+```
+ShaderToyPipeline.Render()  → 每个 pass 画进自己的 PassTarget → 末尾 Framebuffer.Unbind()（绑宿主 FBO）
+ShaderToyPlayer.Render()    → GlContext.Gl.Viewport(0,0,W,H) → CopyTexture.Draw(pipeline.Output)  ← 不翻转
+```
+
+`CopyTexture` 必须建在 GL 线程（`OnGlReady`），随 `ShaderToyPlayer.Dispose` 一起释放。
+
+### 1.10 P5 实测记录：切页生命周期与回收（2026-10-27）
+
+**做法**：两个 `TabItem` 只当标签条用，页面挂在 `ContentControl PageHost` 里；
+`MainWindow.ShowPage(index, force)` 拆旧（`Content = null` → `OnOpenGlDeinit` → 引擎/音频 Dispose）→ 建新。
+再点同一个 Tab 走 `OnTabHeaderPressed` 强制重建（TabControl 不会重复抛 `SelectionChanged`）。
+
+压测命令（数据根现在在 `F:\code\MilkDropSharp\res\projectMSDL-2.0.0-win64\presets`，9795 个）：
+
+```
+MilkAvalon.exe --projectm-data "...\presets" --shadertoy-data F:\code\MilkAvalon\testdata `
+               --switch-test 20 --shot F:\code\MilkAvalon\artifacts\p5-switch.png
+```
+
+| 项 | 实测（**28 次整页重建**） |
+|---|---|
+| GL 对象 | **每次拆完都归 0**（texture/framebuffer/shader/sampler 全清），建新页后 = 当前页那一份（projectM 49 / ShaderToy 13） |
+| 进程句柄 | 基线 2020 → 结束 2013；中间在 2620（projectM 页）/ 3170（ShaderToy 页）两档摆动 |
+| 私有内存 | 基线 648 MB → 结束 603 MB；中间 650–780 MB 波动，**无单调增长** |
+| 托管内存 | 5–16 MB 波动 |
+| 存活控件 | 始终 1（拆完是 0），无异常日志 |
+| 画面 | 28 次之后停在 ShaderToy 页仍出图；日志 `[shadertoy] 恢复现场：mtyGWy @ 0.28s` |
+
+#### A5-1 `Texture` 计数埋点的坑：ID 0 的空壳别算
+
+- 现象：切页后 `texture` 计数每次 +6 不归零，看着像漏纹理。
+- 原因：`BlurTexture` 构造时先放 6 个 `new Texture(name, 0u, ...)` 占位（**不拥有 GL 对象**），
+  它们的 `Dispose` 会在 `if (_textureId == 0) return;` 早退 → 构造时 +1、销毁时不 -1。
+- 对策：`GlObjectStats.TextureCreated` 只在 `texId != 0` 时调用；`Texture()`（无参）根本不参与计数。
+- 教训：**先确认"计数器口径"再改代码**，否则会把统计误差当泄漏去改引擎。
+
+#### A5-2 旧控件的 `OnOpenGlDeinit` 可能晚于新控件的 `OnOpenGlInit`
+
+- 后果：若旧控件无条件 `GlContext.Reset()`，新控件的引擎会拿到 `null` 的 `GlContext.Gl` 直接崩。
+- 对策：`GlControlBase` 里每个实例带一个自增"代号"，`Init` 时把它记成"当前"，
+  `Deinit` 用 `CompareExchange(ref _currentGeneration, 0, _generation)` 判断自己是不是最新的，不是就**只释放自己的 `_gl`，不动全局入口**。
+
+#### A5-3 重建页面别把"扫磁盘"也重建了
+
+- 现象：每点一次 Tab，projectM 页重扫 9795 个 `.milk`（后台线程，但每次都白烧 1 s+ CPU）。
+- 对策：`ProjectMPage.s_directoryCache`（`ConcurrentDictionary<目录, PresetLibrary>`）跨页面复用清单，
+  日志会区分 `本次扫描` / `复用缓存`。**引擎和 GL 控件仍然每次重建**（R2 的要求不变）。
+
+#### A5-4 `--switch-test` 的判读方法
+
+- `控件 N` 必须 ≤ 1；`texture/framebuffer/shader/sampler` 在"控件释放"那行必须全 0；
+- 句柄看**同类页之间**是否一致（projectM ↔ ShaderToy 天生两档，别拿两档比）；
+- 私有内存看 20 轮里有没有单调上升；ANGLE/D3D 的堆有抖动，单点数值没意义。
+
+#### A5-5 别把"预设本身就是黑的"当成渲染坏了
+
+- P5 回归时 `presets-cream-of-the-crop` 的**第一个**预设（文件名排序第一个）出图平均亮度 0.0，
+  一度以为 projectM 被改坏了；换 `Geiss - Kaleidoscope 1.milk` 实测平均亮度 92.8 → 渲染链路正常。
+- 判据：`--preset <某个确定有内容的预设>` 出图非黑即说明链路通；**默认第一个预设的黑屏不能作为回归证据**。
+- 顺便记：本机 data 根已变成 `F:\code\MilkDropSharp\res\projectMSDL-2.0.0-win64\presets`（9795 个），
+  文档里旧的 `D:\media\MilkDropSharp` 已不存在。
+
+### 1.11 P6 / P7 实测记录：编辑占位 + 设置页（2026-10-27）
+
+**P6（编辑占位）**：`Services/IEditorPanel.cs` + `Views/EditorPanel.axaml`（宽 360，`IsVisible` 控制显隐），
+工具栏「编辑」开/关，切页自动收起，目标跟着当前预设/作品刷新。`--editor` 可自检。
+
+**P7（设置）**：`Services/AppSettings.cs`（STJ 源生成）+ `Views/SettingsWindow.axaml`。
+
+| 项 | 实测 |
+|---|---|
+| 只写 `milkavalon.json`、不传命令行 | 启动即用文件里的两个数据根；日志 `[settings] … → projectM=…，ShaderToy=…，网格 64×48` |
+| 网格设置生效 | 引擎日志 `引擎就绪，网格 64×48` |
+| buffer 模式 | 设 1 → `[shadertoy] 已加载 …：buffer fixed 1024x256` |
+| 数据根写错 | 不崩；中央浮层"没有可用的数据" + 当前路径 + 「选择目录…」「打开设置」（`artifacts/p7-empty.png`） |
+| 重启 | 设置仍生效（`artifacts/p7-restart.png`） |
+| 抓取按钮 | 灰置菜单两项，点进去只写一条日志（`NullCaptureService`） |
+
+优先级：**命令行 > `milkavalon.json` > 默认（`<exe>/projectm`、`<exe>/shadertoy`）**。
+设置窗口里改完即 `Save()` 并重建当前页（数据根/网格只在建页时读取）。
+
+#### A6-1 自绘按钮模板只挂在 `Button.toolbar` 上，别改成全局 `Button`
+
+- 踩到两次：编辑器面板的「关闭」、空状态浮层的两个按钮，都渲染成**空白紫块**（没有文字）。
+  原因是 Material 的 Button 主题在本机环境下不画 `ContentPresenter`，之前只给工具栏按钮加了自绘模板。
+- 修法：给这些按钮加 `Classes="toolbar"`。
+- **别图省事把选择器改成 `Button`**：`RepeatButton`（滚动条）、`ToggleButton`（下拉框）都继承 `Button`，
+  全局换模板会把滚动条和 ComboBox 画坏。
+
+#### A7-1 `ScrollViewer` 默认允许横向滚动 → Grid 的 `*` 列退化成 `Auto`
+
+- 现象：设置窗口里的提示语把内容撑出窗口，文本框右边缘被裁。
+- 修法：`<ScrollViewer HorizontalScrollBarVisibility="Disabled">`。
+
+#### A7-2 自检参数一览（截至 P9）
+
+`--shot <png>`（UI + GL + resize 三张）、`--tab shadertoy`、`--shader <id>`、`--preset <milk>`、
+`--drop <file>`（走拖放那条加载路径：`.milk` → projectM 页，`.json` → ShaderToy 工程）、
+`--fullscreen`（工具栏/标签条/状态栏全隐藏）、`--editor`、`--settings`（额外截设置窗口）、
+`--switch-test N`、`--projectm-data`、`--shadertoy-data`、`--synthetic-audio`、
+`--audio-backend auto|wasapi|waveout|silent`（sound pass 输出后端，见 §A7-4）、
+`--capture <id|url>`（抓站点作品入库后退出，见 §A7-5）。
+
+> `--drop` 与真实拖放的差别只有"文件从哪来"：两者都进 `MainWindow.TryLoadFile`。
+> 数据目录还在扫盘时页面会把文件**先记下来**（`ProjectMPage._pendingPresetPath` /
+> `ShaderToyPage._pendingProject`），等清单就绪再选中，否则会被"第一个预设/作品"顶掉。
+
+#### A7-3 自绘标题栏里"点了没反应"：`ElementRole="User"`
+
+- 现象：P8 之后工具栏（☰ / ◀◀ / ▮▮ / ⛶ / ⚙ …）全部点不动，只有右上角自绘的 `— □ ✕` 能点。
+- 原因：`ToolBar` 这个 `Border` 标了 `chrome:WindowDecorationProperties.ElementRole="TitleBar"`，
+  整块变成**非客户区**（`WM_NCHITTEST` 返回 `HTCAPTION`），点击被系统当"拖动窗口"吃掉。
+  只有标了 `ElementRole="User"` 的子树才换回 `HTCLIENT`。窗口按钮那一栏一直标着，所以只有它能点。
+- 修法：把交互控件放进**独立的**、标了 `ElementRole="User"` 的容器里（本例是 Grid 的第 2 列），
+  标题文字与空白列仍留在 `TitleBar` 里 → 照样能拖窗口 / 双击最大化。
+- 验证方式（真鼠标点击，别用 `RaiseEvent` / UIA `Invoke` 糊弄自己——它们绕过命中测试）：
+
+```powershell
+# UIA 只用来取按钮真实屏幕矩形，点击用 SetCursorPos + mouse_event
+$r = $button.Current.BoundingRectangle
+[W]::SetCursorPos($r.X + $r.Width/2, $r.Y + $r.Height/2)
+[W]::mouse_event(0x0002,0,0,0,[IntPtr]::Zero); [W]::mouse_event(0x0004,0,0,0,[IntPtr]::Zero)
+```
+
+  判据：点 ☰ 出 `[ui] 左栏：收起`、点 ⛶ 出 `[ui] 全屏：开`、点 ▮▮ 后按钮内容变 `▶`（再点回 `▮▮`）。
+- 另一个坑：UIA 树是异步长出来的，进程起来 5 s 后枚举可能只拿到半截；探针要**循环重试**到按钮数稳定。
+
+#### A7-4 音频只有一套：`IPcmSource`（进）+ `IAudioSink`（出）+ 两个工厂
+
+之前看着"这里 NAudio.WinMM、那里 NAudio.Wasapi、还有个合成音频"，其实是**方向不同的三段**，现在已经收成两条接口：
+
+| 方向 | 接口 | 实现 | 谁挑 |
+|---|---|---|---|
+| 进（projectM 分析，不出声） | `IPcmSource`（`Services/Audio/IPcmSource.cs`） | `AudioCapture`（WASAPI 环回）、`SyntheticAudio`（合成） | `AudioSources.Create` |
+| 出（ShaderToy sound pass） | `IAudioSink`（库层 `MilkDrop.ShaderToy/Audio/IAudioSink.cs`） | `WasapiOutSink`（首选）、`WaveOutSink`（兜底）、`NullAudioSink` | `AudioSinks.Start` |
+
+要点：
+
+- **NAudio 只被 App 层这 4 个文件用**（两个子包同版本 3.3.0）；库层不依赖任何 Windows 音频 API。
+- 输出优先级：WASAPI 共享模式 → waveOut（winmm）→ 静音；`--audio-backend` 可以把某一段锁死，便于复现问题。
+- 采样率：输出侧把 `WaveFormat.SampleRate` 报成**默认输出设备的混音采样率**（本机 48000），
+  `AudioBuffer.Read(..., deviceSampleRate)` 自己把 44100 重采样过去，不需要额外接重采样器。
+- 两个后端共用 `Pcm16Provider`（float→PCM16、读环形缓冲），后端差异只剩"谁调 Read"。
+- 输入侧的 `Pump()`：采集由设备线程推送（空实现），合成源靠主循环每帧生产 —— 接口统一了，模型差异保留。
+- 日志判据：`[audio] 后端偏好：…` / `[audio] 输出后端：WASAPI 共享 48000 Hz / 2 ch / 16 bit` /
+  `[projectM] 输入源：WASAPI 环回 48000 Hz / 2 ch`；退到合成时会带上原因。
+
+> 不要为了"统一"去合并 `Pcm` 和 `AudioBuffer`：前者是"最近 576 帧的分析窗口"，后者是"待播队列 + 重采样 + 欠载统计"，
+> 语义不同且都在搬入的库代码里。统一的是**接口与选择逻辑**，不是数据结构。
+
+#### A7-6 预设清单索引：`presets.index.json`
+
+- 位置：`<projectM 数据根>/presets.index.json`（跟着数据根走，换根就等于换索引）。
+- 内容：`{ version, directory, scannedAt, files[] }`，`files` 存**相对路径**，整个数据根搬走仍可用。
+- 装载顺序：进程内内存缓存 → 索引文件 → 扫盘（扫完写索引）。目录/版本对不上或索引为空 → 视为无效，重扫。
+- 只有点左栏「重新扫描」才强制扫盘并覆盖索引（期间按钮禁用）。
+- 索引加载走 `PresetLibrary.AddFile`，去重已从 `List.Contains`（O(n²)，9795 条≈4800 万次比较）换成 `HashSet`；
+  本机实测 9795 条：索引 24–38 ms、全量扫描 52–67 ms（机械盘/网络盘差距会大得多，索引就是为那种场景准备的）。
+- 缓存失效**不自动检测**：预设增删后需手点「重新扫描」。这是刻意的——每次启动去 `File.Exists` 9795 次
+  等于把扫描的一半成本又加回来。
+- 索引写失败（只读目录/磁盘满）只记日志，不影响播放，下次启动继续扫盘。
+
+#### A7-5 站点抓取：只写 `shadertoy.db` + `media/`
+
+**控件选型结论**（2026-10-27 实测）：
+
+| 包 | 结论 |
+|---|---|
+| `Avalonia.Controls.WebView` 12.1.1（官方，MIT） | ✅ 采用。依赖 `Avalonia >= 12`，与本仓库 12.1.4 共存无降级；Windows 下即 WebView2；AOT 兼容 |
+| `WebView.Avalonia` 11.0.0.1 | ❌ 依赖 Avalonia 11.0.0（netstandard2.0），会把 Avalonia 拉回 11 |
+| `WebViewControl-Avalonia` 3.120.13 | ❌ 依赖 Avalonia 11.0.10 + CefGlue（自带 Chromium），同样与 12 冲突且体积大 |
+
+**抓取链路**（`Views/CaptureWindow.axaml.cs`）：
+
+```
+内嵌 WebView2（持久化 profile：%LOCALAPPDATA%\MilkAvalon\WebView2）
+  → 打开 https://www.shadertoy.com/view/<id>
+  → 轮询 document.title，等 Cloudflare 放行（不绕过；卡住就让用户在窗口里点一下）
+  → 注入 fetch(POST https://www.shadertoy.com/shadertoy, body: s={"shaders":["<id>"]}&nt=1&nl=1&np=1)
+  → 正文经 window.chrome.webview.postMessage 回传（**不要**用 InvokeScript 返回值扛大 JSON）
+  → ShaderToyJsonImporter.TryParse 校验
+  → 页内 fetch 取图片字节 → base64 分块（256 KB/条）postMessage 回来
+  → ShaderToyCaptureStore.SaveAsync：一个事务写 4 张表 + 图片落 media/
+```
+
+**两种抓取入口**（`CaptureWindow` 地址栏右侧）：
+
+| 按钮 | 作用 |
+|---|---|
+| 打开 | 导航到输入的 ID / 链接 |
+| 抓取当前页面（`<id>`） | **跟随内嵌浏览器的当前地址**：只有当它形如 `https://www.shadertoy.com/view/<id>` 时可用，ID 自动取自 `location.href`，按钮文案会带上 ID |
+| 抓取并入库 | 用输入框里的 ID / 链接 |
+
+「抓取当前页面」的可用性由 `DispatcherTimer`（900 ms，`DispatcherPriority.Background`）轮询 `location.href` 维护
+（shadertoy 是单页应用，路由切换不一定触发 `NavigationCompleted`）；导航完成时也会立刻刷新一次。
+点按钮的一刻会再读一次地址，避免状态滞后。域名必须包含 `shadertoy.com`，路径必须命中 `/view/<id>`。
+
+**和 ShaderToySnap 的差异（本仓库要求）**：
+
+- **不写 `shaders/` 目录**：不展开 `pass_0_x.frag`、不存 `raw.json`。原文只进 `shaders.RawJson`，
+  pass 代码只进 `renderpasses.Code`（`CodeFile` 列留空）。数据源仍是 db + media（D8）。
+- 图片**必须由页面去取**：站点对裸 `HttpClient` 返 403（缺浏览器指纹）；页内 fetch 天然带 cookie/UA/Referer。
+  `HttpClient` 只作为兜底保留。
+- 表结构（`shaders` / `renderpasses` / `shader_inputs` / `shader_outputs`）与既有 db 完全一致；
+  写库走 `ShaderDatabase.TryExecute`（winsqlite3，无 ORM），字符串按 SQL 字面量转义（单引号翻倍）。
+- 落盘布局（实测）：`<数据根>/shadertoy.db` + `<数据根>/media/a/<sha>.png`；`shader_inputs.LocalFilePath`
+  存相对路径（`media\a\...png`，反斜杠），与现有库的行格式一致。
+
+**坑：第二次点「抓取」直接把进程带走**（2026-10-27 修复）：
+
+- 症状：抓取窗口关掉后再点「抓取站点作品…」，进程直接退出。
+- 异常：`System.InvalidOperationException: Cannot re-show a closed window.`（Avalonia `Window.EnsureStateBeforeShow`），
+  抛在 `MenuItem.Click` 的处理器里 → 未捕获 → 进程结束。
+- 原因：`MainWindow._captureWindow` 缓存了实例，窗口 Close 后实例还留着，再 `Show()` 就炸。
+- 修法：`Closed` 事件里把缓存置空 → 下次重建；已显示时只 `Activate()`，不重复 `Show`；
+  `Show` 外面再包一层 try/catch 兜住意外（并打印 + 状态栏提示，绝不把异常漏给事件循环）。
+- 回归方式：点「⧉ → 抓取站点作品…」→ `Alt+F4` 关掉 → 再点一次，进程应存活、第二次能看到新的
+  `[capture] WebView2 用户数据目录` 日志。
+
+**自检**：`MilkAvalon.exe --capture flGyWc --shadertoy-data <空目录>` → 期望
+`页内取图完成：1/1 张`、`已入库 … 图片 新下载 1 / 失败 0`；目录里**只有** `shadertoy.db` 与 `media/`。
+随后 `--tab shadertoy --shadertoy-data <同一目录> --shot ...` 能直接出图（见 `artifacts/p11-capture-play.png`）。
 
 ---
 
@@ -431,7 +709,7 @@ MilkdropPreset.cs 初始化里也有一次（unbind 后没有 Draw，安全）
 | D5 | 切 Tab **销毁重建**（用户要求） | 语义干净：一个时刻只有一个引擎活着，显存只被一页占用 | 备选：两页都保留、只是不可见（省重建时间，但两倍显存 + 两套音频） |
 | D6 | 目标框架 **net10.0** | 与上游一致（`Directory.Build.props` 已是 net10.0），Avalonia 12 有 net10.0 目标 | net8.0（Avalonia 12 也支持，但与上游不同步） |
 | D7 | 编辑器用 `AvaloniaEdit` + 自带 XSHD 高亮 | 不引 TextMate 语法包（体积 + AOT 风险） | TextMate 高亮更漂亮但依赖多 |
-| D8 | ShaderToy **双数据源**：本期以 `shaders/<id>/project.json`（文件布局）为主线，db 分支保留不开发 | 现有测试数据 `D:\media\MilkDropSharp\shaders` 就是文件布局，而**没有 db**（db 由用户稍后解决）；上游删掉的文件扫描器要补回（~120 行） | 只支持 db（测试数据跑不起来）；或先人工导入成 db（没有写库工具，`SqliteDatabase` 只读） |
+| D8 | ShaderToy **只走 db + media**（2026-10-27 修订）：`ShaderLibrary.Scan` → `ShaderDatabase.TryLoadProject`，**不扫描 `shaders/<id>/`** | 用户明确"不要读 shaders 目录，全部读 db 和 media"；db 已随 `testdata/` 到位且表结构吻合（§1.4.1），文件布局扫描器不必再写 | 原方案"文件布局为主线 + db 兜底"（当时以为没有 db）；双数据源并存（UI 要标来源、列表要合并去重，无收益） |
 | D9 | 数据目录固定放 **exe 旁**（`projectm/`、`shadertoy/`） | 用户要求；绿色部署，拷走整个目录就能跑 | `%APPDATA%`（用户看不到数据，AOT 单文件时也不便） |
 | D10 | 「编辑」「抓取」**本期只放按钮** | 用户明确"后续再说"；先固定布局与接口，避免后期改 UI | 一次做全（工期 +3.5d，且 AvaloniaEdit 会多一个 AOT 变量） |
 
@@ -497,35 +775,47 @@ MilkdropPreset.cs 初始化里也有一次（unbind 后没有 Draw，安全）
 
 ```powershell
 # 构建（.NET 10 的 dotnet new sln 默认产出 .slnx）
-dotnet build F:\github\MilkAvalon\MilkAvalon.slnx -c Debug
+dotnet build F:\code\MilkAvalon\MilkAvalon.slnx -c Debug
 
 # 测试（搬入的 Eval 基线，纯 CPU）
-dotnet test F:\github\MilkAvalon\tests\MilkDrop.Eval.Tests\MilkDrop.Eval.Tests.csproj
+dotnet test F:\code\MilkAvalon\tests\MilkDrop.Eval.Tests\MilkDrop.Eval.Tests.csproj
 
-# 界面自检截图（启动 → 等引擎出 40 帧 → 截 UI 图 + 读 GL 帧 + resize 再读一次 → 退出）
+# 界面自检截图（启动 → 等当前页真的在播 + 出 40 帧 → 截 UI 图 + 读 GL 帧 + resize 再读一次 → 退出）
 #   产出 <stem>.png / <stem>-gl.png / <stem>-gl-resized.png 三个文件
-#   注意用 net10.0-windows 这个 TFM 的产物（见 csproj），路径别写成 net10.0
-F:\github\MilkAvalon\src\MilkAvalon\bin\Debug\net10.0-windows\MilkAvalon.exe `
-  --projectm-data D:\media\MilkDropSharp --shot F:\github\MilkAvalon\artifacts\ui.png
+#   注意产物带 RID 子目录：bin\Debug\net10.0\win-x64\（TFM 是 net10.0，不是 net10.0-windows）
+F:\code\MilkAvalon\src\MilkAvalon\bin\Debug\net10.0\win-x64\MilkAvalon.exe `
+  --projectm-data D:\media\MilkDropSharp --shot F:\code\MilkAvalon\artifacts\ui.png
 
 # 指定首播预设（自检某个特定效果时用；路径要写全）
-F:\github\MilkAvalon\src\MilkAvalon\bin\Debug\net10.0-windows\MilkAvalon.exe `
-  --projectm-data D:\media\MilkDropSharp --preset "D:\...\xxx.milk" --shot F:\github\MilkAvalon\artifacts\p.png
+F:\code\MilkAvalon\src\MilkAvalon\bin\Debug\net10.0\win-x64\MilkAvalon.exe `
+  --projectm-data D:\media\MilkDropSharp --preset "D:\...\xxx.milk" --shot F:\code\MilkAvalon\artifacts\p.png
 
 # 盯渲染节奏（每秒一行 [GL] xx FPS ... frames=N；首秒 frames=1 是正常的启动预热）
 $env:MILKAVALON_VERBOSE=1
 
+# 切页压测（P5）：自动来回切 N 轮，每轮打印托管/私有内存 + 句柄 + GL 对象；最后停在 ShaderToy 页出图
+F:\code\MilkAvalon\src\MilkAvalon\bin\Debug\net10.0\win-x64\MilkAvalon.exe `
+  --projectm-data "F:\code\MilkDropSharp\res\projectMSDL-2.0.0-win64\presets" `
+  --shadertoy-data F:\code\MilkAvalon\testdata `
+  --switch-test 20 --shot F:\code\MilkAvalon\artifacts\p5-switch.png
+
 # 运行（JIT）—— 开发期直接指向现成测试数据，不复制 9795 个预设
-dotnet run --project F:\github\MilkAvalon\src\MilkAvalon -- `
-  --projectm-data D:\media\MilkDropSharp\presets `
-  --shadertoy-data D:\media\MilkDropSharp
+dotnet run --project F:\code\MilkAvalon\src\MilkAvalon -- `
+  --projectm-data "F:\code\MilkDropSharp\res\projectMSDL-2.0.0-win64\presets" `
+  --shadertoy-data F:\code\MilkAvalon\testdata
+
+# ShaderToy 单跑（db + media 在 testdata 下，不读 shaders\）
+#   --tab shadertoy 启动即切页；--shader <id> 指定首播作品（不给就播列表第一个）
+F:\code\MilkAvalon\src\MilkAvalon\bin\Debug\net10.0\win-x64\MilkAvalon.exe `
+  --shadertoy-data F:\code\MilkAvalon\testdata --tab shadertoy --shader flGyWc `
+  --shot F:\code\MilkAvalon\artifacts\st.png
 
 # 默认数据根（发布布局）：exe 旁的 projectm\ 与 shadertoy\
 #   projectm\presets\*.milk  projectm\textures\*.jpg
-#   shadertoy\shadertoy.db（或 shadertoy\shaders\<id>\project.json）
+#   shadertoy\shadertoy.db   shadertoy\media\media\a\<hash>.png   （shaders\ 不读）
 
 # AOT 发布（P9）
-dotnet publish F:\github\MilkAvalon\src\MilkAvalon -c Release -r win-x64 -p:PublishAot=true
+dotnet publish F:\code\MilkAvalon\src\MilkAvalon -c Release -r win-x64 -p:PublishAot=true
 
 # 上游（对照/搬运时用）
 dotnet build F:\github\MilkDropSharp\src\MilkDrop.ProjectM.App -c Release

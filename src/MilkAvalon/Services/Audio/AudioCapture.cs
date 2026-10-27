@@ -15,12 +15,15 @@ namespace MilkAvalon.Services.Audio;
 /// 此时预设仍然照常渲染（静音驱动的波形）。
 /// </remarks>
 [SupportedOSPlatform("windows")]
-public sealed class AudioCapture : IDisposable
+public sealed class AudioCapture : IPcmSource
 {
     private readonly Pcm _pcm;
     private WasapiRecorder? _recorder;
     private float[] _floatBuffer = [];
     private short[] _shortBuffer = [];
+
+    private int _sampleRate;
+    private int _channels;
 
     public AudioCapture(Pcm pcm)
     {
@@ -40,6 +43,8 @@ public sealed class AudioCapture : IDisposable
             _recorder.StartRecording();
 
             WaveFormat format = _recorder.WaveFormat;
+            _sampleRate = format.SampleRate;
+            _channels = Math.Max(1, format.Channels);
             Console.WriteLine($"音频采集: WASAPI 环回 {format.SampleRate} Hz / {format.Channels} ch / {format.BitsPerSample} bit");
         }
         catch (Exception ex)
@@ -56,6 +61,19 @@ public sealed class AudioCapture : IDisposable
 
     /// <summary>启动失败原因（正常时为 null）。</summary>
     public string? LastError { get; }
+
+    /// <summary>后端描述（UI/日志用）。</summary>
+    public string Description => IsRunning
+        ? $"WASAPI 环回 {_sampleRate} Hz / {_channels} ch"
+        : "WASAPI 环回（未启动）";
+
+    /// <summary>设备采样率（采集没起来时为 0）。</summary>
+    public int SampleRate => _sampleRate;
+
+    /// <summary>采集由设备线程主动推送，主循环不需要做事。</summary>
+    public void Pump()
+    {
+    }
 
     public void Dispose()
     {

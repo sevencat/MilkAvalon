@@ -31,6 +31,8 @@ public sealed class Sampler : IDisposable
         gl.SamplerParameter(_samplerId, GLEnum.TextureMagFilter, filterMode);
         gl.SamplerParameter(_samplerId, GLEnum.TextureWrapS, wrapMode);
         gl.SamplerParameter(_samplerId, GLEnum.TextureWrapT, wrapMode);
+
+        GlObjectStats.SamplerCreated();
     }
 
     /// <summary>采样器对象的 GL 名字。</summary>
@@ -85,5 +87,6 @@ public sealed class Sampler : IDisposable
 
         GlContext.Gl.DeleteSamplers([_samplerId]);
         _samplerId = 0;
+        GlObjectStats.SamplerDisposed();
     }
 }

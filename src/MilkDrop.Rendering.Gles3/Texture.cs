@@ -51,6 +51,7 @@ public sealed class Texture : IDisposable
         _type = type;
 
         CreateNewTexture();
+        GlObjectStats.TextureCreated(name);
     }
 
     /// <summary>接管一个已存在的 GL 纹理（所有权转移，Dispose 时会删除）。</summary>
@@ -62,6 +63,13 @@ public sealed class Texture : IDisposable
         _width = width;
         _height = height;
         _isUserTexture = isUserTexture;
+
+        // ID 0 的占位/空壳（如 BlurTexture 构造时先放的 6 个空纹理）不拥有 GL 对象，
+        // 它们的 Dispose 也会在 "ID==0 就返回" 那一行早退 —— 计数不能算进来，否则看起来像泄漏。
+        if (texId != 0)
+        {
+            GlObjectStats.TextureCreated(name);
+        }
     }
 
     /// <summary>GL 纹理名字。</summary>
@@ -132,6 +140,7 @@ public sealed class Texture : IDisposable
 
         GlContext.Gl.DeleteTextures([_textureId]);
         _textureId = 0;
+        GlObjectStats.TextureDisposed(_name);
     }
 
     private unsafe void CreateNewTexture()

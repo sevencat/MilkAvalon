@@ -1,0 +1,31 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="MilkAvalon.Views.EditorPanel"
+             IsVisible="False">
+
+  <Border Background="#161616" BorderBrush="#2A2A2A" BorderThickness="1,0,0,0">
+    <DockPanel>
+      <Border DockPanel.Dock="Top" Background="#1E1E1E" Padding="10,8">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Text="编辑" FontWeight="SemiBold" VerticalAlignment="Center" />
+          <Button Grid.Column="1" Classes="toolbar" Content="关闭" Click="OnCloseClick"
+                  Padding="12,3" MinWidth="64" FontSize="12" />
+        </Grid>
+      </Border>
+
+      <StackPanel Margin="12" Spacing="8">
+        <TextBlock Text="编辑器待实现（P10）" FontWeight="SemiBold" />
+        <TextBlock Name="TargetText"
+                   TextWrapping="Wrap"
+                   FontSize="12"
+                   Opacity="0.75"
+                   Text="目标：—" />
+        <TextBlock Text="本期只保留入口：把预设文本 / shader 代码的编辑能力接上时，直接在这个面板里放 AvaloniaEdit 即可，主窗口不用改。"
+                   TextWrapping="Wrap"
+                   FontSize="11"
+                   Opacity="0.55" />
+      </StackPanel>
+    </DockPanel>
+  </Border>
+
+</UserControl>
