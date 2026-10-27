@@ -3,16 +3,20 @@
     <OutputType>WinExe</OutputType>
     <RootNamespace>MilkAvalon</RootNamespace>
     <AssemblyName>MilkAvalon</AssemblyName>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia" Version="12.1.3" />
+    <PackageReference Include="Avalonia" Version="12.1.4" />
     <!-- 全部保持在同一个版本：Desktop 12.1.1 + 核心 12.1.3 会 TypeLoadException（PopupImpl 少实现一个方法） -->
-    <PackageReference Include="Avalonia.Desktop" Version="12.1.3" />
-    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.3" />
-    <PackageReference Include="Material.Avalonia" Version="3.19.0" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.4" />
+    <PackageReference Include="Avalonia.HarfBuzz" Version="12.1.4" />
+    <PackageReference Include="Avalonia.Native" Version="12.1.4" />
+    <PackageReference Include="Avalonia.Skia" Version="12.1.4" />
+    <PackageReference Include="Avalonia.Win32" Version="12.1.4" />
+    <PackageReference Include="Material.Avalonia" Version="3.21.0" />
     <PackageReference Include="NAudio.Wasapi" Version="3.3.0" />
   </ItemGroup>
 
