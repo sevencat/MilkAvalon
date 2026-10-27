@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>ProjectMEvalSharp.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\MilkDrop.Eval\MilkDrop.Eval.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!--
+      补上游的漏：测试文件全都只 using Xunit，靠"命名空间嵌套"是解析不到 MilkDrop.Eval 里的类型的，
+      上游这份 csproj 少了一行全局 using（实测上游自己 `dotnet build` 也报 6 个 CS0246）。
+      见 misc.md §1.5。
+    -->
+    <Using Include="MilkDrop.Eval" />
+  </ItemGroup>
+</Project>

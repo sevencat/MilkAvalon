@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/HlslParser/HlslParser.csproj" />
+    <Project Path="src/MilkAvalon/MilkAvalon.csproj" />
+    <Project Path="src/MilkDrop.Eval/MilkDrop.Eval.csproj" />
+    <Project Path="src/MilkDrop.ProjectM/MilkDrop.ProjectM.csproj" />
+    <Project Path="src/MilkDrop.Rendering.Gles3/MilkDrop.Rendering.Gles3.csproj" />
+    <Project Path="src/MilkDrop.ShaderToy/MilkDrop.ShaderToy.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MilkDrop.Eval.Tests/MilkDrop.Eval.Tests.csproj" />
+  </Folder>
+</Solution>

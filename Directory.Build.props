@@ -1,0 +1,19 @@
+<Project>
+  <!--
+    与上游 MilkDropSharp 保持一致的目标框架与编译选项（见 plan.md §4）。
+    本文件是整个仓库的默认值，个别项目可以在自己的 csproj 里覆盖。
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Prefer32Bit>false</Prefer32Bit>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <EnableDefaultNoneItems>false</EnableDefaultNoneItems>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!-- P9 的 AOT 前提：绑定一律走编译期生成（反射绑定在裁剪后会静默失效） -->
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+</Project>

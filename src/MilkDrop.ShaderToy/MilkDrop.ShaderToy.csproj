@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>MilkDrop.ShaderToy</RootNamespace>
+    <AssemblyName>MilkDrop.ShaderToy</AssemblyName>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Silk.NET.OpenGLES" Version="2.23.0" />
+    <!--
+      `Input/KeyboardKeyMap.cs` 直接用 Silk.NET 的 Key 枚举做"键位 → 浏览器 keyCode"的映射表。
+      上游是靠 MilkDrop.Rendering.Gles3 传递引用拿到这个包的；本仓库把 Gles3 的 ImGui 后端
+      （ImguiInput.cs）删掉后断了这条链，所以在这里显式声明（plan.md §5.2 P-6）。
+    -->
+    <PackageReference Include="Silk.NET.Input" Version="2.23.0" />
+    <PackageReference Include="StbImageSharp" Version="2.30.15" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- EGL/GL 封装、ImGui 后端都在公共库里 -->
+    <ProjectReference Include="..\MilkDrop.Rendering.Gles3\MilkDrop.Rendering.Gles3.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="MilkDrop.Rendering.Gles3" />
+  </ItemGroup>
+</Project>

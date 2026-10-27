@@ -1,0 +1,11 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:themes="clr-namespace:Material.Styles.Themes;assembly=Material.Styles"
+             x:Class="MilkAvalon.App">
+
+  <Application.Styles>
+    <!-- Material Design 暗色主题（plan.md R5）。PrimaryColor / SecondaryColor 取 Material 调色板名 -->
+    <themes:MaterialTheme BaseTheme="Dark" PrimaryColor="DeepPurple" SecondaryColor="Teal" />
+  </Application.Styles>
+
+</Application>

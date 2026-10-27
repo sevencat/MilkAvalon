@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>MilkDrop.ProjectM</RootNamespace>
+    <AssemblyName>MilkDrop.ProjectM</AssemblyName>
+    <!-- P10：日常构建就跑裁剪/AOT 分析器，提前暴露不兼容写法 -->
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- ANGLE（OpenGL ES 3.0）绑定；EGL 由本库 Rendering/Egl.cs 自行 P/Invoke（Silk.NET.OpenGLES 不含 EGL 绑定） -->
+    <PackageReference Include="Silk.NET.OpenGLES" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.Maths" Version="2.23.0" />
+    <PackageReference Include="StbImageSharp" Version="2.30.15" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\MilkDrop.Eval\MilkDrop.Eval.csproj" />
+    <ProjectReference Include="..\HlslParser\HlslParser.csproj" />
+    <!-- GLES3/EGL/ImGui 后端已抽到公共库（ShaderToy 线也会用） -->
+    <ProjectReference Include="..\MilkDrop.Rendering.Gles3\MilkDrop.Rendering.Gles3.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- 静态 GLSL 着色器（C++ 侧由 GenerateStaticShaders.cmake 在构建期读成字符串常量） -->
+    <EmbeddedResource Include="MilkdropPreset\Shaders\*.inc" />
+    <EmbeddedResource Include="MilkdropPreset\Shaders\*.vert" />
+    <EmbeddedResource Include="MilkdropPreset\Shaders\*.frag" />
+    <!-- 过渡着色器（C++ 侧由 GenerateBuiltInTransitionsResources.cmake 读成字符串常量） -->
+    <EmbeddedResource Include="Renderer\TransitionShaders\*.*" />
+    <!-- idle 预设用的两张纹理（C++ 侧是 IdleTextures.hpp 里的 32 位 TGA 字节数组） -->
+    <EmbeddedResource Include="IdleTextures\*.tga" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="MilkDrop.ProjectM.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- GLES3 公共层：渲染封装全部来自 MilkDrop.Rendering.Gles3 -->
+    <Using Include="MilkDrop.Rendering.Gles3" />
+  </ItemGroup>
+</Project>

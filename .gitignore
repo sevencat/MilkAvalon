@@ -1,0 +1,23 @@
+# 构建产物
+bin/
+obj/
+publish/
+
+# 自检截图/性能产物
+artifacts/
+
+# 用户数据（按 plan.md §6.2，发布时放在 exe 旁；开发期不入库）
+projectm/
+shadertoy/
+screenshots/
+milkavalon.json
+
+# IDE
+.vs/
+.idea/
+*.user
+*.suo
+
+# 系统
+Thumbs.db
+desktop.ini

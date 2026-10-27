@@ -1,0 +1,60 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:MilkAvalon.Controls"
+        x:Class="MilkAvalon.Views.MainWindow"
+        Title="MilkAvalon"
+        Width="1280" Height="800"
+        MinWidth="800" MinHeight="500"
+        Background="#121212"
+        WindowStartupLocation="CenterScreen">
+
+  <DockPanel>
+    <!-- 顶部工具栏：P6/P7 再加「编辑」「抓取」占位按钮（plan.md §6.3） -->
+    <Border DockPanel.Dock="Top" Background="#1E1E1E" Padding="12,8">
+      <StackPanel Orientation="Horizontal" Spacing="12">
+        <TextBlock Text="MilkAvalon" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
+        <TextBlock Text="P1：Avalonia ANGLE 上下文 + Silk.NET（GLES3）已通" Opacity="0.6" VerticalAlignment="Center" />
+      </StackPanel>
+    </Border>
+
+    <!-- 状态栏：P2 之后接分辨率/预设名/错误等 -->
+    <Border DockPanel.Dock="Bottom" Background="#1E1E1E" Padding="12,6">
+      <TextBlock Name="StatusText" Text="就绪" Opacity="0.6" FontSize="12" />
+    </Border>
+
+    <!-- 两个页面：切 Tab 时整页销毁重建（R2，P5 实现） -->
+    <TabControl Name="MainTabs" Padding="0">
+      <TabItem Header="projectM">
+        <Grid>
+          <!-- P1 探针：P3 换成 ProjectMEngine 的宿主控件 -->
+          <controls:SpikeGlControl Name="GlView" />
+
+          <!-- GL 内容由 Avalonia 合成进视觉树，所以普通控件可以叠在上面 -->
+          <Border Background="#CC0A0A0A"
+                  CornerRadius="4"
+                  Padding="10,8"
+                  Margin="10"
+                  HorizontalAlignment="Left"
+                  VerticalAlignment="Top">
+            <StackPanel Spacing="2">
+              <TextBlock Name="GlInfoText"
+                         FontFamily="Consolas,Consolas,monospace"
+                         FontSize="11"
+                         Foreground="#DDDDDD"
+                         Text="（等待 GL 上下文…）" />
+            </StackPanel>
+          </Border>
+        </Grid>
+      </TabItem>
+      <TabItem Header="ShaderToy">
+        <Grid Background="Black">
+          <TextBlock Text="ShaderToy 播放区（P4 接入）"
+                     Foreground="#888888"
+                     HorizontalAlignment="Center"
+                     VerticalAlignment="Center" />
+        </Grid>
+      </TabItem>
+    </TabControl>
+  </DockPanel>
+
+</Window>
