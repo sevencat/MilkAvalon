@@ -1,12 +1,38 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:chrome="using:Avalonia.Controls.Chrome"
         x:Class="MilkAvalon.Views.SettingsWindow"
         Title="设置"
         Width="720" Height="480"
-        Background="#161616"
-        WindowStartupLocation="CenterOwner">
+        MinWidth="560" MinHeight="360"
+        Icon="/Assets/milkdropsharp.png"
+        Background="{DynamicResource MaterialPaperBrush}"
+        WindowStartupLocation="CenterOwner"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="36"
+        WindowDecorations="BorderOnly">
 
-  <DockPanel Margin="16">
+  <DockPanel>
+    <!--
+      自绘标题栏（和主窗口同一套做法）：
+      系统标题栏由 DWM 绘制，浅色系统下是白条，和 Material 暗色主题完全对不上；
+      DWM 的 DWMWA_USE_IMMERSIVE_DARK_MODE 在关掉 DWM 合成的机器上不生效，所以干脆自己画。
+      ElementRole 的约定见 misc.md §A7-3：TitleBar 可拖动，子树里的按钮要标 User 才收得到点击。
+    -->
+    <Border DockPanel.Dock="Top" Name="CaptionBar"
+            Background="{DynamicResource MaterialToolBarBackgroundBrush}"
+            Padding="14,0,4,0"
+            chrome:WindowDecorationProperties.ElementRole="TitleBar">
+      <Grid ColumnDefinitions="*,Auto" Height="36">
+        <TextBlock Text="设置" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+        <Button Grid.Column="1" Classes="caption" Name="CloseButton" Content="✕"
+                Click="OnCaptionCloseClick"
+                ToolTip.Tip="关闭（等同取消）"
+                chrome:WindowDecorationProperties.ElementRole="User" />
+      </Grid>
+    </Border>
+
+    <DockPanel Margin="16">
     <Border DockPanel.Dock="Bottom" Padding="0,12,0,0">
       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
         <TextBlock Name="StatusText" VerticalAlignment="Center" FontSize="12" Opacity="0.65" />
@@ -15,9 +41,10 @@
       </StackPanel>
     </Border>
 
-    <!-- 关掉横向滚动：否则 `*` 列会退化成 Auto，文本框和提示语会把窗口撑出去（P7 踩到） -->
+    <!-- 关掉横向滚动：否则 `*` 列会退化成 Auto，文本框和提示语会把窗口撑出去（P7 踩到）。 -->
+    <!-- 右侧留 12px：Material 的滚动条是覆盖式的，不留空会压在「浏览…」按钮上。 -->
     <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-      <StackPanel Spacing="14">
+      <StackPanel Spacing="14" Margin="0,0,12,0">
 
         <TextBlock Text="数据根" FontWeight="SemiBold" />
         <Grid ColumnDefinitions="140,*,Auto" RowDefinitions="Auto,Auto" RowSpacing="8" ColumnSpacing="8">
@@ -32,7 +59,7 @@
         <TextBlock Name="RootHint" FontSize="11" Opacity="0.55" TextWrapping="Wrap"
                    Text="projectM 根目录下放 presets/ 与 textures/；ShaderToy 根目录下放 shadertoy.db 与 media/。留空 = 用 exe 旁的默认目录。命令行 --projectm-data/--shadertoy-data 优先级更高。" />
 
-        <Separator Background="#2A2A2A" />
+        <Separator Background="{DynamicResource MaterialDividerBrush}" />
 
         <TextBlock Text="渲染" FontWeight="SemiBold" />
         <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="8">
@@ -62,11 +89,12 @@
           </ComboBox>
         </Grid>
 
-        <Separator Background="#2A2A2A" />
+        <Separator Background="{DynamicResource MaterialDividerBrush}" />
         <TextBlock FontSize="11" Opacity="0.5" TextWrapping="Wrap"
                    Text="保存后立即生效：当前页面会被重建（切页逻辑同点 Tab），不会退出播放。配置文件：exe 旁的 milkavalon.json。" />
       </StackPanel>
     </ScrollViewer>
+    </DockPanel>
   </DockPanel>
 
 </Window>

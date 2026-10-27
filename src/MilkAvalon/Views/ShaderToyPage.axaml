@@ -7,7 +7,7 @@
   <Grid Name="RootGrid" ColumnDefinitions="300,*">
 
     <!-- 左栏：作品库（全部来自 shadertoy.db） -->
-    <Border Grid.Column="0" Name="LibraryPanel" Background="#161616" BorderBrush="#2A2A2A" BorderThickness="0,0,1,0">
+    <Border Grid.Column="0" Name="LibraryPanel" Background="{DynamicResource MaterialPaperBrush}" BorderBrush="{DynamicResource MaterialDividerBrush}" BorderThickness="0,0,1,0">
       <DockPanel>
         <TextBox Name="SearchBox"
                  DockPanel.Dock="Top"
@@ -56,7 +56,7 @@
 
     <!-- 右栏：GL 画面 + 底部信息条（pass / 错误都在这里） -->
     <DockPanel Grid.Column="1">
-      <Border DockPanel.Dock="Bottom" Background="#161616" BorderBrush="#2A2A2A"
+      <Border DockPanel.Dock="Bottom" Background="{DynamicResource MaterialPaperBrush}" BorderBrush="{DynamicResource MaterialDividerBrush}"
               BorderThickness="0,1,0,0" Padding="10,6">
         <StackPanel Classes="overlay" Spacing="1">
           <TextBlock Name="InfoShader" Text="正在读取作品库…" />

@@ -41,12 +41,13 @@
     <Setter Property="Background" Value="#4527A0" />
   </Style>
 
-  <Style Selector="Button.toolbar:disabled /template/ Border#PART_Border">
-    <Setter Property="Background" Value="#2A2A2A" />
+  <!-- 禁用态：底色/前景都交给主题色 + 整体透明度，不再钉死一个灰 -->
+  <Style Selector="Button.toolbar:disabled">
+    <Setter Property="Opacity" Value="0.45" />
   </Style>
 
-  <Style Selector="Button.toolbar:disabled">
-    <Setter Property="Foreground" Value="#777777" />
+  <Style Selector="Button.toolbar:disabled /template/ Border#PART_Border">
+    <Setter Property="Background" Value="{DynamicResource MaterialDividerBrush}" />
   </Style>
 
   <!-- 自绘标题栏上的窗口按钮（— □ ✕）：小方块、透明底、悬停才亮 -->
@@ -57,7 +58,7 @@
     <Setter Property="FontSize" Value="13" />
     <Setter Property="CornerRadius" Value="3" />
     <Setter Property="Background" Value="Transparent" />
-    <Setter Property="Foreground" Value="#DDDDDD" />
+    <Setter Property="Foreground" Value="{DynamicResource MaterialBodyBrush}" />
     <Setter Property="Template">
       <ControlTemplate>
         <Border Name="PART_Border"
@@ -72,19 +73,19 @@
   </Style>
 
   <Style Selector="Button.caption:pointerover /template/ Border#PART_Border">
-    <Setter Property="Background" Value="#3A3A3A" />
+    <Setter Property="Background" Value="{DynamicResource MaterialCardBackgroundBrush}" />
   </Style>
 
-  <!-- 关闭按钮：悬停红底（Windows 习惯） -->
+  <!-- 关闭按钮：悬停红底（Windows 习惯；用 Material Red 700） -->
   <Style Selector="Button.caption#CloseButton:pointerover /template/ Border#PART_Border">
-    <Setter Property="Background" Value="#C42B1C" />
+    <Setter Property="Background" Value="#D32F2F" />
   </Style>
 
   <!-- 播放区左上角的诊断浮层（StackPanel 本身没有字体/前景属性，只能给子 TextBlock 设） -->
   <Style Selector="StackPanel.overlay TextBlock">
     <Setter Property="FontFamily" Value="Consolas,Consolas,monospace" />
     <Setter Property="FontSize" Value="11" />
-    <Setter Property="Foreground" Value="#DDDDDD" />
+    <Setter Property="Foreground" Value="{DynamicResource MaterialBodyBrush}" />
   </Style>
 
 </Styles>

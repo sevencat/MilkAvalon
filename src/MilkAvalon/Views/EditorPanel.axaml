@@ -1,30 +1,80 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:services="using:MilkAvalon.Services"
              x:Class="MilkAvalon.Views.EditorPanel"
              IsVisible="False">
 
-  <Border Background="#161616" BorderBrush="#2A2A2A" BorderThickness="1,0,0,0">
+  <Border Background="{DynamicResource MaterialPaperBrush}" BorderBrush="{DynamicResource MaterialDividerBrush}" BorderThickness="1,0,0,0">
     <DockPanel>
-      <Border DockPanel.Dock="Top" Background="#1E1E1E" Padding="10,8">
-        <Grid ColumnDefinitions="*,Auto">
-          <TextBlock Text="编辑" FontWeight="SemiBold" VerticalAlignment="Center" />
+
+      <!-- 标题栏：文件名（带 • 脏标记）+ 关闭 -->
+      <Border DockPanel.Dock="Top" Background="{DynamicResource MaterialToolBarBackgroundBrush}" Padding="10,8">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+          <StackPanel Spacing="2" VerticalAlignment="Center">
+            <TextBlock Name="TitleText" Text="预设编辑" FontWeight="SemiBold" FontSize="13"
+                       TextTrimming="CharacterEllipsis" />
+            <TextBlock Name="PathText" Text="—" FontSize="11" Opacity="0.55"
+                       TextTrimming="CharacterEllipsis" />
+          </StackPanel>
           <Button Grid.Column="1" Classes="toolbar" Content="关闭" Click="OnCloseClick"
-                  Padding="12,3" MinWidth="64" FontSize="12" />
+                  Padding="12,3" MinWidth="64" FontSize="12" VerticalAlignment="Center" />
         </Grid>
       </Border>
 
-      <StackPanel Margin="12" Spacing="8">
-        <TextBlock Text="编辑器待实现（P10）" FontWeight="SemiBold" />
-        <TextBlock Name="TargetText"
-                   TextWrapping="Wrap"
-                   FontSize="12"
-                   Opacity="0.75"
-                   Text="目标：—" />
-        <TextBlock Text="本期只保留入口：把预设文本 / shader 代码的编辑能力接上时，直接在这个面板里放 AvaloniaEdit 即可，主窗口不用改。"
-                   TextWrapping="Wrap"
-                   FontSize="11"
-                   Opacity="0.55" />
-      </StackPanel>
+      <!-- 工具条：保存（写盘+重载）/ 应用（只重载）/ 还原 / 打开 -->
+      <Grid DockPanel.Dock="Top" Margin="8,8,8,6" ColumnDefinitions="*,*,*,Auto" ColumnSpacing="6">
+        <Button Name="SaveButton" Classes="toolbar" Content="保存" Click="OnSaveClick"
+                FontSize="12" Padding="8,4" ToolTip.Tip="写回 .milk 并重载引擎（Ctrl+S）" />
+        <Button Grid.Column="1" Name="ApplyButton" Classes="toolbar" Content="应用" Click="OnApplyClick"
+                FontSize="12" Padding="8,4" ToolTip.Tip="不写盘，只把当前文本重载进引擎（试参数用）" />
+        <Button Grid.Column="2" Name="RevertButton" Classes="toolbar" Content="还原" Click="OnRevertClick"
+                FontSize="12" Padding="8,4" ToolTip.Tip="丢弃未保存的改动，重新从磁盘读取" />
+        <Button Grid.Column="3" Name="OpenFileButton" Classes="toolbar" Content="打开…" Click="OnOpenFileClick"
+                FontSize="12" Padding="8,4" ToolTip.Tip="编辑另一个 .milk 文件" />
+      </Grid>
+
+      <!-- 底部状态：保存结果 / 引擎告警 / 解析结果 -->
+      <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource MaterialDividerBrush}" BorderThickness="0,1,0,0" Padding="8,5">
+        <TextBlock Name="StatusText" Text="—" FontSize="11" Opacity="0.72"
+                   TextWrapping="Wrap" MaxHeight="64" />
+      </Border>
+
+      <!-- 主体：参数导航 + 原文编辑 -->
+      <Grid ColumnDefinitions="140,*">
+
+        <Border Grid.Column="0" BorderBrush="{DynamicResource MaterialDividerBrush}" BorderThickness="0,0,1,0">
+          <DockPanel>
+            <TextBox DockPanel.Dock="Top" Name="ParamFilter" Margin="6,0,6,4"
+                     PlaceholderText="过滤参数" FontSize="11"
+                     TextChanged="OnParamFilterChanged" />
+            <TextBlock DockPanel.Dock="Bottom" Name="ParamCountText" Margin="8,4"
+                       FontSize="10" Opacity="0.5" Text="—" />
+            <ListBox Name="ParamList" Margin="2,0" SelectionChanged="OnParamSelected">
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="services:MilkPresetEntry">
+                  <StackPanel Spacing="0">
+                    <TextBlock Text="{Binding Key}" FontSize="11" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding Value}" FontSize="10" Opacity="0.42"
+                               TextTrimming="CharacterEllipsis" />
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </DockPanel>
+        </Border>
+
+        <!-- 原文编辑器：.milk 本身就是"每行一个 key=value"的文本，直接改文本最不容易失真 -->
+        <TextBox Grid.Column="1" Name="CodeBox"
+                 AcceptsReturn="True" AcceptsTab="True" TextWrapping="NoWrap"
+                 FontFamily="Cascadia Mono,Consolas,monospace" FontSize="12"
+                 Background="{DynamicResource MaterialBackgroundBrush}" Foreground="{DynamicResource MaterialBodyBrush}"
+                 CaretBrush="#FFFFFF" SelectionBrush="#512DA8"
+                 BorderThickness="0" CornerRadius="0" Padding="8"
+                 VerticalContentAlignment="Top"
+                 ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                 TextChanged="OnCodeChanged" />
+      </Grid>
     </DockPanel>
   </Border>
 

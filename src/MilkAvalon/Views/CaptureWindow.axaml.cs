@@ -688,6 +688,9 @@ public partial class CaptureWindow : Window
     /// 关窗后 WebView2 由控件自己在从视觉树摘除时释放（<see cref="Avalonia.Controls.NativeWebView"/> 没有公开 Dispose）。
     /// 这里只留一条日志，方便确认"关掉再开"确实走的是新实例。
     /// </summary>
+    /// <summary>自绘标题栏的关闭按钮。</summary>
+    private void OnCaptionCloseClick(object? sender, RoutedEventArgs e) => Close();
+
     protected override void OnClosed(EventArgs e)
     {
         base.OnClosed(e);

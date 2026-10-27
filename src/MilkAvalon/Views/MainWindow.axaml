@@ -4,9 +4,10 @@
         xmlns:chrome="using:Avalonia.Controls.Chrome"
         x:Class="MilkAvalon.Views.MainWindow"
         Title="MilkAvalon"
+        Icon="/Assets/milkdropsharp.png"
         Width="1280" Height="800"
         MinWidth="900" MinHeight="520"
-        Background="#121212"
+        Background="{DynamicResource MaterialBackgroundBrush}"
         WindowStartupLocation="CenterScreen"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaTitleBarHeightHint="46"
@@ -20,7 +21,7 @@
         WindowDecorationProperties.ElementRole    标记哪个区域是标题栏 / 哪些按钮要自己收点击
       见 misc.md §A7-3（不标 User 的工具栏按钮会"点了没反应"）。
     -->
-    <Border DockPanel.Dock="Top" Name="ToolBar" Background="#1E1E1E" Padding="12,7,10,7"
+    <Border DockPanel.Dock="Top" Name="ToolBar" Background="{DynamicResource MaterialToolBarBackgroundBrush}" Padding="12,7,10,7"
             chrome:WindowDecorationProperties.ElementRole="TitleBar">
       <!--
         列含义：0 标题文字（仍属标题栏 → 可拖动）、1 工具栏按钮、2 空白（拖动/双击最大化）、3 窗口按钮。
@@ -28,14 +29,18 @@
         "拖动窗口"吃掉，按钮点了没反应。窗口按钮那一栏一直是这么干的，所以它一直能点。
       -->
       <Grid ColumnDefinitions="Auto,Auto,*,Auto">
-      <TextBlock Grid.Column="0" Text="MilkAvalon" FontSize="15" FontWeight="SemiBold"
-                 VerticalAlignment="Center" Margin="0,0,10,0" />
+      <!-- 左上角 logo：milkavalon.jpg 是"黑底发光字"，已按反预乘抠成透明 logo.png，随工具栏高度缩放 -->
+      <Image Grid.Column="0" Name="LogoImage"
+             Source="avares://MilkAvalon/Assets/logo.png"
+             Height="32" Margin="4,0,14,0"
+             VerticalAlignment="Center"
+             Stretch="Uniform" />
 
       <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
                   chrome:WindowDecorationProperties.ElementRole="User">
         <Button Classes="toolbar" Name="LibraryToggleButton" Content="☰"
                 Click="OnToggleLibraryClick" ToolTip.Tip="收起 / 展开左栏" MinWidth="36" />
-        <Separator Width="1" Margin="2,4" Background="#333333" />
+        <Separator Width="1" Margin="2,4" Background="{DynamicResource MaterialDividerBrush}" />
 
         <Button Classes="toolbar" Name="PreviousButton" Content="◀◀"
                 Click="OnPreviousClick" ToolTip.Tip="上一个" MinWidth="40" />
@@ -48,10 +53,10 @@
         <Button Classes="toolbar" Name="ReloadButton" Content="⟳"
                 Click="OnReloadClick" ToolTip.Tip="重载当前" MinWidth="40" />
 
-        <Separator Width="1" Margin="2,4" Background="#333333" />
+        <Separator Width="1" Margin="2,4" Background="{DynamicResource MaterialDividerBrush}" />
 
         <Button Classes="toolbar" Name="EditButton" Content="✎"
-                Click="OnEditClick" ToolTip.Tip="编辑面板（P6 占位，实装见 P10）" MinWidth="40" />
+                Click="OnEditClick" ToolTip.Tip="编辑当前预设（.milk）" MinWidth="40" />
 
         <Button Classes="toolbar" Name="CaptureButton" Content="⧉"
                 ToolTip.Tip="抓取：保存当前画面 / 抓取站点作品" MinWidth="40">
@@ -86,7 +91,7 @@
     </Border>
 
     <!-- 状态栏 -->
-    <Border DockPanel.Dock="Bottom" Name="StatusBar" Background="#1E1E1E" Padding="12,6">
+    <Border DockPanel.Dock="Bottom" Name="StatusBar" Background="{DynamicResource MaterialToolBarBackgroundBrush}" Padding="12,6">
       <TextBlock Name="StatusText" Text="就绪" Opacity="0.6" FontSize="12" />
     </Border>
 
@@ -107,8 +112,8 @@
           <!-- 数据根缺失/为空时的兜底提示（P7）：居中浮层，不影响下面的引擎继续跑 -->
           <Border Name="EmptyState"
                   IsVisible="False"
-                  Background="#E6121212"
-                  BorderBrush="#3A3A3A"
+                  Background="{DynamicResource MaterialCardBackgroundBrush}"
+                  BorderBrush="{DynamicResource MaterialDividerBrush}"
                   BorderThickness="1"
                   CornerRadius="6"
                   Padding="24,18"
@@ -125,8 +130,8 @@
           </Border>
         </Grid>
 
-        <!-- 右侧编辑面板（P6 占位）：纯 Avalonia，不建 GL 资源，开关只触发一次 resize -->
-        <views:EditorPanel Grid.Column="1" Name="Editor" Width="360" />
+        <!-- 右侧编辑面板：编辑当前 .milk 原文（参数导航 + 保存/应用）。纯 Avalonia，不建 GL 资源 -->
+        <views:EditorPanel Grid.Column="1" Name="Editor" Width="560" />
       </Grid>
     </Grid>
   </DockPanel>

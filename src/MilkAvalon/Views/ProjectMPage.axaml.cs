@@ -313,6 +313,12 @@ public partial class ProjectMPage : UserControl
         }
     }
 
+    /// <summary>
+    /// 编辑面板的「保存 / 应用」：把改好的 <c>.milk</c> 文本交给引擎重载（不读盘）。
+    /// </summary>
+    /// <remarks>真正的加载发生在渲染线程（<see cref="ProjectMControl"/> 的命令队列），这里只是转发。</remarks>
+    public void ApplyPresetText(string path, string text) => ProjectMView.ApplyPresetText(path, text);
+
     /// <summary>切走时的现场（页面随后会被整个销毁）。</summary>
     public ProjectMPageState CaptureState()
     {

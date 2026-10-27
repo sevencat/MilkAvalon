@@ -7,7 +7,7 @@
   <Grid Name="RootGrid" ColumnDefinitions="300,*">
 
     <!-- 左栏：预设库（ListBox 默认虚拟化，9795 个也不卡） -->
-    <Border Grid.Column="0" Name="LibraryPanel" Background="#161616" BorderBrush="#2A2A2A" BorderThickness="0,0,1,0">
+    <Border Grid.Column="0" Name="LibraryPanel" Background="{DynamicResource MaterialPaperBrush}" BorderBrush="{DynamicResource MaterialDividerBrush}" BorderThickness="0,0,1,0">
       <DockPanel>
         <!-- 过滤框 + 重新扫描：清单平时来自 projectm\presets.index.json，只有点这个按钮才会重新扫盘 -->
         <Grid DockPanel.Dock="Top" Margin="8,8,8,4" ColumnDefinitions="*,Auto" ColumnSpacing="6">
@@ -48,7 +48,7 @@
         信息条放底部而不是浮在画面上：实测"浮在 GL 控件上方的 Border"会被布局压到
         几十像素宽、文字被裁掉（misc.md §A3-2）；DockPanel 的停靠条则量得很正常。
       -->
-      <Border DockPanel.Dock="Bottom" Background="#161616" BorderBrush="#2A2A2A"
+      <Border DockPanel.Dock="Bottom" Background="{DynamicResource MaterialPaperBrush}" BorderBrush="{DynamicResource MaterialDividerBrush}"
               BorderThickness="0,1,0,0" Padding="10,6">
         <StackPanel Classes="overlay" Spacing="1">
           <TextBlock Name="InfoPreset" Text="正在初始化引擎…" />

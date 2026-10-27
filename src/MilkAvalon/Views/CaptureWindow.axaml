@@ -1,16 +1,34 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:wv="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls.WebView"
+        xmlns:chrome="using:Avalonia.Controls.Chrome"
         x:Class="MilkAvalon.Views.CaptureWindow"
         Title="抓取 Shadertoy 作品"
+        Icon="/Assets/milkdropsharp.png"
         Width="1120" Height="780"
         MinWidth="820" MinHeight="560"
-        Background="#121212"
-        WindowStartupLocation="CenterOwner">
+        Background="{DynamicResource MaterialBackgroundBrush}"
+        WindowStartupLocation="CenterOwner"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="36"
+        WindowDecorations="BorderOnly">
 
   <DockPanel>
+    <!-- 自绘标题栏：系统标题栏由 DWM 画，浅色系统下是白条，和暗色主题对不上（同设置窗口） -->
+    <Border DockPanel.Dock="Top" Name="CaptionBar"
+            Background="{DynamicResource MaterialToolBarBackgroundBrush}"
+            Padding="14,0,4,0"
+            chrome:WindowDecorationProperties.ElementRole="TitleBar">
+      <Grid ColumnDefinitions="*,Auto" Height="36">
+        <TextBlock Text="抓取 Shadertoy 作品" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+        <Button Grid.Column="1" Classes="caption" Name="CloseButton" Content="✕"
+                Click="OnCaptionCloseClick"
+                chrome:WindowDecorationProperties.ElementRole="User" />
+      </Grid>
+    </Border>
+
     <!-- 地址栏：粘贴作品链接或短 ID，回车即打开 -->
-    <Border DockPanel.Dock="Top" Background="#1E1E1E" Padding="12,8">
+    <Border DockPanel.Dock="Top" Background="{DynamicResource MaterialToolBarBackgroundBrush}" Padding="12,8">
       <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="8">
         <TextBlock Text="ID / 链接" VerticalAlignment="Center" FontSize="12" Opacity="0.7" />
         <TextBox Grid.Column="1" Name="IdBox"
@@ -29,7 +47,7 @@
     </Border>
 
     <!-- 状态栏：站点加载 / Cloudflare 等待 / 下载进度都写在这里 -->
-    <Border DockPanel.Dock="Bottom" Background="#1E1E1E" Padding="12,6">
+    <Border DockPanel.Dock="Bottom" Background="{DynamicResource MaterialToolBarBackgroundBrush}" Padding="12,6">
       <TextBlock Name="StatusText" Text="正在加载 shadertoy.com…" FontSize="12" Opacity="0.8"
                  TextWrapping="Wrap" />
     </Border>

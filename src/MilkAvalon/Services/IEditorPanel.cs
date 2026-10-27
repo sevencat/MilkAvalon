@@ -5,8 +5,8 @@ namespace MilkAvalon.Services;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 本期（P6）只放占位实现：按钮可点、面板能开能关，**真正的编辑器推迟到 P10**。
-/// 先把接口固定下来，后面换实装时主窗口一行都不用改。
+/// 实装见 <c>Views.EditorPanel</c>：编辑 <c>.milk</c> 原文 + 参数导航，
+/// 「保存 / 应用」通过事件交给主窗口转给 projectM 页重载。
 /// </para>
 /// <para>
 /// 约定：面板**只用 Avalonia 控件，不创建 GL 资源**，所以开关它不会影响引擎的帧率

@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using MilkAvalon.Services;
@@ -42,6 +43,22 @@ public partial class SettingsWindow : Window
 
     /// <summary>点「保存」后的结果（取消时为 null）。</summary>
     public AppSettings? Result { get; private set; }
+
+    /// <summary>Esc = 取消（自绘标题栏后系统不再帮忙处理这个键）。</summary>
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape)
+        {
+            Close(null);
+            e.Handled = true;
+            return;
+        }
+
+        base.OnKeyDown(e);
+    }
+
+    /// <summary>自绘标题栏的关闭按钮：等同「取消」（不改设置、直接关）。</summary>
+    private void OnCaptionCloseClick(object? sender, RoutedEventArgs e) => Close(null);
 
     private async void OnBrowseProjectMClick(object? sender, RoutedEventArgs e)
         => await PickFolderAsync(ProjectMRootBox, "选择 projectM 数据根（含 presets/ 的目录）");

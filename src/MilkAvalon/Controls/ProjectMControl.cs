@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Text;
 using Avalonia.Threading;
 using MilkAvalon.Rendering;
 using MilkAvalon.Services.Audio;
@@ -96,6 +97,39 @@ public sealed class ProjectMControl : GlControlBase
     public void RandomPreset(bool smooth = true) => Enqueue(() => StepRandom(smooth));
 
     public void ReloadCurrent() => Enqueue(() => ApplyCurrent(smooth: false));
+
+    /// <summary>
+    /// 用**内存里的文本**重载当前预设（编辑面板的「保存 / 应用」用，不经过磁盘）。
+    /// </summary>
+    /// <param name="path">用来显示文件名的路径（可以是刚写盘的那个文件）。</param>
+    /// <param name="text">完整的 <c>.milk</c> 文本。</param>
+    /// <remarks>
+    /// 走 <see cref="ProjectMEngine.LoadPresetData"/>：它内部仍是 <c>PresetFileParser</c> 那套解析，
+    /// 所以语法错误会通过 <see cref="ProjectMEngine.PresetSwitchFailed"/> 回到
+    /// <see cref="LastWarning"/>，面板照常显示，不会把当前画面搞崩。
+    /// </remarks>
+    public void ApplyPresetText(string path, string text)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentNullException.ThrowIfNull(text);
+
+        byte[] data = Encoding.UTF8.GetBytes(text);
+
+        Enqueue(() =>
+        {
+            if (_engine is null)
+            {
+                return;
+            }
+
+            CurrentPresetName = Path.GetFileName(path);
+            LastWarning = null;
+
+            using var stream = new MemoryStream(data, writable: false);
+            _engine.LoadPresetData(stream, smoothTransition: false);
+            NotifyPresetChanged();
+        });
+    }
 
     /// <summary>暂停/锁定当前预设（不自动切下一个）。</summary>
     public void SetLocked(bool locked) => Enqueue(() =>

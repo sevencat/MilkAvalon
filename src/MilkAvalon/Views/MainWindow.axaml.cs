@@ -59,6 +59,7 @@ public partial class MainWindow : Window
 
         MainTabs.SelectionChanged += OnTabsSelectionChanged;
         Editor.CloseRequested += OnEditorCloseRequested;
+        Editor.ApplyRequested += OnEditorApplyRequested;
 
         // P8：F11 全屏 / Esc 退出；画面双击也能切
         AddHandler(KeyDownEvent, OnWindowKeyDown, RoutingStrategies.Tunnel);
@@ -465,6 +466,19 @@ public partial class MainWindow : Window
 
     private void OnEditorCloseRequested() => CloseEditor();
 
+    /// <summary>编辑面板点了「保存 / 应用」：把文本交给当前 projectM 页重载（不碰 GL 线程）。</summary>
+    private void OnEditorApplyRequested(string path, string text)
+    {
+        if (IsShaderToyTab || _projectMPage is null)
+        {
+            Editor.ReportEngineWarning("当前页不是 projectM，改动没法应用");
+            return;
+        }
+
+        _projectMPage.ApplyPresetText(path, text);
+        StatusText.Text = "已应用编辑：" + Path.GetFileName(path);
+    }
+
     private void CloseEditor()
     {
         Editor.Close();
@@ -595,6 +609,13 @@ public partial class MainWindow : Window
         if (Editor.IsOpen)
         {
             Editor.Open(BuildEditorTarget());
+
+            // 编辑的就是正在播的这个文件：把引擎的降级/失败信息回灌到面板（正常时不动状态栏）
+            string? current = _projectMPage?.CurrentPresetPath;
+            if (current is not null && string.Equals(current, Editor.CurrentPath, StringComparison.OrdinalIgnoreCase))
+            {
+                Editor.ReportEngineWarning(control.LastWarning);
+            }
         }
 
         UpdateStatus();

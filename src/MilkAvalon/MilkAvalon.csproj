@@ -6,6 +6,8 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- exe 在资源管理器/任务栏的图标（.ico 由 assets 里的 milkdropsharp.png 转出，多尺寸 16–256） -->
+    <ApplicationIcon>Assets\milkdropsharp.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
