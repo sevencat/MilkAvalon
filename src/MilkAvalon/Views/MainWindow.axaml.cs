@@ -45,6 +45,9 @@ public partial class MainWindow : Window
     private bool _isFullScreen;
     private bool _libraryCollapsed;
 
+    /// <summary>页面底部信息条（预设 / 进度 / 尺寸 / 音频）是否显示，工具栏 ▤ 切换。</summary>
+    private bool _infoVisible = true;
+
     /// <summary>设计器/默认启动用。</summary>
     public MainWindow()
         : this(AppOptions.Parse(null))
@@ -215,6 +218,9 @@ public partial class MainWindow : Window
         PageSwitchCount++;
         PauseButton.Content = PausedGlyph;
 
+        // 新建的页面默认信息条是显示的，把当前开关状态套上去
+        ApplyInfoVisibility();
+
         // 标签条的选中项跟着页面走（--switch-test / --tab 直接调 ShowPage 时不会自动同步）
         if (MainTabs.SelectedIndex != index)
         {
@@ -335,6 +341,21 @@ public partial class MainWindow : Window
         WindowState = _isFullScreen ? WindowState.FullScreen : WindowState.Normal;
 
         Console.WriteLine($"[ui] 全屏：{(_isFullScreen ? "开" : "关")}");
+    }
+
+    /// <summary>工具栏 ▤：显示 / 隐藏页面底部信息条（两个页签都跟着走）。</summary>
+    private void OnToggleInfoClick(object? sender, RoutedEventArgs e)
+    {
+        _infoVisible = !_infoVisible;
+        ApplyInfoVisibility();
+
+        Console.WriteLine($"[ui] 底部信息条：{(_infoVisible ? "显示" : "隐藏")}");
+    }
+
+    private void ApplyInfoVisibility()
+    {
+        _projectMPage?.SetInfoVisible(_infoVisible);
+        _shaderToyPage?.SetInfoVisible(_infoVisible);
     }
 
     private void OnToggleLibraryClick(object? sender, RoutedEventArgs e)

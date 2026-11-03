@@ -11,13 +11,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia" Version="12.1.4" />
+    <PackageReference Include="Avalonia" Version="12.1.5" />
     <!-- 全部保持在同一个版本：Desktop 12.1.1 + 核心 12.1.3 会 TypeLoadException（PopupImpl 少实现一个方法） -->
-    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.4" />
-    <PackageReference Include="Avalonia.HarfBuzz" Version="12.1.4" />
-    <PackageReference Include="Avalonia.Native" Version="12.1.4" />
-    <PackageReference Include="Avalonia.Skia" Version="12.1.4" />
-    <PackageReference Include="Avalonia.Win32" Version="12.1.4" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.5" />
+    <PackageReference Include="Avalonia.HarfBuzz" Version="12.1.5" />
+    <PackageReference Include="Avalonia.Native" Version="12.1.5" />
+    <PackageReference Include="Avalonia.Skia" Version="12.1.5" />
+    <PackageReference Include="Avalonia.Win32" Version="12.1.5" />
     <!-- 抓取 shadertoy 作品用：官方 WebView 组件（MIT），Windows 下就是 WebView2 -->
     <PackageReference Include="Avalonia.Controls.WebView" Version="12.1.1" />
     <PackageReference Include="Material.Avalonia" Version="3.21.0" />

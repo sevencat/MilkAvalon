@@ -58,6 +58,9 @@ public partial class ShaderToyPage : UserControl
     /// <summary>数据根是否已扫过、且一个作品都没有（主窗口据此显示"没有可用数据"浮层）。</summary>
     public bool IsLibraryEmpty => _scanned && _visible.Count == 0;
 
+    /// <summary>底部信息条（作品/时间/尺寸/pass/音频）显隐（工具栏 ▤）。</summary>
+    public void SetInfoVisible(bool visible) => InfoBar.IsVisible = visible;
+
     /// <summary>左栏显隐（工具栏 ☰）。</summary>
     public void ToggleLibrary()
     {

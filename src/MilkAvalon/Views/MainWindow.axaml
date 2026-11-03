@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:views="using:MilkAvalon.Views"
         xmlns:chrome="using:Avalonia.Controls.Chrome"
+        xmlns:assists="clr-namespace:Material.Styles.Assists;assembly=Material.Styles"
         x:Class="MilkAvalon.Views.MainWindow"
         Title="MilkAvalon"
         Icon="/Assets/milkdropsharp.png"
@@ -71,6 +72,9 @@
         <Button Classes="toolbar" Name="FullScreenButton" Content="⛶"
                 Click="OnFullScreenClick" ToolTip.Tip="全屏（F11，Esc 退出）" MinWidth="40" />
 
+        <Button Classes="toolbar" Name="InfoToggleButton" Content="▤"
+                Click="OnToggleInfoClick" ToolTip.Tip="显示 / 隐藏底部信息条（预设、进度、尺寸、音频）" MinWidth="40" />
+
         <Button Classes="toolbar" Name="SettingsButton" Content="⚙"
                 Click="OnSettingsClick" ToolTip.Tip="设置" MinWidth="40" />
       </StackPanel>
@@ -83,7 +87,7 @@
       -->
       <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center"
                   chrome:WindowDecorationProperties.ElementRole="User">
-        <Button Classes="caption" Name="MinimizeButton" Content="—" Click="OnMinimizeClick" ToolTip.Tip="最小化" />
+        <Button Classes="caption" Name="MinimizeButton" Content="_" Click="OnMinimizeClick" ToolTip.Tip="最小化" />
         <Button Classes="caption" Name="MaximizeButton" Content="□" Click="OnMaximizeClick" ToolTip.Tip="最大化 / 还原" />
         <Button Classes="caption" Name="CloseButton" Content="✕" Click="OnCloseClick" ToolTip.Tip="关闭" />
       </StackPanel>
@@ -100,9 +104,45 @@
       TabItem 故意不带内容 —— 内容由 MainWindow.ShowPage 动态创建。
     -->
     <Grid RowDefinitions="Auto,*">
-      <TabControl Grid.Row="0" Name="MainTabs" Padding="0">
-        <TabItem Header="projectM" PointerPressed="OnTabHeaderPressed" />
-        <TabItem Header="ShaderToy" PointerPressed="OnTabHeaderPressed" />
+      <!--
+        Material 的 TabControl 用 UniformGrid 铺标签，默认 TabHeaderHorizontalAlignment=Stretch
+        （整条拉满 → 看起来是居中）。设成 Left 后 UniformGrid 收缩到内容宽度，从左边开始排。
+      -->
+      <TabControl Grid.Row="0" Name="MainTabs" Padding="0"
+                  assists:TabControlAssist.TabHeaderHorizontalAlignment="Left">
+
+        <TabControl.Styles>
+          <!-- 手绘线条图标：未选中跟主题正文色，选中跟主题主色（和 TabItem 的文字色一致） -->
+          <Style Selector="Path.tabIcon">
+            <Setter Property="Stroke" Value="{DynamicResource MaterialBodyLightBrush}" />
+            <Setter Property="StrokeThickness" Value="1.6" />
+            <Setter Property="StrokeLineCap" Value="Round" />
+            <Setter Property="StrokeJoin" Value="Round" />
+          </Style>
+          <Style Selector="TabItem:selected Path.tabIcon">
+            <Setter Property="Stroke" Value="{DynamicResource MaterialPrimaryMidBrush}" />
+          </Style>
+        </TabControl.Styles>
+
+        <TabItem PointerPressed="OnTabHeaderPressed">
+          <TabItem.Header>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <!-- 音频柱（可视化） -->
+              <Path Classes="tabIcon" Data="M2,13 V9 M6,13 V3 M10,13 V7 M14,13 V11" VerticalAlignment="Center" />
+              <TextBlock Text="projectM" VerticalAlignment="Center" />
+            </StackPanel>
+          </TabItem.Header>
+        </TabItem>
+
+        <TabItem PointerPressed="OnTabHeaderPressed">
+          <TabItem.Header>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <!-- 代码尖括号（shader 编辑） -->
+              <Path Classes="tabIcon" Data="M6,3 L1,8 L6,13 M10,3 L15,8 L10,13" VerticalAlignment="Center" />
+              <TextBlock Text="ShaderToy" VerticalAlignment="Center" />
+            </StackPanel>
+          </TabItem.Header>
+        </TabItem>
       </TabControl>
 
       <Grid Grid.Row="1" ColumnDefinitions="*,Auto">

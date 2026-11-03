@@ -254,6 +254,9 @@ public partial class ProjectMPage : UserControl
     /// <summary>数据根是否已扫过、且一个预设都没有（主窗口据此显示"没有可用数据"浮层）。</summary>
     public bool IsLibraryEmpty => _scanned && _visible.Count == 0;
 
+    /// <summary>底部信息条（预设/进度/尺寸/引擎/音频）显隐（工具栏 ▤）。</summary>
+    public void SetInfoVisible(bool visible) => InfoBar.IsVisible = visible;
+
     /// <summary>左栏显隐（工具栏 ☰）。</summary>
     public void ToggleLibrary()
     {

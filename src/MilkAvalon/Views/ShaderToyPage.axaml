@@ -56,7 +56,7 @@
 
     <!-- 右栏：GL 画面 + 底部信息条（pass / 错误都在这里） -->
     <DockPanel Grid.Column="1">
-      <Border DockPanel.Dock="Bottom" Background="{DynamicResource MaterialPaperBrush}" BorderBrush="{DynamicResource MaterialDividerBrush}"
+      <Border Name="InfoBar" DockPanel.Dock="Bottom" Background="{DynamicResource MaterialPaperBrush}" BorderBrush="{DynamicResource MaterialDividerBrush}"
               BorderThickness="0,1,0,0" Padding="10,6">
         <StackPanel Classes="overlay" Spacing="1">
           <TextBlock Name="InfoShader" Text="正在读取作品库…" />

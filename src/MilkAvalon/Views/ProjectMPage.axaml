@@ -15,7 +15,8 @@
                    PlaceholderText="过滤预设（文件名）"
                    TextChanged="OnSearchChanged" />
           <Button Grid.Column="1" Classes="toolbar" Name="RescanButton" Content="重新扫描"
-                  Click="OnRescanClick" FontSize="12" Padding="12,4" MinWidth="84"
+                  Click="OnRescanClick" FontSize="12" Padding="12,4" MinWidth="84" Height="36"
+                  VerticalAlignment="Center"
                   ToolTip.Tip="忽略索引文件，重新扫描磁盘上的 .milk，并更新 presets.index.json" />
         </Grid>
 
@@ -48,7 +49,7 @@
         信息条放底部而不是浮在画面上：实测"浮在 GL 控件上方的 Border"会被布局压到
         几十像素宽、文字被裁掉（misc.md §A3-2）；DockPanel 的停靠条则量得很正常。
       -->
-      <Border DockPanel.Dock="Bottom" Background="{DynamicResource MaterialPaperBrush}" BorderBrush="{DynamicResource MaterialDividerBrush}"
+      <Border Name="InfoBar" DockPanel.Dock="Bottom" Background="{DynamicResource MaterialPaperBrush}" BorderBrush="{DynamicResource MaterialDividerBrush}"
               BorderThickness="0,1,0,0" Padding="10,6">
         <StackPanel Classes="overlay" Spacing="1">
           <TextBlock Name="InfoPreset" Text="正在初始化引擎…" />

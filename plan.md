@@ -245,7 +245,7 @@ MilkAvalon/
 
 | 按钮 | 本期行为 | 后续 |
 |---|---|---|
-| ✎ 编辑 | 可点击，右侧弹出占位面板（"编辑器待实现"），不占用 GL 资源 | P10：AvaloniaEdit 面板 |
+| ✎ 编辑 | 右侧面板**直接编辑当前 `.milk` 原文**（参数导航 + 保存/应用/还原/打开），不占用 GL 资源 | P10 剩余：ShaderToy pass 代码编辑、语法高亮（AvaloniaEdit，未做） |
 | ⧉ 抓取 | 菜单已可用：「保存当前画面…」读 FBO 存 PNG；「抓取站点作品…」开内嵌 WebView2 抓作品入库 | P11 已实装（剪贴板/录屏未做） |
 
 两个按钮的 ViewModel 命令与面板容器**现在就留好接口**（`IEditorPanel` / `ICaptureService` 空实现），
@@ -465,7 +465,7 @@ MilkAvalon/
 | P7 | 数据根/设置 + 抓取占位 | 1d | ✅ 2026-10-27 | 设置窗口 + `milkavalon.json`（STJ 源生成）；空数据浮层 + 目录选择；改根即时重建；抓取占位接口 |
 | P8 | 主题/DPI/拖放 | 1d | ✅ 2026-10-27 | 暗色主题 + 左栏折叠 + F11/双击全屏（chrome 全隐藏）；拖放 `.milk`/`.json` 即加载，`--drop` 复用同一路径自检通过 |
 | P9 | Native AOT | 2d | ⬜ | |
-| P10 | **编辑**（后续） | 2d | ⏸ | 未排期 |
+| P10 | **编辑** | 2d | 🟨 2026-10-27 | `.milk` 编辑已实装：原文 TextBox + 参数导航（点参数跳到行）、保存（写盘+重载）/应用（只重载）/还原/打开、Ctrl+S、编码与换行按原文件保持；ShaderToy pass 代码编辑与语法高亮未做 |
 | P11 | **抓取** | 1.5d | 🟨 2026-10-27 | 站点抓取已通（内嵌 WebView2 → `POST /shadertoy` → 只写 db + media，`--capture` 自检）；截图存 PNG 已通；剪贴板/录屏未做 |
 | — | **本期合计（P0–P9）** | **约 12.3 人日** | — | 不含搬入（机械）与调试波动 |
 
@@ -473,6 +473,9 @@ MilkAvalon/
 
 | 日期 | 事件 |
 |---|---|
+| 2026-10-27 | **主题一致性**：① `Application.RequestedThemeVariant="Dark"` —— 此前是 `Default`（跟随系统），实测解析成 **Light**，Material 的变体感知资源全走浅色分支；② 窗口/面板不再写死 `#121212`/`#161616`/`#1E1E1E`/`#2A2A2A`，全部改成 Material 主题资源（`MaterialBackgroundBrush` / `MaterialPaperBrush` / `MaterialCardBackgroundBrush` / `MaterialToolBarBackgroundBrush` / `MaterialDividerBrush` / `MaterialBodyBrush`）；③ 设置窗口、抓取窗口改成和主窗口一样的**自绘标题栏**（`BorderOnly` + `ElementRole="TitleBar"`），因为系统标题栏由 DWM 画，浅色系统下是白条，而 `DWMWA_USE_IMMERSIVE_DARK_MODE` 在关掉 DWM 合成的机器上实测 HRESULT=0 却不生效；顺带给设置窗口补 Esc=取消、图标、右侧 12px 留白（Material 覆盖式滚动条会压住「浏览…」） |
+| 2026-10-27 | **品牌化**：左上角标题文字换成 logo（`Assets/logo.png` 由 `milkavalon.jpg` 抠底而来 —— 原图是"黑底发光字"，按 `a = max(pixel - 底色)` 反预乘成透明 PNG，再裁剪 + 24px 边缘羽化，叠在 `#1E1E1E` 工具栏上无矩形硬边；控件 Height=32、随工具栏居左）；程序图标用 `milkdropsharp.png`：`Window.Icon`（任务栏/Alt-Tab）+ `Assets/milkdropsharp.ico`（16–256 多尺寸，`ApplicationIcon` → 资源管理器里的 exe 图标） |
+| 2026-10-27 | **P10 之 `.milk` 编辑落地**：`Services/MilkPresetDocument`（按行切 key/value、保留注释/段名/重复键/编码/换行）+ `Views/EditorPanel` 换成真编辑器（参数导航、保存=写盘并重载、应用=只重载、还原、打开…、Ctrl+S、脏标记）；重载走 `ProjectMControl.ApplyPresetText` → `ProjectMEngine.LoadPresetData`（渲染线程命令队列，不碰磁盘、不跨线程调 GL）。刻意不引 `AvaloniaEdit`（AOT 变量），原文编辑用 `TextBox` 就够 |
 | 2026-10-27 | 计划初稿：确定 Avalonia 12.1.3 + Material.Avalonia 3.19.0 + Silk.NET 2.23.0；确定"源码搬入 + 最小补丁"复用策略；`OpenGlControlBase` 方案 A 为主、`NativeControlHost` 方案 B 兜底 |
 | 2026-10-27 | **P8 完成**：全屏隐藏工具栏/标签条/状态栏；拖放 `.milk`/`.json` 即加载，加载逻辑收敛到 `MainWindow.TryLoadFile`；新增 `--fullscreen` / `--drop <file>` 自检参数；页面在扫盘未完成时先记下拖入的文件（`_pendingPresetPath` / `_pendingProject`），清单就绪后再选中，避免被"第一个"顶掉 |
 | 2026-10-27 | **音频后端归一**：输入侧新增 `IPcmSource`（`AudioCapture` / `SyntheticAudio` 都实现，`ProjectMControl` 只持一个字段）；输出侧 `IAudioSink` 不变但选择收敛到 `AudioSinks.Start`（WASAPI 共享 → waveOut → 静音），新增 `WasapiOutSink`（`WasapiPlayerBuilder`，设备混音采样率 48000，由 `AudioBuffer` 重采样）与 `--audio-backend auto\|wasapi\|waveout\|silent`；两个后端共用 `Pcm16Provider`；NAudio 仍是 Wasapi + WinMM 同版本两个包，其它项目零音频依赖 |
