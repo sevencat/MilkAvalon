@@ -64,6 +64,9 @@ public sealed class CompileContext
 
     public Variable? FindVariable(string name) => _variables.GetValueOrDefault(name);
 
+    /// <summary>已注册的全部变量名（对拍/调试用，顺序不保证）。</summary>
+    public IEnumerable<string> VariableNames => _variables.Keys;
+
     public Variable GetOrCreateVariable(string name)
     {
         if (_variables.TryGetValue(name, out var existing))
@@ -146,6 +149,21 @@ public sealed class CompileContext
     public EvalNode Constant(double value)
         => new() { Func = FuncOf("/*const*/"), Op = EvalOpCode.Const, Value = value };
 
+    /// <summary>
+    /// 代码首行是这个标记时，改走"脚本前端"而不是 EEL。
+    /// </summary>
+    /// <remarks>
+    /// <c>.milkx</c> 的 C# 风格代码由 <c>MilkDrop.PresetScript</c> 负责解析，而本库不能反向引用它
+    /// （会成环），所以通过 <see cref="ScriptParser"/> 注入。没有标记的代码一律走 EEL，行为不变。
+    /// 标记本身是 <c>//</c> 注释，EEL 词法也能吃下去，万一漏判也不会炸。
+    /// </remarks>
+    public const string ScriptMarker = "//#milkx";
+
+    /// <summary>
+    /// <c>.milkx</c> 的代码前端（由宿主注入，见 <see cref="ScriptMarker"/>）。
+    /// </summary>
+    public static Func<string, CompileContext, EvalNode?>? ScriptParser { get; set; }
+
     public EvalNode VariableRef(string name)
     {
         var variable = GetOrCreateVariable(name);
@@ -220,6 +238,11 @@ public sealed class CompileContext
 
         try
         {
+            if (code.TrimStart().StartsWith(ScriptMarker, StringComparison.Ordinal))
+            {
+                return CompileScript(code);
+            }
+
             var parser = new Parser(this, code);
             return new EvalProgram(this, parser.ParseProgram());
         }
@@ -231,5 +254,23 @@ public sealed class CompileContext
             ErrorColumnEnd = ex.EndColumn;
             return null;
         }
+    }
+
+    /// <summary>走注入的脚本前端（<c>.milkx</c> 的 C# 风格语法）。</summary>
+    private EvalProgram? CompileScript(string code)
+    {
+        Func<string, CompileContext, EvalNode?>? parser = ScriptParser;
+
+        if (parser is null)
+        {
+            Error = "没有注册脚本前端（CompileContext.ScriptParser 为空）";
+            ErrorLine = 1;
+            return null;
+        }
+
+        int markerIndex = code.IndexOf(ScriptMarker, StringComparison.Ordinal);
+        string body = code[(markerIndex + ScriptMarker.Length)..];
+
+        return new EvalProgram(this, parser(body, this));
     }
 }

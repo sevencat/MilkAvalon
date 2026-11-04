@@ -6,6 +6,9 @@ public static partial class IntrinsicFunctions
     public const double CompareCloseFactor = 0.00001;
     public const long MaxLoopCount = 1048576;
 
+    /// <summary>把 <c>rand()</c> 的随机数发生器复位到初始种子（对拍/测试用）。</summary>
+    public static void ResetRandom() => Mt.Reset();
+
     private static long ToInt(double v) => (long)v;
 
     private static double ArgValue(EvalNode node, int index)
@@ -27,6 +30,9 @@ public static partial class IntrinsicFunctions
     /// <summary>MilkDrop 原始 Mersenne-Twister（MT19937），种子 0x4141f00d。</summary>
     internal static class Mt
     {
+        /// <summary>把状态复位到初始种子（对拍/测试用，运行期不要调）。</summary>
+        public static void Reset() => _mti = 0;
+
         private const int N = 624;
         private const int M = 397;
         private const uint MatrixA = 0x9908b0df;

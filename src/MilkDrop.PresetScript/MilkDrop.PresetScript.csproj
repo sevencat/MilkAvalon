@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>MilkDrop.PresetScript</RootNamespace>
+    <!-- 纯托管、无反射、无动态代码生成：与 P9 的 Native AOT 目标保持一致 -->
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      只依赖表达式引擎（EvalNode / 字节码 VM）。
+      **不引用 MilkDrop.ProjectM**：.milk 的 INI 读取在这里自己实现，
+      否则 ProjectM 反过来要引用本工程（播放 .milkx）就成环了。见 plan.md「工程结构」。
+    -->
+    <ProjectReference Include="..\MilkDrop.Eval\MilkDrop.Eval.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="MilkDrop.PresetScript.Tests" />
+  </ItemGroup>
+</Project>

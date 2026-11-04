@@ -30,7 +30,15 @@ public sealed class ShaderToyPlayer : IDisposable
     private readonly PlaybackClock _clock = new();
     private readonly MouseState _mouse = new();
     private readonly GpuInput _input = new();
-    private readonly BufferResolution _bufferResolution = new();
+    /// <summary>
+    /// buffer 目标尺寸策略。默认 0.5×（与 <see cref="AppSettings.ShaderToyBufferMode"/> 的默认值一致）：
+    /// 页面 Initialize 会按设置再推一次，这里只是保证"UI 还没推之前"也是这个口径。
+    /// </summary>
+    private readonly BufferResolution _bufferResolution = new()
+    {
+        Mode = BufferResolutionMode.Scale,
+        Scale = 0.5f,
+    };
 
     private CopyTexture? _copy;
     private ShaderToyPipeline? _pipeline;

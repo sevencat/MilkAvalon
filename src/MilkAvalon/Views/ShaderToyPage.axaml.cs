@@ -43,7 +43,9 @@ public partial class ShaderToyPage : UserControl
     {
         InitializeComponent();
 
-        BufferModeBox.SelectedIndex = 0;
+        // 默认「视口 0.5×」（与 AppSettings.ShaderToyBufferMode 的默认值一致）：
+        // buffer 里的像素量与耗时是平方关系，1× 下重一点的作品直接跑不动。
+        BufferModeBox.SelectedIndex = 2;
 
         ShaderToyView.ShaderLoaded += OnShaderLoaded;
 

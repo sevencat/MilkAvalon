@@ -19,8 +19,14 @@ public sealed class PresetLibrary
 
     /// <summary>递归扫描目录下的 <c>.milk</c>，按文件名排序后追加。</summary>
     /// <returns>新增的文件数。</returns>
-    public int AddDirectory(string directory)
+    public int AddDirectory(string directory) => AddDirectory(directory, "*.milk");
+
+    /// <summary>递归扫描目录下匹配 <paramref name="pattern"/> 的文件（脚本预设页用 <c>*.milkx</c>）。</summary>
+    /// <returns>新增的文件数。</returns>
+    public int AddDirectory(string directory, string pattern)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(pattern);
+
         if (!Directory.Exists(directory))
         {
             Console.WriteLine($"预设目录不存在: {directory}");
@@ -31,7 +37,7 @@ public sealed class PresetLibrary
 
         try
         {
-            foreach (string file in Directory.EnumerateFiles(directory, "*.milk", SearchOption.AllDirectories))
+            foreach (string file in Directory.EnumerateFiles(directory, pattern, SearchOption.AllDirectories))
             {
                 found.Add(file);
             }

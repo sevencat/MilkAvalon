@@ -21,6 +21,8 @@
     <!-- 抓取 shadertoy 作品用：官方 WebView 组件（MIT），Windows 下就是 WebView2 -->
     <PackageReference Include="Avalonia.Controls.WebView" Version="12.1.1" />
     <PackageReference Include="Material.Avalonia" Version="3.21.0" />
+    <!-- 编辑面板：带行号/语法高亮/代码补全的文本编辑器（plan.md 的 D7） -->
+    <PackageReference Include="Avalonia.AvaloniaEdit" Version="12.0.0" />
     <!-- 音频后端全在这两个包里，同一版本；App 层由 Services/Audio/AudioSources.cs 与 AudioSinks.cs 统一挑选 -->
     <!-- WASAPI：projectM 输入（环回采集）+ sound pass 输出（首选） -->
     <PackageReference Include="NAudio.Wasapi" Version="3.3.0" />
@@ -31,10 +33,14 @@
   <ItemGroup>
     <ProjectReference Include="..\MilkDrop.ProjectM\MilkDrop.ProjectM.csproj" />
     <ProjectReference Include="..\MilkDrop.ShaderToy\MilkDrop.ShaderToy.csproj" />
+    <!-- .milkx（C# 风格预设脚本）的读写与前端；只依赖 MilkDrop.Eval，不成环 -->
+    <ProjectReference Include="..\MilkDrop.PresetScript\MilkDrop.PresetScript.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
+    <!-- 编辑面板的语法高亮定义（XSHD，按后缀两套） -->
+    <AvaloniaResource Include="Editor\*.xshd" />
   </ItemGroup>
 
   <ItemGroup>

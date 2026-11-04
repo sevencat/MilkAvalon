@@ -23,6 +23,15 @@ public sealed class AppSettings
     /// <summary>ShaderToy 数据根（null = 用 <c>&lt;exe&gt;/shadertoy</c>）。</summary>
     public string? ShaderToyDataRoot { get; set; }
 
+    /// <summary>
+    /// 脚本预设（<c>.milkx</c>）库目录（null/空 = 用 <c>&lt;exe&gt;/milkx</c>）。
+    /// </summary>
+    /// <remarks>
+    /// 从 <c>.milk</c> 导入生成的脚本放这里；用户可以在设置里指到别处（比如放到预设盘上）。
+    /// 解析请用 <see cref="ResolveMilkxDirectory"/>，不要直接拼路径。
+    /// </remarks>
+    public string? MilkxDirectory { get; set; }
+
     /// <summary>是否等垂直同步（暂时只记录，帧泵由 Avalonia 合成器控制）。</summary>
     public bool VSync { get; set; } = true;
 
@@ -32,14 +41,29 @@ public sealed class AppSettings
     /// <summary>projectM 网格高。</summary>
     public uint MeshHeight { get; set; } = 36;
 
-    /// <summary>ShaderToy buffer 分辨率模式：0=视口 / 1=固定 1024×256 / 2=0.5×。</summary>
-    public int ShaderToyBufferMode { get; set; } = 0;
+    /// <summary>
+    /// ShaderToy buffer 分辨率模式：0=视口 / 1=固定 1024×256 / 2=0.5×。
+    /// </summary>
+    /// <remarks>
+    /// 默认 0.5×：buffer 里的活（raymarching 那类）和像素数是平方关系，全视口分辨率下
+    /// 稍微重一点的作品就直接跑不动（实测 tutorial by iq 的 Buffer A 在 1× 下掉到个位数帧率）。
+    /// 想要原生的清晰度可以在设置里改回「跟随视口」。
+    /// </remarks>
+    public int ShaderToyBufferMode { get; set; } = 2;
 
     /// <summary>界面缩放（1.0 = 跟随系统）。</summary>
     public double UiScale { get; set; } = 1.0;
 
     /// <summary>默认配置文件路径。</summary>
     public static string DefaultPath => Path.Combine(AppContext.BaseDirectory, "milkavalon.json");
+
+    /// <summary>
+    /// 脚本预设（<c>.milkx</c>）库目录的最终路径：设置里没填就用 <c>&lt;exe&gt;/milkx</c>。
+    /// </summary>
+    public string ResolveMilkxDirectory()
+        => string.IsNullOrWhiteSpace(MilkxDirectory)
+            ? Path.Combine(AppContext.BaseDirectory, "milkx")
+            : Path.GetFullPath(MilkxDirectory);
 
     /// <summary>读设置；文件不存在/坏了都返回默认值，不抛。</summary>
     public static AppSettings Load(string? path = null)
@@ -94,6 +118,7 @@ public sealed class AppSettings
     {
         ProjectMDataRoot = ProjectMDataRoot,
         ShaderToyDataRoot = ShaderToyDataRoot,
+        MilkxDirectory = MilkxDirectory,
         VSync = VSync,
         MeshWidth = MeshWidth,
         MeshHeight = MeshHeight,
@@ -108,6 +133,7 @@ public sealed class AppSettings
 
         ProjectMDataRoot = other.ProjectMDataRoot;
         ShaderToyDataRoot = other.ShaderToyDataRoot;
+        MilkxDirectory = other.MilkxDirectory;
         VSync = other.VSync;
         MeshWidth = other.MeshWidth;
         MeshHeight = other.MeshHeight;

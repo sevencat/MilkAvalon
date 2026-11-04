@@ -25,6 +25,9 @@ public sealed class AppOptions
     /// <summary>ShaderToy 数据根（命令行覆盖值，可能为 null）。</summary>
     public string? ShaderToyDataRoot { get; private init; }
 
+    /// <summary>脚本预设（<c>.milkx</c>）库目录（命令行覆盖值，可能为 null）。</summary>
+    public string? MilkxDataRoot { get; private init; }
+
     /// <summary>自检截图输出路径（null = 正常交互启动）。</summary>
     public string? ShotPath { get; private init; }
 
@@ -63,11 +66,24 @@ public sealed class AppOptions
     /// <summary>启动后抓取一个站点作品并入库（<c>--capture &lt;id|url&gt;</c>，自检用）。</summary>
     public string? CaptureTarget { get; private init; }
 
+    /// <summary>
+    /// 启动后把一个目录里的 <c>.milk</c> 批量导入成 <c>.milkx</c> 再退出
+    /// （<c>--import-milkx &lt;目录&gt;</c>，自检用；输出到 <see cref="EffectiveMilkxDirectory"/>）。
+    /// </summary>
+    public string? ImportMilkxSource { get; private init; }
+
     /// <summary>启动即切到 ShaderToy 页。</summary>
     public bool StartOnShaderToy =>
         string.Equals(InitialTab, "shadertoy", StringComparison.OrdinalIgnoreCase)
         || string.Equals(InitialTab, "shader", StringComparison.OrdinalIgnoreCase)
         || string.Equals(InitialTab, "2", StringComparison.Ordinal);
+
+    /// <summary>启动即切到脚本预设（<c>.milkx</c>）页。</summary>
+    public bool StartOnScript =>
+        string.Equals(InitialTab, "script", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(InitialTab, "milkx", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(InitialTab, "scripts", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(InitialTab, "3", StringComparison.Ordinal);
 
     /// <summary>实际生效的 projectM 数据根（命令行 &gt; 设置文件 &gt; 默认）。</summary>
     public string EffectiveProjectMRoot => Normalize(ProjectMDataRoot ?? Settings.ProjectMDataRoot, "projectm");
@@ -75,11 +91,20 @@ public sealed class AppOptions
     /// <summary>实际生效的 ShaderToy 数据根（命令行 &gt; 设置文件 &gt; 默认）。</summary>
     public string EffectiveShaderToyRoot => Normalize(ShaderToyDataRoot ?? Settings.ShaderToyDataRoot, "shadertoy");
 
+    /// <summary>实际生效的脚本预设（<c>.milkx</c>）目录（命令行 &gt; 设置文件 &gt; <c>&lt;exe&gt;/milkx</c>）。</summary>
+    public string EffectiveMilkxDirectory =>
+        MilkxDataRoot is { Length: > 0 } fromCommandLine
+            ? Path.GetFullPath(fromCommandLine)
+            : Settings.ResolveMilkxDirectory();
+
     /// <summary>该数据根是否来自命令行（设了之后设置页改不动它，只能改设置里的值）。</summary>
     public bool IsProjectMRootFromCommandLine => ProjectMDataRoot is not null;
 
     /// <summary>同上（ShaderToy）。</summary>
     public bool IsShaderToyRootFromCommandLine => ShaderToyDataRoot is not null;
+
+    /// <summary>同上（脚本预设目录）。</summary>
+    public bool IsMilkxRootFromCommandLine => MilkxDataRoot is not null;
 
     /// <summary>预设目录：优先 <c>&lt;根&gt;/presets</c>，不存在时退回根目录本身（允许 .milk 直接平铺）。</summary>
     public string PresetsDirectory
@@ -113,6 +138,7 @@ public sealed class AppOptions
 
         string? projectM = ReadOption(args, "--projectm-data");
         string? shaderToy = ReadOption(args, "--shadertoy-data");
+        string? milkx = ReadOption(args, "--milkx-data");
         string? shot = ReadOption(args, "--shot");
 
         return new AppOptions
@@ -120,6 +146,7 @@ public sealed class AppOptions
             Settings = settings ?? new AppSettings(),
             ProjectMDataRoot = projectM,
             ShaderToyDataRoot = shaderToy,
+            MilkxDataRoot = milkx,
             ShotPath = shot,
             SyntheticAudio = args.Contains("--synthetic-audio", StringComparer.OrdinalIgnoreCase),
             InitialPreset = ReadOption(args, "--preset"),
@@ -132,6 +159,7 @@ public sealed class AppOptions
             DropPath = ReadOption(args, "--drop"),
             AudioBackend = ParseAudioBackend(ReadOption(args, "--audio-backend")),
             CaptureTarget = ReadOption(args, "--capture"),
+            ImportMilkxSource = ReadOption(args, "--import-milkx"),
         };
     }
 

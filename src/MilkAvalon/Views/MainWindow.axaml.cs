@@ -17,9 +17,9 @@ namespace MilkAvalon.Views;
 /// </summary>
 /// <remarks>
 /// <para>
-/// R2（plan.md §6.4）：每次点 Tab 都**整页销毁重建**——旧页从视觉树摘掉后，Avalonia 在渲染线程上
+/// R2（plan.md §6.4）：每次切页都**整页销毁重建**——旧页从视觉树摘掉后，Avalonia 在渲染线程上
 /// 回调 <c>OnOpenGlDeinit</c>，引擎/音频在那里 Dispose（`GlControlBase.OnGlReleased`）。
-/// 再点同一个 Tab 也重建（走 <see cref="OnTabHeaderPressed"/>，因为 SelectionChanged 不会重复触发）。
+/// 切页入口是工具栏右侧的两个按钮；再点当前页的那个也重建（<see cref="OnPageButtonClick"/>）。
 /// </para>
 /// <para>
 /// 页面的"看到哪了"由 <see cref="PageState"/> 快照兜着：切走时抓、切回时套。
@@ -39,9 +39,9 @@ public partial class MainWindow : Window
     private CaptureWindow? _captureWindow;
 
     private ProjectMPage? _projectMPage;
+    private ProjectMPage? _scriptPage;
     private ShaderToyPage? _shaderToyPage;
     private int _pageIndex = -1;
-    private bool _syncingTabs;
     private bool _isFullScreen;
     private bool _libraryCollapsed;
 
@@ -60,7 +60,6 @@ public partial class MainWindow : Window
 
         InitializeComponent();
 
-        MainTabs.SelectionChanged += OnTabsSelectionChanged;
         Editor.CloseRequested += OnEditorCloseRequested;
         Editor.ApplyRequested += OnEditorApplyRequested;
 
@@ -79,7 +78,10 @@ public partial class MainWindow : Window
         if (options.StartOnShaderToy)
         {
             ShowPage(index: 1, force: true);
-            MainTabs.SelectedIndex = 1;
+        }
+        else if (options.StartOnScript)
+        {
+            ShowPage(index: 2, force: true);
         }
 
         // --drop <file>：走和真实拖放完全相同的加载路径（自检用）
@@ -105,8 +107,12 @@ public partial class MainWindow : Window
     public AppOptions Options => _options;
 
     /// <summary>当前 Tab 的 GL 控件（自检/工具条用）。</summary>
-    public GlControlBase? CurrentGlView =>
-        _pageIndex == 1 ? _shaderToyPage?.GlView : _projectMPage?.GlView;
+    public GlControlBase? CurrentGlView => _pageIndex switch
+    {
+        1 => _shaderToyPage?.GlView,
+        2 => _scriptPage?.GlView,
+        _ => _projectMPage?.GlView,
+    };
 
     /// <summary>已经切过多少次页（自检/诊断用）。</summary>
     public int PageSwitchCount { get; private set; }
@@ -118,6 +124,12 @@ public partial class MainWindow : Window
         _pageIndex != 1 || (_shaderToyPage?.View.Player is { } player && player.CurrentId.Length > 0);
 
     private bool IsShaderToyTab => _pageIndex == 1;
+
+    /// <summary>当前是脚本预设页（<c>.milkx</c>）。</summary>
+    private bool IsScriptTab => _pageIndex == 2;
+
+    /// <summary>当前页的 projectM 引擎页（projectM 页或脚本页；ShaderToy 页为 null）。</summary>
+    private ProjectMPage? ActivePresetPage => _pageIndex == 2 ? _scriptPage : _projectMPage;
 
     /// <summary>自检用：强制切到指定页（同一页也会重建，与真实点击一致）。</summary>
     public void SwitchPage(int index) => ShowPage(index, force: true);
@@ -142,41 +154,47 @@ public partial class MainWindow : Window
 
     // ---- 切页 ----
 
-    private void OnTabsSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    /// <summary>
+    /// 工具栏右侧的页面按钮：点哪个切哪页；**点当前页则强制重建**（R2 / plan.md §6.4）。
+    /// </summary>
+    private void OnPageButtonClick(object? sender, RoutedEventArgs e)
     {
-        // ShowPage 自己同步标签条时不要再回来切一次页
-        if (_syncingTabs)
-        {
-            return;
-        }
+        int index = ReferenceEquals(sender, ShaderToyTabButton) ? 1
+            : ReferenceEquals(sender, ScriptTabButton) ? 2
+            : 0;
 
-        ShowPage(MainTabs.SelectedIndex, force: false);
+        ShowPage(index, force: index == _pageIndex);
     }
 
-    /// <summary>
-    /// 再点一次"已经选中的 Tab"：TabControl 不会触发 SelectionChanged，但 R2 要求重建。
-    /// </summary>
-    private void OnTabHeaderPressed(object? sender, PointerPressedEventArgs e)
+    /// <summary>按钮的选中态跟着当前页走（选中项铺亮紫）。</summary>
+    private void UpdatePageButtons()
     {
-        if (sender is not TabItem item)
-        {
-            return;
-        }
+        SetActive(ProjectMTabButton, _pageIndex == 0);
+        SetActive(ShaderToyTabButton, _pageIndex == 1);
+        SetActive(ScriptTabButton, _pageIndex == 2);
 
-        int index = MainTabs.Items.IndexOf(item);
-
-        if (index == _pageIndex)
+        static void SetActive(Button button, bool active)
         {
-            ShowPage(index, force: true);
+            if (active)
+            {
+                if (!button.Classes.Contains("active"))
+                {
+                    button.Classes.Add("active");
+                }
+            }
+            else
+            {
+                button.Classes.Remove("active");
+            }
         }
     }
 
     /// <summary>拆旧建新。</summary>
-    /// <param name="index">0 = projectM，1 = ShaderToy。</param>
+    /// <param name="index">0 = projectM，1 = ShaderToy，2 = 脚本（<c>.milkx</c>）。</param>
     /// <param name="force">true 时即使同一页也重建。</param>
     private void ShowPage(int index, bool force)
     {
-        index = index == 1 ? 1 : 0;
+        index = index is 1 or 2 ? index : 0;
 
         if (!force && index == _pageIndex)
         {
@@ -192,6 +210,7 @@ public partial class MainWindow : Window
         // 页面自己的定时器在 OnDetachedFromVisualTree 里停掉，否则它会拖着整页不放。
         PageHost.Content = null;
         _projectMPage = null;
+        _scriptPage = null;
         _shaderToyPage = null;
 
         // 建：新页面 + 新 GL 控件 + 新引擎，然后用快照恢复现场。
@@ -206,11 +225,21 @@ public partial class MainWindow : Window
         }
         else
         {
+            // projectM 页与脚本页共用同一个页面类型（D1：.milk 的播放链一行不改）
             var page = new ProjectMPage();
-            page.Initialize(_options, state as ProjectMPageState);
+            page.Initialize(_options, state as ProjectMPageState, scriptMode: index == 2);
             page.View.PresetChanged += OnPresetChanged;
             page.View.FrameStatsUpdated += OnFrameStatsUpdated;
-            _projectMPage = page;
+
+            if (index == 2)
+            {
+                _scriptPage = page;
+            }
+            else
+            {
+                _projectMPage = page;
+            }
+
             PageHost.Content = page;
         }
 
@@ -221,24 +250,28 @@ public partial class MainWindow : Window
         // 新建的页面默认信息条是显示的，把当前开关状态套上去
         ApplyInfoVisibility();
 
-        // 标签条的选中项跟着页面走（--switch-test / --tab 直接调 ShowPage 时不会自动同步）
-        if (MainTabs.SelectedIndex != index)
-        {
-            _syncingTabs = true;
-            MainTabs.SelectedIndex = index;
-            _syncingTabs = false;
-        }
+        // 按钮的选中态跟着页面走（--switch-test / --tab 直接调 ShowPage 时也要对上）
+        UpdatePageButtons();
 
         Console.WriteLine(
-            $"[page] 切到 {(index == 1 ? "ShaderToy" : "projectM")}（第 {PageSwitchCount} 次），"
+            $"[page] 切到 {PageName(index)}（第 {PageSwitchCount} 次），"
             + $"存活控件 {GlControlBase.LiveCount} 个，{GlObjectStats.Describe()}");
 
         UpdateStatus();
     }
 
+    /// <summary>页名（日志/状态栏用）。</summary>
+    private static string PageName(int index) => index switch
+    {
+        1 => "ShaderToy",
+        2 => "milkx",
+        _ => "projectM",
+    };
+
     private PageState? CaptureState() => _pageIndex switch
     {
         1 => _shaderToyPage?.CaptureState(),
+        2 => _scriptPage?.CaptureState(),
         0 => _projectMPage?.CaptureState(),
         _ => null,
     };
@@ -253,7 +286,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        _projectMPage?.Previous();
+        ActivePresetPage?.Previous();
     }
 
     private void OnNextClick(object? sender, RoutedEventArgs e)
@@ -264,7 +297,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        _projectMPage?.Next();
+        ActivePresetPage?.Next();
     }
 
     private void OnRandomClick(object? sender, RoutedEventArgs e)
@@ -275,7 +308,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        _projectMPage?.RandomPreset();
+        ActivePresetPage?.RandomPreset();
     }
 
     private void OnReloadClick(object? sender, RoutedEventArgs e)
@@ -286,7 +319,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        _projectMPage?.ReloadCurrent();
+        ActivePresetPage?.ReloadCurrent();
     }
 
     // ---- P8：自绘标题栏按钮 ----
@@ -333,10 +366,9 @@ public partial class MainWindow : Window
     {
         _isFullScreen = !_isFullScreen;
 
-        // 全屏时把工具栏/标签条/状态栏都藏掉，只留画面（Esc 退出）
+        // 全屏时把工具栏（页面切换按钮跟着它一起藏）/状态栏都藏掉，只留画面（Esc 退出）
         ToolBar.IsVisible = !_isFullScreen;
         StatusBar.IsVisible = !_isFullScreen;
-        MainTabs.IsVisible = !_isFullScreen;
 
         WindowState = _isFullScreen ? WindowState.FullScreen : WindowState.Normal;
 
@@ -355,6 +387,7 @@ public partial class MainWindow : Window
     private void ApplyInfoVisibility()
     {
         _projectMPage?.SetInfoVisible(_infoVisible);
+        _scriptPage?.SetInfoVisible(_infoVisible);
         _shaderToyPage?.SetInfoVisible(_infoVisible);
     }
 
@@ -368,7 +401,7 @@ public partial class MainWindow : Window
         }
         else
         {
-            _projectMPage?.ToggleLibrary();
+            ActivePresetPage?.ToggleLibrary();
         }
 
         Console.WriteLine($"[ui] 左栏：{(_libraryCollapsed ? "收起" : "展开")}");
@@ -399,7 +432,7 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// 按扩展名加载一个本地文件：<c>.milk</c> → projectM 页；<c>.json</c> → 当作 ShaderToy 工程。
+    /// 按扩展名加载一个本地文件：<c>.milk</c> → projectM 页；<c>.milkx</c> → 脚本页；<c>.json</c> → 当作 ShaderToy 工程。
     /// </summary>
     /// <remarks>拖放和 <c>--drop</c> 自检共用这一条路径。</remarks>
     public bool TryLoadFile(string path)
@@ -413,6 +446,14 @@ public partial class MainWindow : Window
                 ShowPage(0, force: false);
                 _projectMPage?.PlayPreset(path);
                 StatusText.Text = "已加载 " + Path.GetFileName(path);
+                return true;
+            }
+
+            if (extension == ".milkx")
+            {
+                ShowPage(2, force: false);
+                _scriptPage?.PlayPreset(path);
+                StatusText.Text = "已加载脚本 " + Path.GetFileName(path);
                 return true;
             }
 
@@ -448,7 +489,7 @@ public partial class MainWindow : Window
         {
             string extension = Path.GetExtension(item.TryGetLocalPath() ?? string.Empty).ToLowerInvariant();
 
-            if (extension is ".milk" or ".json")
+            if (extension is ".milk" or ".milkx" or ".json")
             {
                 return true;
             }
@@ -490,13 +531,13 @@ public partial class MainWindow : Window
     /// <summary>编辑面板点了「保存 / 应用」：把文本交给当前 projectM 页重载（不碰 GL 线程）。</summary>
     private void OnEditorApplyRequested(string path, string text)
     {
-        if (IsShaderToyTab || _projectMPage is null)
+        if (IsShaderToyTab || ActivePresetPage is not { } page)
         {
-            Editor.ReportEngineWarning("当前页不是 projectM，改动没法应用");
+            Editor.ReportEngineWarning("当前页不是 projectM / 脚本页，改动没法应用");
             return;
         }
 
-        _projectMPage.ApplyPresetText(path, text);
+        page.ApplyPresetText(path, text);
         StatusText.Text = "已应用编辑：" + Path.GetFileName(path);
     }
 
@@ -506,7 +547,7 @@ public partial class MainWindow : Window
         EditButton.Content = EditGlyph;
     }
 
-    /// <summary>面板的"编辑对象"：projectM 是预设文件路径，ShaderToy 是作品 ID。</summary>
+    /// <summary>面板的"编辑对象"：projectM / 脚本页是预设文件路径，ShaderToy 是作品 ID。</summary>
     private string? BuildEditorTarget()
     {
         if (IsShaderToyTab)
@@ -514,7 +555,7 @@ public partial class MainWindow : Window
             return _shaderToyPage?.View.Player?.CurrentId is { Length: > 0 } id ? "ShaderToy 作品 " + id : null;
         }
 
-        return _projectMPage?.CurrentPresetPath ?? _projectMPage?.View.CurrentPresetName;
+        return ActivePresetPage?.CurrentPresetPath ?? ActivePresetPage?.View.CurrentPresetName;
     }
 
     /// <summary>设置窗口（P7）：保存后写盘并重建当前页，让新数据根/网格立刻生效。</summary>
@@ -523,7 +564,8 @@ public partial class MainWindow : Window
         var dialog = new SettingsWindow(
             _options.Settings,
             _options.EffectiveProjectMRoot,
-            _options.EffectiveShaderToyRoot);
+            _options.EffectiveShaderToyRoot,
+            _options.EffectiveMilkxDirectory);
 
         AppSettings? result = await dialog.ShowDialog<AppSettings?>(this);
 
@@ -542,7 +584,8 @@ public partial class MainWindow : Window
 
         Console.WriteLine(
             $"[settings] 已应用：projectM={_options.EffectiveProjectMRoot}，"
-            + $"ShaderToy={_options.EffectiveShaderToyRoot}，网格 {_options.Settings.MeshWidth}×{_options.Settings.MeshHeight}，"
+            + $"ShaderToy={_options.EffectiveShaderToyRoot}，脚本={_options.EffectiveMilkxDirectory}，"
+            + $"网格 {_options.Settings.MeshWidth}×{_options.Settings.MeshHeight}，"
             + $"buffer 模式 {_options.Settings.ShaderToyBufferMode}");
 
         // 重建当前页：数据根/网格只在建页时读取，改完必须重来一遍才生效
@@ -553,6 +596,7 @@ public partial class MainWindow : Window
     private async void OnPickDataRootClick(object? sender, RoutedEventArgs e)
     {
         bool shaderToy = IsShaderToyTab;
+        bool script = IsScriptTab;
 
         IReadOnlyList<IStorageFolder> folders;
 
@@ -562,7 +606,9 @@ public partial class MainWindow : Window
             {
                 Title = shaderToy
                     ? "选择 ShaderToy 数据根（含 shadertoy.db 的目录）"
-                    : "选择 projectM 数据根（含 presets/ 的目录）",
+                    : script
+                        ? "选择脚本预设目录（放 .milkx 的目录）"
+                        : "选择 projectM 数据根（含 presets/ 的目录）",
                 AllowMultiple = false,
             });
         }
@@ -583,6 +629,10 @@ public partial class MainWindow : Window
         {
             _options.Settings.ShaderToyDataRoot = path;
         }
+        else if (script)
+        {
+            _options.Settings.MilkxDirectory = path;
+        }
         else
         {
             _options.Settings.ProjectMDataRoot = path;
@@ -590,9 +640,15 @@ public partial class MainWindow : Window
 
         _options.Settings.Save();
 
-        Console.WriteLine($"[settings] 数据根改为 {path}（{(shaderToy ? "ShaderToy" : "projectM")}）");
+        Console.WriteLine($"[settings] 数据根改为 {path}（{PageName(_pageIndex)}）");
 
-        if (shaderToy ? _options.IsShaderToyRootFromCommandLine : _options.IsProjectMRootFromCommandLine)
+        bool fromCommandLine = shaderToy
+            ? _options.IsShaderToyRootFromCommandLine
+            : script
+                ? _options.IsMilkxRootFromCommandLine
+                : _options.IsProjectMRootFromCommandLine;
+
+        if (fromCommandLine)
         {
             StatusText.Text = "注意：命令行给了数据根，设置里的值会被它盖住";
         }
@@ -610,7 +666,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (_projectMPage is not { } page)
+        if (ActivePresetPage is not { } page)
         {
             return;
         }
@@ -632,7 +688,7 @@ public partial class MainWindow : Window
             Editor.Open(BuildEditorTarget());
 
             // 编辑的就是正在播的这个文件：把引擎的降级/失败信息回灌到面板（正常时不动状态栏）
-            string? current = _projectMPage?.CurrentPresetPath;
+            string? current = ActivePresetPage?.CurrentPresetPath;
             if (current is not null && string.Equals(current, Editor.CurrentPath, StringComparison.OrdinalIgnoreCase))
             {
                 Editor.ReportEngineWarning(control.LastWarning);
@@ -759,7 +815,7 @@ public partial class MainWindow : Window
     {
         bool empty = IsShaderToyTab
             ? _shaderToyPage?.IsLibraryEmpty ?? false
-            : _projectMPage?.IsLibraryEmpty ?? false;
+            : ActivePresetPage?.IsLibraryEmpty ?? false;
 
         EmptyState.IsVisible = empty;
 
@@ -772,9 +828,13 @@ public partial class MainWindow : Window
             ? $"当前数据根：{_options.EffectiveShaderToyRoot}\n"
               + "这里需要有 shadertoy.db 和 media/（media/media/a/<hash>.png）。\n"
               + "用下面的按钮换个目录，或用 --shadertoy-data 指定。"
-            : $"当前数据根：{_options.EffectiveProjectMRoot}\n"
-              + "这里需要有 presets/*.milk（预设贴图放 textures/）。\n"
-              + "用下面的按钮换个目录，或用 --projectm-data 指定。";
+            : IsScriptTab
+                ? $"当前脚本目录：{_options.EffectiveMilkxDirectory}\n"
+                  + "这里需要有 *.milkx；用左栏「导入目录…」把老 .milk 转过来。\n"
+                  + "也可以用 --milkx-data 指定目录。"
+                : $"当前数据根：{_options.EffectiveProjectMRoot}\n"
+                  + "这里需要有 presets/*.milk（预设贴图放 textures/）。\n"
+                  + "用下面的按钮换个目录，或用 --projectm-data 指定。";
     }
 
     private void UpdateStatus()
@@ -806,9 +866,9 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (_projectMPage is not { } page)
+        if (ActivePresetPage is not { } page)
         {
-            StatusText.Text = "projectM │ —";
+            StatusText.Text = PageName(_pageIndex) + " │ —";
             return;
         }
 

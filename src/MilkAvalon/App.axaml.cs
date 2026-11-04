@@ -8,6 +8,8 @@ using MilkAvalon.Rendering;
 using MilkAvalon.Services;
 using MilkAvalon.Services.Audio;
 using MilkAvalon.Views;
+using MilkDrop.Eval;
+using MilkDrop.PresetScript.Syntax;
 using MilkDrop.Rendering.Gles3;
 
 namespace MilkAvalon;
@@ -24,8 +26,13 @@ public partial class App : Application
             AppSettings settings = AppSettings.Load();
             Console.WriteLine(
                 $"[settings] {AppSettings.DefaultPath} → projectM={settings.ProjectMDataRoot ?? "(默认)"}，"
-                + $"ShaderToy={settings.ShaderToyDataRoot ?? "(默认)"}，网格 {settings.MeshWidth}×{settings.MeshHeight}，"
+                + $"ShaderToy={settings.ShaderToyDataRoot ?? "(默认)"}，脚本={settings.MilkxDirectory ?? "(默认)"}，"
+                + $"网格 {settings.MeshWidth}×{settings.MeshHeight}，"
                 + $"buffer 模式 {settings.ShaderToyBufferMode}");
+
+            // .milkx（C# 风格脚本）的代码前端：引擎只认 EEL，遇到带 //#milkx 标记的代码段改走这里。
+            // 只注册一次，进程内全局生效；.milk 的代码没有标记，仍然走原来的 EEL 路径。
+            CompileContext.ScriptParser = static (code, context) => new CsParser().Parse(code, context);
 
             AppOptions options = AppOptions.Parse(desktop.Args, settings);
 
@@ -45,6 +52,11 @@ public partial class App : Application
             else if (options.CaptureTarget is { Length: > 0 } captureTarget)
             {
                 GrabAfterStartup(window, options, captureTarget, desktop);
+            }
+            // --import-milkx <目录>：启动后批量转换 .milk → .milkx 再退出（P12 M5 的自检）。
+            else if (options.ImportMilkxSource is { Length: > 0 } importSource)
+            {
+                ImportMilkxAfterStartup(window, options, importSource, desktop);
             }
             // --shot <png>：启动后截一张窗口图再退出，用于无人值守地检查界面（P0/P9 的回归手段）。
             else if (options.ShotPath is { } shotPath)
@@ -94,6 +106,45 @@ public partial class App : Application
             finally
             {
                 await Task.Delay(300);
+                desktop.Shutdown();
+            }
+        };
+    }
+
+    /// <summary>
+    /// <c>--import-milkx &lt;目录&gt;</c>：跑一遍界面上「从目录导入…」按钮背后的同一条路径
+    /// （<see cref="MilkxImporter.ImportDirectory"/>，保留相对层级），打印结果后退出。
+    /// </summary>
+    private static void ImportMilkxAfterStartup(
+        Window window,
+        AppOptions options,
+        string source,
+        IClassicDesktopStyleApplicationLifetime desktop)
+    {
+        window.Opened += async (_, _) =>
+        {
+            await Task.Delay(400);
+
+            string output = options.EffectiveMilkxDirectory;
+
+            try
+            {
+                MilkxImportResult result = await Task.Run(
+                    () => MilkxImporter.ImportDirectory(source, output));
+
+                Console.WriteLine($"[import] {source} → {output}：{result.Describe()}");
+
+                foreach (string failure in result.Failures.Take(10))
+                {
+                    Console.WriteLine("[import] 失败：" + failure);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("[import] 失败：" + ex);
+            }
+            finally
+            {
                 desktop.Shutdown();
             }
         };
@@ -155,7 +206,8 @@ public partial class App : Application
                         var settingsWindow = new SettingsWindow(
                             main.Options.Settings,
                             main.Options.EffectiveProjectMRoot,
-                            main.Options.EffectiveShaderToyRoot);
+                            main.Options.EffectiveShaderToyRoot,
+                            main.Options.EffectiveMilkxDirectory);
 
                         settingsWindow.Show(window);
                         await Task.Delay(900);
@@ -205,8 +257,8 @@ public partial class App : Application
                 {
                     main.SwitchPage(i % 2);
 
-                    // 每 3 轮再点一次"同一个 Tab"：真实点击时 TabControl 不触发 SelectionChanged，
-                    // 走的是 OnTabHeaderPressed 那条强制重建路径，这里要一起验。
+                    // 每 3 轮再点一次"当前页按钮"：真实点击走的是 OnPageButtonClick 的强制重建路径，
+                    // 这里要一起验。
                     if (i % 3 == 2)
                     {
                         main.SwitchPage(i % 2);

@@ -4,11 +4,47 @@
              x:Class="MilkAvalon.App"
              RequestedThemeVariant="Dark">
 
+  <Application.Resources>
+    <!--
+      AvaloniaEdit 的 Simple 主题会直接 StaticResource 这两个键；Material 主题里没有它们，
+      缺一个就是启动时 KeyNotFoundException。值只影响查找条/滚动条的字号，不影响正文。
+    -->
+    <x:Double x:Key="FontSizeNormal">12</x:Double>
+    <x:Double x:Key="ControlContentThemeFontSize">12</x:Double>
+    <FontFamily x:Key="ContentControlThemeFontFamily">$Default</FontFamily>
+    <Thickness x:Key="ThemeBorderThickness">1</Thickness>
+
+    <!--
+      AvaloniaEdit 的 Simple 主题还引用了一批 Fluent 的 Theme* 资源（补全弹窗/查找条用）；
+      Material 主题不提供这些名字，这里按本应用的暗色调补齐。
+    -->
+    <SolidColorBrush x:Key="ThemeBackgroundBrush" Color="#1E1E1E" />
+    <SolidColorBrush x:Key="ThemeForegroundBrush" Color="#D4D4D4" />
+    <SolidColorBrush x:Key="ThemeBorderLowBrush" Color="#2A2A2A" />
+    <SolidColorBrush x:Key="ThemeBorderMidBrush" Color="#3A3A3A" />
+    <SolidColorBrush x:Key="ThemeBorderHighBrush" Color="#4A4A4A" />
+    <SolidColorBrush x:Key="ThemeControlLowBrush" Color="#2A2A2A" />
+    <SolidColorBrush x:Key="ThemeControlMidBrush" Color="#333333" />
+    <SolidColorBrush x:Key="ThemeControlHighBrush" Color="#3F3F3F" />
+    <SolidColorBrush x:Key="ThemeAccentBrush" Color="#512DA8" />
+    <SolidColorBrush x:Key="ThemeAccentForegroundBrush" Color="#FFFFFF" />
+    <Color x:Key="ThemeForegroundColor">#D4D4D4</Color>
+    <Color x:Key="ThemeBackgroundColor">#1E1E1E</Color>
+    <Color x:Key="ThemeControlMidColor">#333333</Color>
+    <Color x:Key="ThemeAccentColor">#512DA8</Color>
+  </Application.Resources>
+
   <Application.Styles>
     <!-- Material Design 暗色主题（plan.md R5）。PrimaryColor / SecondaryColor 取 Material 调色板名 -->
     <themes:MaterialTheme BaseTheme="Dark" PrimaryColor="DeepPurple" SecondaryColor="Teal" />
     <!-- 应用自己的样式（目前只有工具栏按钮模板，见 misc.md §A3-1） -->
     <StyleInclude Source="avares://MilkAvalon/Styles/AppStyles.axaml" />
+    <!--
+      编辑面板用的 AvaloniaEdit：控件模板 + 行号/滚动条样式都在这份主题里，漏了就是一片空白。
+      用 Simple 而不是 Fluent：Fluent 那份要 Fluent 主题的 ControlContentThemeFontSize，
+      Material 主题下没有，会在启动时 KeyNotFoundException。
+    -->
+    <StyleInclude Source="avares://AvaloniaEdit/Themes/Simple/AvaloniaEdit.xaml" />
   </Application.Styles>
 
 </Application>

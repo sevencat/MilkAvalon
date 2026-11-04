@@ -9,6 +9,9 @@ public sealed class MemoryBuffer
 
     private readonly double[]?[] _blocks = new double[]?[BlockCount];
 
+    /// <summary>释放所有块（对拍/换预设用，等于把内存清成 0）。</summary>
+    public void Clear() => Array.Clear(_blocks);
+
     public double[]? GetBlock(int block)
     {
         if (block < 0 || block >= BlockCount)

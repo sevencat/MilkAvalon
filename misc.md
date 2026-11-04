@@ -708,10 +708,11 @@ MilkdropPreset.cs 初始化里也有一次（unbind 后没有 Draw，安全）
 | D4 | 界面 **完全用 Avalonia**，删掉 ImGui 后端 | 用户要求 Material Design；ImGui 大量代码只为界面存在 | 保留 ImGui 调试面板（同时存在两套 UI，AOT 与依赖都变复杂） |
 | D5 | 切 Tab **销毁重建**（用户要求） | 语义干净：一个时刻只有一个引擎活着，显存只被一页占用 | 备选：两页都保留、只是不可见（省重建时间，但两倍显存 + 两套音频） |
 | D6 | 目标框架 **net10.0** | 与上游一致（`Directory.Build.props` 已是 net10.0），Avalonia 12 有 net10.0 目标 | net8.0（Avalonia 12 也支持，但与上游不同步） |
-| D7 | 编辑器用 `AvaloniaEdit` + 自带 XSHD 高亮 | 不引 TextMate 语法包（体积 + AOT 风险） | TextMate 高亮更漂亮但依赖多 |
+| D7 | 编辑器用 `AvaloniaEdit` + 自带 XSHD 高亮（**2026-11-04 已落地**：12.0.0 + 两套 XSHD + 补全 + 光标提示；不再用 `TextBox`） | 不引 TextMate 语法包（体积 + AOT 风险）；XSHD 是 AvaloniaEdit 自带机制，补全用它的 `CompletionWindow` | TextMate 高亮更漂亮但依赖多；自绘补全弹窗要自己算光标坐标，不值 |
 | D8 | ShaderToy **只走 db + media**（2026-10-27 修订）：`ShaderLibrary.Scan` → `ShaderDatabase.TryLoadProject`，**不扫描 `shaders/<id>/`** | 用户明确"不要读 shaders 目录，全部读 db 和 media"；db 已随 `testdata/` 到位且表结构吻合（§1.4.1），文件布局扫描器不必再写 | 原方案"文件布局为主线 + db 兜底"（当时以为没有 db）；双数据源并存（UI 要标来源、列表要合并去重，无收益） |
 | D9 | 数据目录固定放 **exe 旁**（`projectm/`、`shadertoy/`） | 用户要求；绿色部署，拷走整个目录就能跑 | `%APPDATA%`（用户看不到数据，AOT 单文件时也不便） |
 | D10 | 「编辑」「抓取」**本期只放按钮** | 用户明确"后续再说"；先固定布局与接口，避免后期改 UI | 一次做全（工期 +3.5d，且 AvaloniaEdit 会多一个 AOT 变量） |
+| D11 | `.milkx` 单独占**第三个页签「milkx」**，不复用 projectM 页的清单；播放链共用同一个引擎 | 用户要 `.milk` 与 `.milkx` 并存，且原 projectM 页一行不改（P12 的 D1/D2） | 混在一个清单里（要按后缀分流 UI、索引/缓存都得双份，反而更乱） |
 
 ---
 
@@ -769,6 +770,44 @@ MilkdropPreset.cs 初始化里也有一次（unbind 后没有 Draw，安全）
 - 对策：把贴图放进纹理搜索路径（`<数据根>/textures`、`<数据根>/res`、数据根本身，按序找）。
   引擎已通过 `PresetLoadDegraded` 事件把话说到界面上（底部"⚠"行），不会静默变丑。
 
+### 7.8 ✅ `.milkx`（P12）：引擎侧硬约束与转换语义（细节见 `src/MilkDrop.PresetScript/misc.md`）
+
+- **`.milk` 解析器只按第一个分隔符切键值**：`.milkx` 里给人看的 `decay = 0.98` 回灌时必须压成
+  `decay=0.98`，否则值读成 `= 0.98`（`MilkxToMilkText.AppendKeyValue`）。
+- **代码段首行必须是 `//#milkx`**：`MilkxToMilkText.MilkxSyntaxMarker` 与 `CompileContext.ScriptMarker`
+  是两处常量，改一个必须改另一个；少了它引擎按 EEL 解析 C# 代码 → 整段报错、预设降级。
+- **段名拼错不报错**：`MilkxToMilkText` 只认已知段名，未知段静默丢弃；`.milkx` 的参数段注释在读取时被吃掉
+  （磁盘文件不变），代码段注释保留。
+- **语义陷阱**（打印器已处理，改 `CSharpPrinter` 必须守住）：`^`→`pow`、`&`/`|`→`band`/`bor`、
+  `!`→`bnot`、`&&`/`||`→`and`/`or`、`loop`→`repeat`（无索引）、`while`→`do-while`。
+- **主程序集成**：清单缓存 key 带后缀（同目录两种库不互顶）；脚本页不写 `presets.index.json`；
+  导入保留相对层级，`source_hash` 一致就跳过（手改不被覆盖）；编辑器参数导航按 `MilkPresetEntry.Section` 过滤，
+  否则代码行会被当成参数。
+- **全量结果**：`dist/projectm` 4520 个 `.milk` → 4494 个 `.milkx`（26 个失败都是原预设 EEL 断行）。
+
+### 7.9 ✅ AvaloniaEdit 接入（P10 收尾 / D7）：主题资源是最大的坑
+
+- **现象**：`<edit:TextEditor>` 放进面板后**一片空白**（文字不画、行号也没有）。
+  只报 `KeyNotFoundException: Static resource 'ControlContentThemeFontSize' not found` 之类，位置在启动阶段。
+- **原因**：AvaloniaEdit 的控件模板/样式都在它自带的主题里，必须显式 `StyleInclude`；而它两份主题都要
+  **Fluent 主题的资源键**，Material.Avalonia 不提供。
+- **对策（已落地）**：`App.axaml` 里 include `avares://AvaloniaEdit/Themes/Simple/AvaloniaEdit.xaml`
+  （Fluent 那份同样缺键，且 Simple 更中性），并在 `Application.Resources` 补齐它 StaticResource 的键：
+  `FontSizeNormal`、`ControlContentThemeFontSize`（double）、`ContentControlThemeFontFamily`（FontFamily）、
+  `ThemeBorderThickness`（Thickness）、`Theme{Background,Foreground,BorderLow,BorderMid,BorderHigh,ControlLow,ControlMid,ControlHigh,Accent,AccentForeground}Brush`
+  （SolidColorBrush）、`Theme{Foreground,Background,ControlMid,Accent}Color`（Color）。
+  缺一个就是启动崩，报的名字就是缺的那个键。
+- **别的坑**：
+  - `TextView` **没有** `Background` / `Foreground`；正文颜色走 `TextElement.ForegroundProperty` 附加属性，背景设在
+    `TextEditor` 与 `TextArea` 上。当前行底色是 `TextArea.TextView.CurrentLineBackground`（不在 `TextArea` 上）。
+  - `TextEditor.TextChanged` 是 `EventHandler`（没有 `TextChangedEventArgs`）；`SelectionStart/End` 换成 `Select(start, length)`，
+    `CaretIndex` 换成 `CaretOffset`，`IsEnabled = false` 换成 `IsReadOnly = true`。
+  - `CompletionList.CompletionData` 是 `IList<ICompletionData>`，**没有** `AddRange`，只能逐个 `Add`。
+  - `CompletionWindow` 是独立顶层窗口：`--shot` 的 RenderTargetBitmap **截不到它**（和 GL 画面一样），
+    验证时要么看日志，要么整屏截屏。
+- **XAML 打包**：`Editor/*.xshd` 要进 `AvaloniaResource`，否则 `AssetLoader.Open("avares://MilkAvalon/Editor/…")` 找不到；
+  `XmlReaderSettings.DtdProcessing = Prohibit` 打开（XSHD 里没有 DTD，防止外部实体）。
+
 ---
 
 ## 8. 常用命令
@@ -777,8 +816,8 @@ MilkdropPreset.cs 初始化里也有一次（unbind 后没有 Draw，安全）
 # 构建（.NET 10 的 dotnet new sln 默认产出 .slnx）
 dotnet build F:\code\MilkAvalon\MilkAvalon.slnx -c Debug
 
-# 测试（搬入的 Eval 基线，纯 CPU）
-dotnet test F:\code\MilkAvalon\tests\MilkDrop.Eval.Tests\MilkDrop.Eval.Tests.csproj
+# 测试（搬入的 Eval 基线 + P12 的 PresetScript 对拍，纯 CPU）
+dotnet test F:\code\MilkAvalon\MilkAvalon.slnx
 
 # 界面自检截图（启动 → 等当前页真的在播 + 出 40 帧 → 截 UI 图 + 读 GL 帧 + resize 再读一次 → 退出）
 #   产出 <stem>.png / <stem>-gl.png / <stem>-gl-resized.png 三个文件
@@ -813,6 +852,26 @@ F:\code\MilkAvalon\src\MilkAvalon\bin\Debug\net10.0\win-x64\MilkAvalon.exe `
 # 默认数据根（发布布局）：exe 旁的 projectm\ 与 shadertoy\
 #   projectm\presets\*.milk  projectm\textures\*.jpg
 #   shadertoy\shadertoy.db   shadertoy\media\media\a\<hash>.png   （shaders\ 不读）
+
+# .milkx 脚本页（P12）：--tab script 启动即切页；--milkx-data 指目录（默认 exe 旁 milkx\）
+F:\code\MilkAvalon\src\MilkAvalon\bin\Debug\net10.0\win-x64\MilkAvalon.exe `
+  --milkx-data F:\code\MilkAvalon\testdata\milkx --tab script `
+  --shot F:\code\MilkAvalon\artifacts\milkx.png
+
+# 把 .milk 批量转成 .milkx（保留相对层级；--verify 只校验；--force 无视 source_hash）
+dotnet run --project F:\code\MilkAvalon\tools\MilkDrop.PresetConvert -- `
+  "F:\code\MilkDropSharp\res\projectMSDL-2.0.0-win64\presets" --out F:\code\MilkAvalon\testdata\milkx
+
+# 编辑面板（AvaloniaEdit 高亮/补全）：直接开某个预设的编辑面板再截图
+#   .milk / .milkx 都认；高亮定义加载失败会在日志里打 [editor] 高亮定义 … 加载失败
+F:\code\MilkAvalon\src\MilkAvalon\bin\Debug\net10.0\win-x64\MilkAvalon.exe `
+  --drop "F:\code\MilkAvalon\testdata\milkx\presets\A story of lasers - MilkDrop2077 - Over Water.milkx" `
+  --editor --shot F:\code\MilkAvalon\artifacts\editor.png
+
+# 走界面「导入目录…」背后的同一条路径（按 source_hash 跳过已最新的）
+F:\code\MilkAvalon\src\MilkAvalon\bin\Debug\net10.0\win-x64\MilkAvalon.exe `
+  --import-milkx "F:\code\MilkDropSharp\res\projectMSDL-2.0.0-win64\presets" `
+  --milkx-data F:\code\MilkAvalon\testdata\milkx
 
 # AOT 发布（P9）
 dotnet publish F:\code\MilkAvalon\src\MilkAvalon -c Release -r win-x64 -p:PublishAot=true

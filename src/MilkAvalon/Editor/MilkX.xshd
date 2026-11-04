@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- .milkx：段名 + 键值 + C# 风格的 EEL 代码（详见 src/MilkDrop.PresetScript/plan.md §2/§3） -->
+<SyntaxDefinition name="milkx" extensions=".milkx" xmlns="http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008">
+  <Color name="Comment" foreground="#6A9955" fontStyle="italic" />
+  <Color name="Section" foreground="#FFB86C" fontWeight="bold" />
+  <Color name="Key" foreground="#82AAFF" />
+  <Color name="Keyword" foreground="#C792EA" />
+  <Color name="Function" foreground="#C3E88D" />
+  <Color name="Variable" foreground="#89DDFF" />
+  <Color name="Number" foreground="#F78C6C" />
+  <Color name="Operator" foreground="#89DDFF" />
+
+  <RuleSet>
+    <!-- 段名：[params] / [wave_0.per_point] -->
+    <Span color="Section" begin="\[" end="\]" />
+
+    <!-- 注释：// 与 ; 都吃到行尾 -->
+    <Span color="Comment" begin="//" />
+    <Span color="Comment" begin=";" />
+
+    <!-- 键值段的键：行首 identifier 后面跟 = -->
+    <Rule color="Key">^[ \t]*[A-Za-z_][A-Za-z0-9_]*(?=[ \t]*=)</Rule>
+
+    <!-- 块结构关键字 -->
+    <Rule color="Keyword">\b(if|else|repeat|do|while)\b</Rule>
+
+    <!-- 任何 "名字(" 都按函数上色 -->
+    <Rule color="Function">\b[A-Za-z_][A-Za-z0-9_]*(?=[ \t]*\()</Rule>
+
+    <!-- ABI 变量 -->
+    <Rule color="Variable">\b(time|frame|fps|progress|bass|mid|treb|bass_att|mid_att|treb_att|meshx|meshy|aspectx|aspecty|q[1-9][0-9]?|t[1-8]|reg[0-9][0-9])\b</Rule>
+
+    <Rule color="Number">\b\d+(\.\d+)?([eE][-+]?\d+)?\b</Rule>
+    <Rule color="Operator">[+\-*/%^&amp;|!&lt;&gt;=?:]</Rule>
+  </RuleSet>
+</SyntaxDefinition>

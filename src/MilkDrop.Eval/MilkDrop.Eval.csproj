@@ -7,5 +7,13 @@
   <ItemGroup>
     <!-- ProjectMEvalSharp（projectm-eval 的托管移植）源码已并入本库，不再引用外部工程 -->
     <InternalsVisibleTo Include="MilkDrop.Eval.Tests" />
+    <!--
+      MilkDrop.PresetScript 要把 .milk 的方程转成 C# 风格文本（plan.md P12）：
+      它需要 Parser（internal）产出的 EvalNode 树，以及 CompileContext 的槽位信息。
+      只读使用，不改变本库的任何行为。
+    -->
+    <InternalsVisibleTo Include="MilkDrop.PresetScript" />
+    <!-- 转换工程的测试要直接读 EvalProgram.Program / Variable.Storage 做对拍 -->
+    <InternalsVisibleTo Include="MilkDrop.PresetScript.Tests" />
   </ItemGroup>
 </Project>

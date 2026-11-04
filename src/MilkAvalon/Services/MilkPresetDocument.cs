@@ -5,11 +5,12 @@ namespace MilkAvalon.Services;
 /// <summary>预设文件里的一行 <c>key=value</c>（行号 0 基，指向当前文本）。</summary>
 public sealed class MilkPresetEntry
 {
-    public MilkPresetEntry(string key, string value, int lineNumber)
+    public MilkPresetEntry(string key, string value, int lineNumber, string? section = null)
     {
         Key = key;
         Value = value;
         LineNumber = lineNumber;
+        Section = section;
     }
 
     /// <summary>参数名（<c>=</c>/空格 之前的部分）。</summary>
@@ -20,6 +21,12 @@ public sealed class MilkPresetEntry
 
     /// <summary>在文本里的行号（0 基）。</summary>
     public int LineNumber { get; }
+
+    /// <summary>
+    /// 所在段名（只对 <c>[段]</c> 形式的文件有意义，例如 <c>.milkx</c> 的 <c>params</c> / <c>wave_0.params</c>）；
+    /// 不认识的段之前或没有段的文件为 <c>null</c>。
+    /// </summary>
+    public string? Section { get; }
 
     /// <summary>是否是代码行（<c>per_frame_*</c> / <c>per_pixel_*</c> / <c>warp_*</c> / <c>comp_*</c> / wave / shape 代码）。</summary>
     public bool IsCode =>
@@ -333,6 +340,7 @@ public sealed class MilkPresetDocument
         var entries = new List<MilkPresetEntry>();
         int start = 0;
         var lineNumber = 0;
+        string? section = null;
 
         while (start <= text.Length)
         {
@@ -340,9 +348,13 @@ public sealed class MilkPresetDocument
             int lineEnd = end < 0 ? text.Length : end;
             string line = text[start..lineEnd];
 
-            if (TryParseLine(line, out string key, out int valueStart))
+            if (TryReadSectionName(line, out string name))
             {
-                entries.Add(new MilkPresetEntry(key, line[valueStart..], lineNumber));
+                section = name;
+            }
+            else if (TryParseLine(line, out string key, out int valueStart))
+            {
+                entries.Add(new MilkPresetEntry(key, line[valueStart..], lineNumber, section));
             }
 
             if (end < 0)
@@ -388,6 +400,26 @@ public sealed class MilkPresetDocument
         key = line[..separator];
         valueStart = separator + 1;
         return true;
+    }
+
+    /// <summary>认出 <c>[params]</c> / <c>[wave_0.per_point]</c> 这种段名行。</summary>
+    private static bool TryReadSectionName(string line, out string name)
+    {
+        name = string.Empty;
+
+        if (line.Length < 3 || line[0] != '[')
+        {
+            return false;
+        }
+
+        int close = line.IndexOf(']');
+        if (close <= 1)
+        {
+            return false;
+        }
+
+        name = line[1..close].Trim();
+        return name.Length > 0;
     }
 
     private static int CountLines(string text)

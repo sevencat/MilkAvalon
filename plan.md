@@ -14,7 +14,7 @@
 
 | # | 需求 | 落点 |
 |---|---|---|
-| R1 | 主界面两个 Tab：第一个点开就播 **projectM**，第二个点开就播 **ShaderToy** | `Views/MainWindow.axaml` |
+| R1 | 主界面三个页签：**projectM** / **ShaderToy** / **milkx（`.milkx` 脚本，P12 的 D1）**，点开即播 | `Views/MainWindow.axaml` |
 | R2 | **每次点 Tab 都重建控件、销毁旧的** | `Controls/*` + `PageHost` |
 | R3 | 顶部工具栏：**编辑**、**抓取**（**本期只放按钮，功能后续再说**），以及播放/切换/设置/全屏等 | `Views/MainToolBar.axaml` |
 | R4 | Avalonia 用 **ANGLE 渲染**（EGL→D3D11），画面由 **Silk.NET / GLES3** 画 | `Program.cs` + `GlControlBase` |
@@ -177,7 +177,7 @@ MilkAvalon/
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ ▸ projectM │ ShaderToy │      ⏮  ⏸/▶  ⏭  ⟳随机   ✎编辑   ⧉抓取   ⚙   ⛶全屏  │  ← 工具栏
+│ ▸ projectM │ ShaderToy │ milkx │  ⏮  ⏸/▶  ⏭  ⟳随机   ✎编辑   ⧉抓取   ⚙   ⛶全屏  │  ← 工具栏
 ├───────────────┬──────────────────────────────────────────────────────────────┤
 │ 预设 / 作品库 │                                                              │
 │ （虚拟化列表）│              GL 控件（projectM 或 ShaderToy）                │
@@ -189,7 +189,8 @@ MilkAvalon/
 ```
 
 - **左栏**（可折叠）：projectM 页显示预设库（9795 个 `.milk`，必须虚拟化 + 后台扫描）；
-  ShaderToy 页显示作品库（见 §6.2：只从 `shadertoy.db` 读）。
+  ShaderToy 页显示作品库（见 §6.2：只从 `shadertoy.db` 读）；
+  milkx 页显示 `.milkx` 库（P12，默认 `<exe>/milkx` 或设置里的脚本目录，左栏另有「导入目录…/导入文件…」）。
 - **页内底部信息条**（P3 已落地）：每条都是"随时间变"的量，用 400ms 定时器刷，不靠事件驱动
   （否则会出现"框里停在第一行 / 0.0 FPS"的假象）：
   `预设 : <文件名>` / `进度 : xx%  (i/n)  自动切换|已锁定` / `尺寸 : W×H  网格 48×36  xx FPS` /
@@ -245,7 +246,7 @@ MilkAvalon/
 
 | 按钮 | 本期行为 | 后续 |
 |---|---|---|
-| ✎ 编辑 | 右侧面板**直接编辑当前 `.milk` 原文**（参数导航 + 保存/应用/还原/打开），不占用 GL 资源 | P10 剩余：ShaderToy pass 代码编辑、语法高亮（AvaloniaEdit，未做） |
+| ✎ 编辑 | 右侧面板**直接编辑 `.milk` / `.milkx` 原文**（AvaloniaEdit：行号 + 语法高亮 + 补全 + Ctrl+F 查找；参数导航 + 保存/应用/还原/打开），不占用 GL 资源 | P10 剩余：ShaderToy pass（HLSL/GLSL）代码编辑与错误列表 |
 | ⧉ 抓取 | 菜单已可用：「保存当前画面…」读 FBO 存 PNG；「抓取站点作品…」开内嵌 WebView2 抓作品入库 | P11 已实装（剪贴板/录屏未做） |
 
 两个按钮的 ViewModel 命令与面板容器**现在就留好接口**（`IEditorPanel` / `ICaptureService` 空实现），
@@ -465,14 +466,18 @@ MilkAvalon/
 | P7 | 数据根/设置 + 抓取占位 | 1d | ✅ 2026-10-27 | 设置窗口 + `milkavalon.json`（STJ 源生成）；空数据浮层 + 目录选择；改根即时重建；抓取占位接口 |
 | P8 | 主题/DPI/拖放 | 1d | ✅ 2026-10-27 | 暗色主题 + 左栏折叠 + F11/双击全屏（chrome 全隐藏）；拖放 `.milk`/`.json` 即加载，`--drop` 复用同一路径自检通过 |
 | P9 | Native AOT | 2d | ⬜ | |
-| P10 | **编辑** | 2d | 🟨 2026-10-27 | `.milk` 编辑已实装：原文 TextBox + 参数导航（点参数跳到行）、保存（写盘+重载）/应用（只重载）/还原/打开、Ctrl+S、编码与换行按原文件保持；ShaderToy pass 代码编辑与语法高亮未做 |
+| P10 | **编辑** | 2d | 🟨 2026-11-04 | `.milk` / `.milkx` 原文编辑：AvaloniaEdit（行号、XSHD 语法高亮、补全、光标下的名字说明、Ctrl+F、Ctrl+Space）+ 参数导航（点参数跳到行）、保存（写盘+重载）/应用（只重载）/还原/打开、Ctrl+S、编码与换行按原文件保持；仅剩 ShaderToy pass 的 HLSL/GLSL 代码编辑与错误列表 |
 | P11 | **抓取** | 1.5d | 🟨 2026-10-27 | 站点抓取已通（内嵌 WebView2 → `POST /shadertoy` → 只写 db + media，`--capture` 自检）；截图存 PNG 已通；剪贴板/录屏未做 |
+| P12 | `.milk` → `.milkx` 脚本预设（详见 `src/MilkDrop.PresetScript/plan.md`、坑点见 `misc.md`） | 5.5d | ✅ 2026-11-04 | M0–M6 全部完成：全量 4520 `.milk` → 4494 `.milkx`（失败 26 个都是原预设坏了）；第三个页签「milkx」可选/能播/能编辑；导入保留相对层级、按 `source_hash` 跳过；编辑器直接改 `.milkx`；坑点与自检命令落在 `misc.md` |
 | — | **本期合计（P0–P9）** | **约 12.3 人日** | — | 不含搬入（机械）与调试波动 |
 
 ### 变更记录
 
 | 日期 | 事件 |
 |---|---|
+| 2026-11-04 | **编辑器升级（P10 收尾第一步 / D7）**：`EditorPanel` 的原文 `TextBox` 换成 **AvaloniaEdit 12.0.0**——行号、按后缀切 XSHD 高亮（`Editor/Milk.xshd` / `MilkX.xshd`，随程序集打包）、敲字母自动补全（函数/ABI 变量/`.milk` 参数/`.milkx` 段名 + 本文档已有的键，`Ctrl+Space` 全量）、光标停在某个名字上时底栏给一行说明、`Ctrl+F` 查找条。函数表直接取 `IntrinsicFunctions.CreateTable()`，不手抄。坑点：Material 主题缺 AvaloniaEdit Simple 主题要的 Fluent 资源键，需在 `App.axaml` 补齐（见 `misc.md` §7.9） |
+| 2026-11-04 | **P12 M6 收尾**：第三个页签定名 **`milkx`**（牛奶滴图标，`--tab script` 参数名保留）；新增 `src/MilkDrop.PresetScript/misc.md`（引擎侧硬约束 / 打印器语义陷阱 / 集成坑 / 自检命令），P12 标记完成 |
+| 2026-11-04 | **P12 M5 落地（第三个页签「milkx」/ `.milkx`）**：`ProjectMPage` 加脚本模式（清单为 `*.milkx`、左栏多出「导入目录…」「导入文件…」）；`MilkxImporter` 复用 `PresetConverter` 批量转换并按 `source_hash` 跳过、**保留相对源目录层级**（D7）；拖放/`--drop` 认 `.milkx`，`EditorPanel` 可直接编辑 `.milkx` 原文（参数导航只列键值段，`MilkPresetEntry.Section`）；新增 `--milkx-data` / `--tab script` / `--import-milkx <目录>` 三个自检参数与设置项「脚本目录」。老 `.milk` 全量 4520 → 4494 个 `.milkx` 落在 `testdata/milkx/`（26 个失败均为原预设 EEL 断行） |
 | 2026-10-27 | **主题一致性**：① `Application.RequestedThemeVariant="Dark"` —— 此前是 `Default`（跟随系统），实测解析成 **Light**，Material 的变体感知资源全走浅色分支；② 窗口/面板不再写死 `#121212`/`#161616`/`#1E1E1E`/`#2A2A2A`，全部改成 Material 主题资源（`MaterialBackgroundBrush` / `MaterialPaperBrush` / `MaterialCardBackgroundBrush` / `MaterialToolBarBackgroundBrush` / `MaterialDividerBrush` / `MaterialBodyBrush`）；③ 设置窗口、抓取窗口改成和主窗口一样的**自绘标题栏**（`BorderOnly` + `ElementRole="TitleBar"`），因为系统标题栏由 DWM 画，浅色系统下是白条，而 `DWMWA_USE_IMMERSIVE_DARK_MODE` 在关掉 DWM 合成的机器上实测 HRESULT=0 却不生效；顺带给设置窗口补 Esc=取消、图标、右侧 12px 留白（Material 覆盖式滚动条会压住「浏览…」） |
 | 2026-10-27 | **品牌化**：左上角标题文字换成 logo（`Assets/logo.png` 由 `milkavalon.jpg` 抠底而来 —— 原图是"黑底发光字"，按 `a = max(pixel - 底色)` 反预乘成透明 PNG，再裁剪 + 24px 边缘羽化，叠在 `#1E1E1E` 工具栏上无矩形硬边；控件 Height=32、随工具栏居左）；程序图标用 `milkdropsharp.png`：`Window.Icon`（任务栏/Alt-Tab）+ `Assets/milkdropsharp.ico`（16–256 多尺寸，`ApplicationIcon` → 资源管理器里的 exe 图标） |
 | 2026-10-27 | **P10 之 `.milk` 编辑落地**：`Services/MilkPresetDocument`（按行切 key/value、保留注释/段名/重复键/编码/换行）+ `Views/EditorPanel` 换成真编辑器（参数导航、保存=写盘并重载、应用=只重载、还原、打开…、Ctrl+S、脏标记）；重载走 `ProjectMControl.ApplyPresetText` → `ProjectMEngine.LoadPresetData`（渲染线程命令队列，不碰磁盘、不跨线程调 GL）。刻意不引 `AvaloniaEdit`（AOT 变量），原文编辑用 `TextBox` 就够 |
@@ -505,7 +510,7 @@ MilkAvalon/
 | R-3 | 每帧 `RequestNextFrameRendering()` 的节奏受 Avalonia 合成器/DWM 控制 | 帧率不稳、画面抖动 | 自建时间基准（`Stopwatch` 算 delta）+ 允许"降级为定时器驱动"；P1 实测 ≈70 FPS 未见抖动 |
 | ~~R-4~~ | ~~切 Tab 重建时 GL 对象漏删 / 在错误上下文 Dispose~~ | — | **已排除（P5 实测）**：Dispose 走 `OnOpenGlDeinit`（渲染线程、上下文 current）；28 次整页重建后 `GlObjectStats` 每次都归 0，句柄/私有内存不增长 |
 | R-5 | 上游 36.6k 行搬入后被裁警告淹没 | 构建噪音、AOT 失败 | 库项目保留 `IsAotCompatible`，逐条消化；App 层先关 `TrimMode=partial` 定位 |
-| R-6 | Material.Avalonia / AvaloniaEdit 的 AOT 兼容性未验证 | AOT 下主题或编辑器崩 | P9 前先用 `PublishAot` 试跑一次空白页；失败则 AvaloniaEdit 退化为纯 `TextBox` |
+| R-6 | Material.Avalonia / **AvaloniaEdit 12.0.0（已进主链路）** 的 AOT 兼容性未验证 | AOT 下主题或编辑器崩 | P9 前先用 `PublishAot` 试跑一次空白页；失败则编辑器退回 `TextBox`（高亮/补全丢失，但编辑功能不受影响），核心播放链不依赖它 |
 | R-7 | `InvariantGlobalization=true` 与中文文本整形 | 中文显示异常 | 先开着测；异常就关掉（体积换正确性） |
 | R-8 | 9795 个预设的列表扫描阻塞 UI | 首次打开卡 | 后台线程扫描 + 虚拟化列表 + 增量加载 |
 | R-9 | ShaderToy 站点 403（Cloudflare） | 「抓取作品」不可用 | 明确提示 + 以 `shadertoy.db` / 本地 JSON 为唯一可靠来源（上游已确认） |

@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:services="using:MilkAvalon.Services"
+             xmlns:edit="using:AvaloniaEdit"
              x:Class="MilkAvalon.Views.EditorPanel"
              IsVisible="False">
 
@@ -33,10 +34,14 @@
                 FontSize="12" Padding="8,4" ToolTip.Tip="编辑另一个 .milk 文件" />
       </Grid>
 
-      <!-- 底部状态：保存结果 / 引擎告警 / 解析结果 -->
+      <!-- 底部状态：光标下的名字提示（函数签名/参数含义）+ 保存结果 / 引擎告警 -->
       <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource MaterialDividerBrush}" BorderThickness="0,1,0,0" Padding="8,5">
-        <TextBlock Name="StatusText" Text="—" FontSize="11" Opacity="0.72"
-                   TextWrapping="Wrap" MaxHeight="64" />
+        <StackPanel Spacing="2">
+          <TextBlock Name="HintText" FontSize="11" Foreground="#82AAFF"
+                     TextTrimming="CharacterEllipsis" IsVisible="False" />
+          <TextBlock Name="StatusText" Text="—" FontSize="11" Opacity="0.72"
+                     TextWrapping="Wrap" MaxHeight="64" />
+        </StackPanel>
       </Border>
 
       <!-- 主体：参数导航 + 原文编辑 -->
@@ -63,17 +68,20 @@
           </DockPanel>
         </Border>
 
-        <!-- 原文编辑器：.milk 本身就是"每行一个 key=value"的文本，直接改文本最不容易失真 -->
-        <TextBox Grid.Column="1" Name="CodeBox"
-                 AcceptsReturn="True" AcceptsTab="True" TextWrapping="NoWrap"
-                 FontFamily="Cascadia Mono,Consolas,monospace" FontSize="12"
-                 Background="{DynamicResource MaterialBackgroundBrush}" Foreground="{DynamicResource MaterialBodyBrush}"
-                 CaretBrush="#FFFFFF" SelectionBrush="#512DA8"
-                 BorderThickness="0" CornerRadius="0" Padding="8"
-                 VerticalContentAlignment="Top"
-                 ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                 ScrollViewer.VerticalScrollBarVisibility="Auto"
-                 TextChanged="OnCodeChanged" />
+        <!--
+          原文编辑器（AvaloniaEdit，plan.md D7）：行号 + 语法高亮 + 补全。
+          文本仍然是唯一真相——高亮只是"看得清"，不改任何字符。
+        -->
+        <edit:TextEditor Grid.Column="1" Name="CodeBox"
+                         ShowLineNumbers="True"
+                         FontFamily="Cascadia Mono,Consolas,monospace" FontSize="12"
+                         Background="{DynamicResource MaterialBackgroundBrush}"
+                         Foreground="{DynamicResource MaterialBodyBrush}"
+                         IsReadOnly="True"
+                         WordWrap="False"
+                         HorizontalScrollBarVisibility="Auto"
+                         VerticalScrollBarVisibility="Auto"
+                         TextChanged="OnCodeChanged" />
       </Grid>
     </DockPanel>
   </Border>

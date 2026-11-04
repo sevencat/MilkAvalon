@@ -4,6 +4,7 @@ using System.Text;
 using Avalonia.Threading;
 using MilkAvalon.Rendering;
 using MilkAvalon.Services.Audio;
+using MilkDrop.PresetScript.Milkx;
 using MilkDrop.ProjectM;
 
 namespace MilkAvalon.Controls;
@@ -129,6 +130,39 @@ public sealed class ProjectMControl : GlControlBase
             _engine.LoadPresetData(stream, smoothTransition: false);
             NotifyPresetChanged();
         });
+    }
+
+    /// <summary>
+    /// 用**内存里的 <c>.milkx</c> 文本**重载当前脚本预设（编辑面板的「保存 / 应用」用，不经过磁盘）。
+    /// </summary>
+    /// <param name="path">用来显示文件名的路径。</param>
+    /// <param name="text">完整的 <c>.milkx</c> 文本。</param>
+    /// <remarks>
+    /// 与 <see cref="ApplyPresetText"/> 的区别只在入口：<c>.milkx</c> 要先按段解析、再在内存里还原成
+    /// <c>.milk</c> 形状（代码段带 <c>//#milkx</c> 标记）才交给引擎。语法错误会通过
+    /// <see cref="ProjectMEngine.PresetSwitchFailed"/> 回到 <see cref="LastWarning"/>。
+    /// </remarks>
+    public void ApplyMilkxText(string path, string text)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentNullException.ThrowIfNull(text);
+
+        // 解析/还原放在 UI 线程做：纯文本处理，不碰 GL；出错要能立刻回给编辑面板。
+        string milkText;
+
+        try
+        {
+            milkText = MilkxToMilkText.Write(MilkxReader.ReadText(text, Path.GetFileName(path)));
+        }
+        catch (Exception ex)
+        {
+            LastWarning = $"脚本预设解析失败：{Path.GetFileName(path)} — {ex.Message}";
+            Console.WriteLine("[projectM] " + LastWarning);
+            NotifyPresetChanged();
+            return;
+        }
+
+        ApplyPresetText(path, milkText);
     }
 
     /// <summary>暂停/锁定当前预设（不自动切下一个）。</summary>
@@ -296,7 +330,19 @@ public sealed class ProjectMControl : GlControlBase
 
         try
         {
-            _engine.LoadPresetFile(path, smooth);
+            if (path.EndsWith(".milkx", StringComparison.OrdinalIgnoreCase))
+            {
+                // 脚本预设：在内存里还原成 .milk 文本交给引擎（不落盘），
+                // 代码段带 //#milkx 标记，编译时走 CsParser 而不是 EEL。
+                string milkText = MilkxToMilkText.Write(MilkxReader.ReadFile(path));
+                using var stream = new MemoryStream(Encoding.UTF8.GetBytes(milkText));
+                _engine.LoadPresetData(stream, smooth);
+            }
+            else
+            {
+                _engine.LoadPresetFile(path, smooth);
+            }
+
             LastWarning = null;
         }
         catch (Exception ex)

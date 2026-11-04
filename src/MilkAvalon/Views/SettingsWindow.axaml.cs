@@ -19,14 +19,15 @@ public partial class SettingsWindow : Window
 
     /// <summary>设计器用。</summary>
     public SettingsWindow()
-        : this(new AppSettings(), null, null)
+        : this(new AppSettings(), null, null, null)
     {
     }
 
     /// <param name="current">当前设置（会被克隆，不直接改）。</param>
     /// <param name="projectMRoot">实际生效的 projectM 数据根（显示用）。</param>
     /// <param name="shaderToyRoot">实际生效的 ShaderToy 数据根（显示用）。</param>
-    public SettingsWindow(AppSettings current, string? projectMRoot, string? shaderToyRoot)
+    /// <param name="milkxRoot">实际生效的脚本预设（<c>.milkx</c>）目录（显示用）。</param>
+    public SettingsWindow(AppSettings current, string? projectMRoot, string? shaderToyRoot, string? milkxRoot = null)
     {
         InitializeComponent();
 
@@ -34,6 +35,7 @@ public partial class SettingsWindow : Window
 
         ProjectMRootBox.Text = projectMRoot ?? string.Empty;
         ShaderToyRootBox.Text = shaderToyRoot ?? string.Empty;
+        MilkxRootBox.Text = milkxRoot ?? _draft.ResolveMilkxDirectory();
         MeshWidthBox.Text = _draft.MeshWidth.ToString();
         MeshHeightBox.Text = _draft.MeshHeight.ToString();
         BufferModeBox.SelectedIndex = Math.Clamp(_draft.ShaderToyBufferMode, 0, 2);
@@ -65,6 +67,9 @@ public partial class SettingsWindow : Window
 
     private async void OnBrowseShaderToyClick(object? sender, RoutedEventArgs e)
         => await PickFolderAsync(ShaderToyRootBox, "选择 ShaderToy 数据根（含 shadertoy.db 的目录）");
+
+    private async void OnBrowseMilkxClick(object? sender, RoutedEventArgs e)
+        => await PickFolderAsync(MilkxRootBox, "选择脚本预设目录（放 .milkx 的目录）");
 
     private async Task PickFolderAsync(TextBox target, string title)
     {
@@ -98,6 +103,10 @@ public partial class SettingsWindow : Window
 
         _draft.ProjectMDataRoot = NullIfEmpty(ProjectMRootBox.Text);
         _draft.ShaderToyDataRoot = NullIfEmpty(ShaderToyRootBox.Text);
+
+        // 文本框里默认显示的就是"解析后的默认目录"，原样保存等于把它钉死；等于默认值时仍存 null
+        string? milkx = NullIfEmpty(MilkxRootBox.Text);
+        _draft.MilkxDirectory = milkx is not null && IsDefaultMilkxDirectory(milkx) ? null : milkx;
         _draft.MeshWidth = width;
         _draft.MeshHeight = height;
         _draft.ShaderToyBufferMode = Math.Clamp(BufferModeBox.SelectedIndex, 0, 2);
@@ -112,6 +121,21 @@ public partial class SettingsWindow : Window
 
     private static string? NullIfEmpty(string? text)
         => string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+
+    /// <summary>是不是 <c>&lt;exe&gt;/milkx</c>（是的话设置里不必再写一遍）。</summary>
+    private static bool IsDefaultMilkxDirectory(string path)
+    {
+        string defaultPath = Path.Combine(AppContext.BaseDirectory, "milkx");
+
+        try
+        {
+            return string.Equals(Path.GetFullPath(path), Path.GetFullPath(defaultPath), StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
 
     private static bool TryReadMesh(string? text, out uint value)
         => uint.TryParse(text, out value) && value is >= 8 and <= 256;

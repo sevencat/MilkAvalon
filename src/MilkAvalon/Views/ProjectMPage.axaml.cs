@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using MilkAvalon.Controls;
 using MilkAvalon.Rendering;
@@ -34,12 +35,19 @@ public partial class ProjectMPage : UserControl
     private bool _scanned;
     private bool _scanning;
 
+    /// <summary>脚本模式（页签「脚本」）：清单是 <c>.milkx</c>，左栏多出「导入 .milk」按钮。</summary>
+    /// <remarks>播放链完全共用 <see cref="ProjectMControl"/>——<c>.milkx</c> 在内存里还原成 <c>.milk</c> 形状再交给引擎。</remarks>
+    private bool _scriptMode;
+
     /// <summary>正在扫描/加载清单（「重新扫描」据此禁用，避免并发重扫）。</summary>
     public bool IsScanning => _scanning;
 
     private AppOptions? _options;
     private string _presetsDirectory = string.Empty;
     private string _indexPath = string.Empty;
+
+    /// <summary>本页认的文件后缀（<c>*.milk</c> / <c>*.milkx</c>）。</summary>
+    private string _pattern = "*.milk";
 
     /// <summary>拖进来、但清单还没扫完的文件：扫描完成后优先选中它（否则会被"第一个预设"顶掉）。</summary>
     private string? _pendingPresetPath;
@@ -67,11 +75,24 @@ public partial class ProjectMPage : UserControl
     /// <summary>用真实的播放列表初始化（在 XAML 构造之后调用）。</summary>
     /// <param name="options">命令行/数据根。</param>
     /// <param name="state">切页时留下的现场（首次打开传 null）。</param>
-    public void Initialize(AppOptions options, ProjectMPageState? state = null)
+    /// <param name="scriptMode">
+    /// true = 脚本预设页（清单是 <c>.milkx</c>，目录取 <see cref="AppOptions.EffectiveMilkxDirectory"/>）。
+    /// </param>
+    public void Initialize(AppOptions options, ProjectMPageState? state = null, bool scriptMode = false)
     {
         ArgumentNullException.ThrowIfNull(options);
 
         _options = options;
+        _scriptMode = scriptMode;
+        _pattern = scriptMode ? "*.milkx" : "*.milk";
+
+        ImportPanel.IsVisible = scriptMode;
+
+        if (scriptMode)
+        {
+            SearchBox.PlaceholderText = "过滤脚本（文件名）";
+            ToolTip.SetTip(RescanButton, "重新扫描脚本目录里的 .milkx（导入后也会自动重扫）");
+        }
 
         ProjectMView.TextureDirectories = options.TextureDirectories;
         ProjectMView.ForceSyntheticAudio = options.SyntheticAudio;
@@ -90,10 +111,12 @@ public partial class ProjectMPage : UserControl
             ProjectMView.InitialMeshY = options.Settings.MeshHeight;
         }
 
-        _presetsDirectory = options.PresetsDirectory;
-        _indexPath = PresetIndexCache.PathFor(options.EffectiveProjectMRoot);
+        _presetsDirectory = scriptMode ? options.EffectiveMilkxDirectory : options.PresetsDirectory;
 
-        LibraryText.Text = $"加载预设清单… {_presetsDirectory}";
+        // 脚本目录通常只有几千个 .milkx，扫一遍很快；不写索引文件，省得再解释"这个 json 是谁写的"
+        _indexPath = scriptMode ? string.Empty : PresetIndexCache.PathFor(options.EffectiveProjectMRoot);
+
+        LibraryText.Text = $"{(scriptMode ? "加载脚本清单" : "加载预设清单")}… {_presetsDirectory}";
 
         // 9795 个文件的枚举别放 UI 线程。顺序：内存缓存 → 索引文件 → 扫盘（扫完写索引）。
         _ = LoadLibraryAsync(options, state, forceRescan: false, keepSelection: null);
@@ -111,10 +134,12 @@ public partial class ProjectMPage : UserControl
     {
         string directory = _presetsDirectory;
         string indexPath = _indexPath;
+        string pattern = _pattern;
+        string label = _scriptMode ? "脚本清单" : "预设清单";
 
         _scanning = true;
         RescanButton.IsEnabled = false;
-        LibraryText.Text = (forceRescan ? "重新扫描中… " : "加载预设清单… ") + directory;
+        LibraryText.Text = (forceRescan ? "重新扫描中… " : $"加载{label}… ") + directory;
 
         (PresetLibrary Library, string Source, long ElapsedMs) result;
 
@@ -123,14 +148,16 @@ public partial class ProjectMPage : UserControl
             result = await Task.Run(() =>
             {
                 var clock = System.Diagnostics.Stopwatch.StartNew();
-                string key = Path.GetFullPath(directory);
+
+                // 缓存键带上后缀：同一个目录当 .milk 和 .milkx 两种清单用过时不能互相顶掉
+                string key = Path.GetFullPath(directory) + "|" + pattern;
 
                 if (!forceRescan && s_directoryCache.TryGetValue(key, out PresetLibrary? memory))
                 {
                     return (memory, "内存缓存", clock.ElapsedMilliseconds);
                 }
 
-                if (!forceRescan)
+                if (!forceRescan && indexPath.Length > 0)
                 {
                     if (PresetIndexCache.TryLoad(indexPath, directory, out PresetLibrary? indexed, out string reason))
                     {
@@ -143,13 +170,17 @@ public partial class ProjectMPage : UserControl
                 }
 
                 var scanned = new PresetLibrary();
-                scanned.AddDirectory(directory);
+                scanned.AddDirectory(directory, pattern);
 
                 // 只缓存/写盘"真的扫到东西"的结果，避免把"目录刚创建、还是空的"这种状态钉死。
                 if (scanned.All.Count > 0)
                 {
                     s_directoryCache[key] = scanned;
-                    PresetIndexCache.TrySave(indexPath, directory, scanned);
+
+                    if (indexPath.Length > 0)
+                    {
+                        PresetIndexCache.TrySave(indexPath, directory, scanned);
+                    }
                 }
 
                 return (scanned, "本次扫描", clock.ElapsedMilliseconds);
@@ -157,13 +188,13 @@ public partial class ProjectMPage : UserControl
         }
         catch (Exception ex)
         {
-            Console.WriteLine("[projectM] 装载预设清单失败：" + ex);
+            Console.WriteLine("[projectM] 装载清单失败：" + ex);
             _scanning = false;
 
             if (!_detached)
             {
                 RescanButton.IsEnabled = true;
-                LibraryText.Text = "预设清单装载失败：" + ex.Message;
+                LibraryText.Text = label + "装载失败：" + ex.Message;
             }
 
             return;
@@ -184,7 +215,8 @@ public partial class ProjectMPage : UserControl
 
         ApplyFilter(SearchBox.Text);
         _scanned = true;
-        LibraryText.Text = $"{_library.All.Count} 个预设 · {result.Source} · {result.ElapsedMs} ms\n{directory}";
+        LibraryText.Text = $"{_library.All.Count} 个{(_scriptMode ? "脚本" : "预设")} · {result.Source} · "
+            + $"{result.ElapsedMs} ms\n{directory}";
 
         // 重新扫描：尽量停在原来那个预设上，没有就保持引擎现状（别把正在播的换掉）
         if (keepSelection is { Length: > 0 })
@@ -204,6 +236,11 @@ public partial class ProjectMPage : UserControl
             // 优先级：切页现场 > --preset > 列表第一个
             PresetList.SelectedIndex = ResolveInitialIndex(options, state);
         }
+        else if (_scriptMode)
+        {
+            InfoPreset.Text = "没有找到任何 .milkx 脚本。";
+            InfoWarning.Text = "点左栏「导入 .milk…」把老预设转成 .milkx，或用 --milkx-data 指定目录。";
+        }
         else
         {
             InfoPreset.Text = "没有找到任何 .milk 预设。";
@@ -222,7 +259,7 @@ public partial class ProjectMPage : UserControl
         // 记住当前选中的预设，扫完尽量停在原地
         string? current = (PresetList.SelectedItem as PresetItem)?.Path;
 
-        s_directoryCache.TryRemove(Path.GetFullPath(_presetsDirectory), out _);
+        s_directoryCache.TryRemove(Path.GetFullPath(_presetsDirectory) + "|" + _pattern, out _);
 
         AppOptions? options = _options;
 
@@ -232,6 +269,154 @@ public partial class ProjectMPage : UserControl
         }
 
         await LoadLibraryAsync(options, state: null, forceRescan: true, keepSelection: current);
+    }
+
+    // ---- 脚本页：把 .milk 导入成 .milkx ----
+
+    /// <summary>「从目录导入…」：整棵目录树转成 <c>.milkx</c>，保留相对层级（D7）。</summary>
+    private async void OnImportFolderClick(object? sender, RoutedEventArgs e)
+    {
+        TopLevel? top = TopLevel.GetTopLevel(this);
+
+        if (top is null)
+        {
+            return;
+        }
+
+        IReadOnlyList<IStorageFolder> folders;
+
+        try
+        {
+            folders = await top.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = "选择要导入的 .milk 预设目录（递归转换，保留子目录）",
+                AllowMultiple = false,
+            });
+        }
+        catch (Exception ex)
+        {
+            InfoWarning.Text = "选择目录失败：" + ex.Message;
+            return;
+        }
+
+        if (folders.Count == 0)
+        {
+            return;
+        }
+
+        string source = folders[0].TryGetLocalPath() ?? folders[0].Path.LocalPath;
+        await ImportAsync(
+            () => MilkxImporter.ImportDirectory(source, _presetsDirectory),
+            $"目录 {source}");
+    }
+
+    /// <summary>「从文件导入…」：选若干 <c>.milk</c>，平铺转成 <c>.milkx</c>。</summary>
+    private async void OnImportFilesClick(object? sender, RoutedEventArgs e)
+    {
+        TopLevel? top = TopLevel.GetTopLevel(this);
+
+        if (top is null)
+        {
+            return;
+        }
+
+        IReadOnlyList<IStorageFile> picked;
+
+        try
+        {
+            picked = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "选择要导入的 .milk 预设",
+                AllowMultiple = true,
+                FileTypeFilter = [new FilePickerFileType("MilkDrop 预设") { Patterns = ["*.milk"] }],
+            });
+        }
+        catch (Exception ex)
+        {
+            InfoWarning.Text = "选择文件失败：" + ex.Message;
+            return;
+        }
+
+        string[] files = picked
+            .Select(file => file.TryGetLocalPath())
+            .Where(path => path is { Length: > 0 })
+            .Select(path => path!)
+            .ToArray();
+
+        if (files.Length == 0)
+        {
+            return;
+        }
+
+        // 选的是零散文件，没有共同的源根 → 平铺到 milkx 根目录（重名会被后一个覆盖）
+        await ImportAsync(
+            () => MilkxImporter.ImportFiles(files, sourceRoot: null, _presetsDirectory),
+            $"{files.Length} 个文件");
+    }
+
+    /// <summary>后台跑转换，完了重新扫盘（定位回原来那个脚本）。</summary>
+    private async Task ImportAsync(Func<MilkxImportResult> import, string what)
+    {
+        if (_scanning)
+        {
+            return;
+        }
+
+        string? current = (PresetList.SelectedItem as PresetItem)?.Path;
+
+        ImportFolderButton.IsEnabled = false;
+        ImportFilesButton.IsEnabled = false;
+        LibraryText.Text = "正在转换… " + what;
+
+        MilkxImportResult result;
+
+        try
+        {
+            result = await Task.Run(import);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("[milkx] 导入失败：" + ex);
+            InfoWarning.Text = "导入失败：" + ex.Message;
+            ImportFolderButton.IsEnabled = true;
+            ImportFilesButton.IsEnabled = true;
+            return;
+        }
+
+        ImportFolderButton.IsEnabled = true;
+        ImportFilesButton.IsEnabled = true;
+
+        Console.WriteLine($"[milkx] {what} → {result.Describe()}");
+
+        if (result.Failures.Count > 0)
+        {
+            // 失败明细可能上千条，界面只给前三条，其余进日志
+            foreach (string failure in result.Failures)
+            {
+                Console.WriteLine("[milkx] 失败：" + failure);
+            }
+
+            InfoWarning.Text = "⚠ 转换失败 " + result.Failures.Count + " 个（多为原预设 EEL 本身有问题）：\n"
+                + string.Join("\n", result.Failures.Take(3));
+        }
+        else
+        {
+            InfoWarning.Text = string.Empty;
+        }
+
+        AppOptions? options = _options;
+
+        if (options is null)
+        {
+            return;
+        }
+
+        await LoadLibraryAsync(options, state: null, forceRescan: true, keepSelection: current);
+
+        if (result.Failures.Count == 0)
+        {
+            InfoWarning.Text = $"已导入：{result.Describe()}";
+        }
     }
 
     /// <summary>如果清单里有这个路径就选中它；没有就什么都不做（引擎继续播原来的）。</summary>
@@ -265,12 +450,18 @@ public partial class ProjectMPage : UserControl
         RootGrid.ColumnDefinitions[0].Width = show ? new GridLength(300) : new GridLength(0);
     }
 
-    /// <summary>直接播放一个 .milk 文件（拖放进来时用；不在清单里就先加进去）。</summary>
+    /// <summary>直接播放一个预设文件（拖放进来时用；不在清单里就先加进去）。</summary>
     public void PlayPreset(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
         string full = Path.GetFullPath(path);
+
+        if (!AcceptsPresetFile(full))
+        {
+            Console.WriteLine($"[projectM] 本页只认 {_pattern[1..]}，拒绝播放：{full}");
+            return;
+        }
 
         // 清单还没扫完：先记下来，扫描完成的回调里再加进清单并选中。
         // 否则这一刻塞进临时清单，扫描结果一覆盖就丢了。
@@ -317,10 +508,22 @@ public partial class ProjectMPage : UserControl
     }
 
     /// <summary>
-    /// 编辑面板的「保存 / 应用」：把改好的 <c>.milk</c> 文本交给引擎重载（不读盘）。
+    /// 编辑面板的「保存 / 应用」：把改好的文本交给引擎重载（不读盘）。
     /// </summary>
-    /// <remarks>真正的加载发生在渲染线程（<see cref="ProjectMControl"/> 的命令队列），这里只是转发。</remarks>
-    public void ApplyPresetText(string path, string text) => ProjectMView.ApplyPresetText(path, text);
+    /// <remarks>
+    /// 按后缀分流：<c>.milkx</c> 先解析成段再还原成 <c>.milk</c> 形状；
+    /// 真正的加载发生在渲染线程（<see cref="ProjectMControl"/> 的命令队列），这里只是转发。
+    /// </remarks>
+    public void ApplyPresetText(string path, string text)
+    {
+        if (path.EndsWith(".milkx", StringComparison.OrdinalIgnoreCase))
+        {
+            ProjectMView.ApplyMilkxText(path, text);
+            return;
+        }
+
+        ProjectMView.ApplyPresetText(path, text);
+    }
 
     /// <summary>切走时的现场（页面随后会被整个销毁）。</summary>
     public ProjectMPageState CaptureState()
@@ -364,10 +567,22 @@ public partial class ProjectMPage : UserControl
         _overlayTimer.Stop();
     }
 
+    /// <summary>这个路径是不是本页认的后缀（projectM 页 <c>.milk</c>、milkx 页 <c>.milkx</c>）。</summary>
+    private bool AcceptsPresetFile(string? path) =>
+        path is { Length: > 0 }
+        && path.EndsWith(_pattern[1..], StringComparison.OrdinalIgnoreCase);
+
     private int FindInitialIndex(string? presetPath)
     {
         if (string.IsNullOrWhiteSpace(presetPath) || _visible.Count == 0)
         {
+            return 0;
+        }
+
+        // 不是本页的后缀就别管：`--preset a.milk` 不该被塞进 .milkx 清单的开头（反之亦然）
+        if (!AcceptsPresetFile(presetPath))
+        {
+            Console.WriteLine($"[projectM] 忽略不属于本页的预设：{presetPath}（本页只认 {_pattern[1..]}）");
             return 0;
         }
 
@@ -456,7 +671,7 @@ public partial class ProjectMPage : UserControl
 
         string fps = control.Fps > 0 ? control.Fps.ToString("F1") : "—";
 
-        InfoPreset.Text = $"预设 : {control.CurrentPresetName}";
+        InfoPreset.Text = $"{(_scriptMode ? "milkx" : "预设")} : {control.CurrentPresetName}";
         InfoProgress.Text = $"进度 : {control.PresetProgress * 100:F0}%  ({control.CurrentPresetIndex + 1}/{_visible.Count})"
             + $"  {(control.IsLocked ? "已锁定" : "自动切换")}";
         InfoSize.Text = $"尺寸 : {control.PixelWidth}×{control.PixelHeight}  网格 {meshX}×{meshY}  {fps} FPS";

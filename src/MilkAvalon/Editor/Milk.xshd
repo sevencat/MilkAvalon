@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- .milk：每行 key=value，值是 EEL / 数字 / 文本（代码段是编号键拼接，见 plan.md §6） -->
+<SyntaxDefinition name="milk" extensions=".milk" xmlns="http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008">
+  <Color name="Section" foreground="#FFB86C" fontWeight="bold" />
+  <Color name="Key" foreground="#82AAFF" />
+  <Color name="Function" foreground="#C3E88D" />
+  <Color name="Variable" foreground="#89DDFF" />
+  <Color name="Number" foreground="#F78C6C" />
+  <Color name="Operator" foreground="#89DDFF" />
+
+  <RuleSet>
+    <!-- 段头：[preset00] 之类 -->
+    <Span color="Section" begin="\[" end="\]" />
+
+    <!-- 键：行首直到 = 之前（.milk 的解析器只认第一个分隔符） -->
+    <Rule color="Key">^[ \t]*[A-Za-z_][A-Za-z0-9_]*(?==)</Rule>
+
+    <Rule color="Function">\b[A-Za-z_][A-Za-z0-9_]*(?=[ \t]*\()</Rule>
+
+    <Rule color="Variable">\b(time|frame|fps|progress|bass|mid|treb|bass_att|mid_att|treb_att|meshx|meshy|aspectx|aspecty|q[1-9][0-9]?|t[1-8]|reg[0-9][0-9])\b</Rule>
+
+    <Rule color="Number">\b\d+(\.\d+)?([eE][-+]?\d+)?\b</Rule>
+    <Rule color="Operator">[+\-*/%^&amp;|!&lt;&gt;=?:]</Rule>
+  </RuleSet>
+</SyntaxDefinition>
