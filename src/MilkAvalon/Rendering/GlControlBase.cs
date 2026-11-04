@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.OpenGL;
 using Avalonia.OpenGL.Controls;
+using Avalonia.Rendering;
 using Avalonia.Threading;
 using MilkDrop.Rendering.Gles3;
 using Silk.NET.Core.Contexts;
@@ -32,7 +33,7 @@ namespace MilkAvalon.Rendering;
 /// 引擎各自需要别的坐标系（projectM 要 -1..1 且 y 向上，ShaderToy 要左下原点像素），由子类负责转换。
 /// </para>
 /// </remarks>
-public abstract class GlControlBase : OpenGlControlBase
+public abstract class GlControlBase : OpenGlControlBase, ICustomHitTest
 {
     /// <summary>单帧 delta 的上限：断点/最小化回来时不要给引擎一个巨大的时间跳变。</summary>
     private const double MaxDeltaSeconds = 0.25;
@@ -68,6 +69,16 @@ public abstract class GlControlBase : OpenGlControlBase
         // 键盘要能被这个控件收到；Tab 键不抢（留给界面导航）。
         Focusable = true;
     }
+
+    /// <summary>
+    /// 命中测试：把整块控件区域算作"点到了"。
+    /// </summary>
+    /// <param name="point">控件局部坐标。</param>
+    /// <remarks>
+    /// 必须自己回答：GL 画面不由 Avalonia 绘制（合成器单独贴一块 surface），
+    /// 默认的"有绘制内容才算命中"会让整块区域收不到指针事件 —— 表现就是鼠标完全没反应。
+    /// </remarks>
+    public bool HitTest(Point point) => new Rect(Bounds.Size).Contains(point);
 
     /// <summary>当前 GL 入口（仅在渲染回调内有意义）。</summary>
     protected ApolloGL Gl => _gl ?? throw new InvalidOperationException("GL 入口尚未初始化。");
@@ -132,6 +143,18 @@ public abstract class GlControlBase : OpenGlControlBase
 
     /// <summary>指针离开控件。</summary>
     protected virtual void OnPointerExited()
+    {
+    }
+
+    /// <summary>
+    /// 指针捕获丢失（松开、窗口失活、被别的控件抢走）。
+    /// </summary>
+    /// <remarks>
+    /// 有"按住"状态的子类必须在这里结束拖拽：只有捕获在手上，
+    /// 松手事件才一定回到本控件（见 <c>OnPointerPressed</c> 里的 <c>Capture</c>）。
+    /// 正常松开时它会被调用两次（先 <see cref="OnPointerReleased"/> 再这里），实现要幂等。
+    /// </remarks>
+    protected virtual void OnPointerCaptureDropped()
     {
     }
 
@@ -306,11 +329,22 @@ public abstract class GlControlBase : OpenGlControlBase
 
     // ---- 输入 ----
 
+    /// <summary>输入诊断开关（<c>MILKAVALON_VERBOSE=1</c>）：确认指针事件有没有真的落到控件上。</summary>
+    private static readonly bool s_verboseInput =
+        Environment.GetEnvironmentVariable("MILKAVALON_VERBOSE") == "1";
+
+    private int _moveLogCount;
+
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
         if (TryNormalize(e.GetPosition(this), out double x, out double y))
         {
+            if (s_verboseInput && (++_moveLogCount % 60) == 1)
+            {
+                Console.WriteLine($"[input] move {x:F2},{y:F2}");
+            }
+
             Pointer = (x, y);
             OnPointerMoved(x, y);
         }
@@ -320,6 +354,24 @@ public abstract class GlControlBase : OpenGlControlBase
     {
         base.OnPointerPressed(e);
         Focus();
+
+        if (s_verboseInput)
+        {
+            Point p = e.GetPosition(this);
+            Console.WriteLine($"[input] press left={e.GetCurrentPoint(this).Properties.IsLeftButtonPressed}"
+                + $" at {p.X:F0},{p.Y:F0} bounds {Bounds.Width:F0}x{Bounds.Height:F0}");
+        }
+
+        // 只有左键算"按下"：ShaderToy 的 iMouse 语义就是 LMB（右键/中键不该让作品进入拖拽态）。
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
+        // 抓指针：不抓的话，拖到控件外松手收不到 PointerReleased，
+        // 子类的"按住"状态会一直留着（ShaderToy 的表现是 iMouse.z > 0 永远为真）。
+        e.Pointer.Capture(this);
+
         if (TryNormalize(e.GetPosition(this), out double x, out double y))
         {
             Pointer = (x, y);
@@ -330,11 +382,32 @@ public abstract class GlControlBase : OpenGlControlBase
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
         base.OnPointerReleased(e);
+
+        if (s_verboseInput)
+        {
+            Point p = e.GetPosition(this);
+            Console.WriteLine($"[input] release button={e.InitialPressMouseButton} at {p.X:F0},{p.Y:F0}");
+        }
+
+        // 只认左键松开（与 Press 对称）；换别的键松手不该结束拖拽
+        if (e.InitialPressMouseButton != MouseButton.Left)
+        {
+            return;
+        }
+
         if (TryNormalize(e.GetPosition(this), out double x, out double y))
         {
             Pointer = (x, y);
             OnPointerReleased(x, y);
         }
+    }
+
+    protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
+    {
+        base.OnPointerCaptureLost(e);
+
+        // 兜底：捕获被系统/别的控件收走时也要结束拖拽（子类实现幂等）
+        OnPointerCaptureDropped();
     }
 
     protected override void OnPointerExited(PointerEventArgs e)

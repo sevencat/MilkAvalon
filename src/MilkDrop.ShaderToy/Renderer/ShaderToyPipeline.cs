@@ -482,6 +482,11 @@ public sealed class ShaderToyPipeline : IDisposable
                     binding.Static = LoadTexture(slot, input);
                     break;
 
+                case ShaderInputType.Cubemap:
+                    // 环境贴图资源（站点 Cubemaps 标签页那种），不是 mainCubemap 生成的 pass
+                    binding.Static = LoadCubemap(slot, input);
+                    break;
+
                 case ShaderInputType.Keyboard:
                     binding.Static = _keyboard.Texture;
                     break;
@@ -492,10 +497,9 @@ public sealed class ShaderToyPipeline : IDisposable
                     binding.Static = _music.Texture;
                     break;
 
-                case ShaderInputType.Cubemap:
                 case ShaderInputType.Volume:
-                    // 资源文件由 P8 下载到 textures/，但加载 samplerCube/sampler3D 还没接（P5 遗留）
-                    Notes.Add($"{Label(slot.Pass)} 通道 {input.Channel}：{input.Type} 资源暂用占位纹理（加载侧未接）。");
+                    // 3D 纹理的资源加载还没接（P5 遗留），一律用占位
+                    Notes.Add($"{Label(slot.Pass)} 通道 {input.Channel}：volume 资源暂用占位纹理（加载侧未接）。");
                     break;
             }
 
@@ -569,6 +573,167 @@ public sealed class ShaderToyPipeline : IDisposable
             Notes.Add($"{Label(slot.Pass)} 通道 {input.Channel}：加载 {path} 失败（{ex.Message}），用黑纹理。");
             return null;
         }
+    }
+
+    private static readonly string[] s_cubeImageExtensions = [".png", ".jpg", ".jpeg", ".webp"];
+
+    /// <summary>
+    /// 临时硬编码：站点 cubemap 资源 id → 本地六面文件（相对搜索目录），面序 +X, -X, +Y, -Y, +Z, -Z。
+    /// </summary>
+    /// <remarks>
+    /// TODO(临时)：抓取侧还不会下载 cubemap 资源，先用真实作品（<c>Campfire at night</c> 的 <c>XsX3zn</c>）
+    /// 手工放好的图验证加载与朝向。等 P8 抓取接上后整块删掉。
+    /// </remarks>
+    private static readonly Dictionary<string, string[]> s_cubeResourceOverrides = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["XsX3zn"] =
+        [
+            "media/a/94284d43be78f00eb6b298e6d78656a1b34e2b91b34940d02f1ca8b22310e8a0.png",
+            "media/a/94284d43be78f00eb6b298e6d78656a1b34e2b91b34940d02f1ca8b22310e8a0_1.png",
+            "media/a/94284d43be78f00eb6b298e6d78656a1b34e2b91b34940d02f1ca8b22310e8a0_2.png",
+            "media/a/94284d43be78f00eb6b298e6d78656a1b34e2b91b34940d02f1ca8b22310e8a0_3.png",
+            "media/a/94284d43be78f00eb6b298e6d78656a1b34e2b91b34940d02f1ca8b22310e8a0_4.png",
+            "media/a/94284d43be78f00eb6b298e6d78656a1b34e2b91b34940d02f1ca8b22310e8a0_5.png",
+        ],
+    };
+
+    /// <summary>
+    /// 加载 cubemap **资源**（站点 Cubemaps 标签页那种环境贴图；<c>mainCubemap</c> 生成的 pass 不走这里）。
+    /// </summary>
+    /// <remarks>
+    /// 两种本地布局，都在 <see cref="PipelineOptions.TextureSearchPaths"/> 里按顺序找：
+    /// <list type="number">
+    /// <item>六个面：<c>&lt;名字&gt;_px.png</c> … <c>&lt;名字&gt;_nz.png</c>，面序 +X, -X, +Y, -Y, +Z, -Z；</item>
+    /// <item>单张竖条带：<c>&lt;名字&gt;.png</c>，高 = 6 × 宽，自上而下同面序。</item>
+    /// </list>
+    /// 都找不到就返回 null —— 调用方会退回 <see cref="BindChannels"/> 先铺的黑色占位立方体。
+    /// </remarks>
+    private Texture? LoadCubemap(Slot slot, ShaderPassInput input)
+    {
+        string baseName = NormalizeResourceName(input.Id);
+        if (baseName.Length == 0)
+        {
+            return null;
+        }
+
+        // 0) 临时硬编码的映射（抓取未接前，用真实资源手测）
+        if (s_cubeResourceOverrides.TryGetValue(baseName, out string[]? overrideFiles))
+        {
+            var resolved = new string[6];
+            for (var face = 0; face < 6; face++)
+            {
+                string? path = ResolveTexturePath(overrideFiles[face]);
+                if (path is null)
+                {
+                    Notes.Add($"{Label(slot.Pass)} 通道 {input.Channel}：预置的立方体贴图 {baseName} 缺文件 {overrideFiles[face]}，用黑色占位。");
+                    return null;
+                }
+
+                resolved[face] = path;
+            }
+
+            return LoadCubeFaces(slot, input, resolved);
+        }
+
+        // 1) 六个面：<名字>_px / _nx / _py / _ny / _pz / _nz
+        foreach (string extension in s_cubeImageExtensions)
+        {
+            var faces = new string[6];
+            var complete = true;
+
+            for (var face = 0; face < 6; face++)
+            {
+                string? path = ResolveTexturePath($"{baseName}_{TextureLoader.CubeFaceSuffixes[face]}{extension}");
+                if (path is null)
+                {
+                    complete = false;
+                    break;
+                }
+
+                faces[face] = path;
+            }
+
+            if (!complete)
+            {
+                continue;
+            }
+
+            return LoadCubeFaces(slot, input, faces);
+        }
+
+        // 2) 单张竖条带：高 = 6 × 宽
+        foreach (string extension in s_cubeImageExtensions)
+        {
+            string? path = ResolveTexturePath($"{baseName}{extension}");
+            if (path is null)
+            {
+                continue;
+            }
+
+            try
+            {
+                Texture texture = TextureLoader.LoadCubeStrip(
+                    path,
+                    input.Sampler.VFlip,
+                    input.Sampler.Filter == SamplerFilter.Mipmap);
+
+                _ownedTextures.Add(texture);
+                return texture;
+            }
+            catch (InvalidDataException)
+            {
+                // 尺寸不是 6:1，是同名的普通图，换下一个扩展名再试
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Notes.Add($"{Label(slot.Pass)} 通道 {input.Channel}：加载立方体贴图失败（{ex.Message}），用黑色占位。");
+                return null;
+            }
+        }
+
+        Notes.Add($"{Label(slot.Pass)} 通道 {input.Channel}：找不到立方体贴图 {baseName}"
+            + $"（六面 {baseName}_px.png… 或竖条带 {baseName}.png），用黑色占位。");
+
+        return null;
+    }
+
+    /// <summary>按六面路径加载立方体贴图；失败只记提示并退回黑色占位。</summary>
+    private Texture? LoadCubeFaces(Slot slot, ShaderPassInput input, string[] faces)
+    {
+        try
+        {
+            Texture texture = TextureLoader.LoadCube(
+                faces,
+                input.Sampler.VFlip,
+                input.Sampler.Filter == SamplerFilter.Mipmap);
+
+            _ownedTextures.Add(texture);
+            return texture;
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
+        {
+            Notes.Add($"{Label(slot.Pass)} 通道 {input.Channel}：加载立方体贴图失败（{ex.Message}），用黑色占位。");
+            return null;
+        }
+    }
+
+    /// <summary>把通道里记的资源名整理成"不带扩展名的相对路径"。</summary>
+    private static string NormalizeResourceName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return string.Empty;
+        }
+
+        string relative = name.Replace('\\', '/').TrimStart('/');
+
+        int query = relative.IndexOf('?');
+        if (query >= 0)
+        {
+            relative = relative[..query];
+        }
+
+        return Path.ChangeExtension(relative, null);
     }
 
     /// <summary>
@@ -663,6 +828,9 @@ public sealed class ShaderToyPipeline : IDisposable
 
         // mag filter 不能是 mipmap 模式（GL_INVALID_ENUM），所以先建线性，再单独改 min
         var sampler = new Sampler(wrapMode, (int)GLEnum.Linear);
+
+        // 立方体贴图/3D 纹理还会看 R 方向；默认是 repeat，跟 S/T 对齐
+        GlContext.Gl.SamplerParameter(sampler.SamplerId, GLEnum.TextureWrapR, wrapMode);
 
         if (filter == SamplerFilter.Mipmap)
         {

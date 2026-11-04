@@ -120,6 +120,12 @@ public sealed class ShaderToyControl : GlControlBase
     protected override void OnPointerReleased(double normalizedX, double normalizedY)
         => _player?.ReleasePointer();
 
+    /// <summary>
+    /// 捕获丢失（窗口失活 / 指针被抢走）也要松开：否则 <c>iMouse.z</c> 一直是正数，
+    /// 作品以为还在拖拽（<c>MouseState.Release()</c> 幂等，正常松开重复调用无害）。
+    /// </summary>
+    protected override void OnPointerCaptureDropped() => _player?.ReleasePointer();
+
     protected override void OnKeyChanged(int keyCode, bool down)
         => _player?.SetKey(keyCode, down);
 

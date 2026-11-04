@@ -24,10 +24,11 @@ public sealed class PlaybackClock
     /// <summary>帧率，由 <see cref="TimeDelta"/> 推得。</summary>
     public float FrameRate => TimeDelta > 0f ? 1f / TimeDelta : 0f;
 
-    /// <summary>已渲染帧数。</summary>
+    /// <summary>已渲染帧数（<c>iFrame</c>）：第一帧渲染时是 0，与网页端一致。</summary>
     public int Frame { get; private set; }
 
     /// <summary>推进一帧。<paramref name="deltaSeconds"/> 是真实帧时间，固定步长模式下忽略。</summary>
+    /// <remarks>只动时间不动帧号：<c>iFrame</c> 由 <see cref="MarkRendered"/> 在画完之后加。</remarks>
     public void Advance(double deltaSeconds)
     {
         if (Paused)
@@ -40,8 +41,10 @@ public sealed class PlaybackClock
 
         TimeDelta = (float)step;
         Time += (float)step;
-        Frame++;
     }
+
+    /// <summary>一帧真的画完了，帧号 +1（暂停时也照样计数：帧确实渲染了）。</summary>
+    public void MarkRendered() => Frame++;
 
     /// <summary>
     /// 跳到指定时刻（UI 时间轴用）。

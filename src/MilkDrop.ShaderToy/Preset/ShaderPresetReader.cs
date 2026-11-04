@@ -212,21 +212,35 @@ public static class ShaderPresetReader
             return;
         }
 
-        string? target = parts.Length > 1 ? parts[1] : null;
+        // 目标是可选的：keyboard / music 这类没有目标，采样器紧跟类型后面
+        //   3 = texture /media/a/x.png mipmap repeat 1
+        //   2 = keyboard linear clamp 0
+        // 位置固定解析会把 "linear" 当成目标，所以按"是不是 filter 名"判断。
+        int index = 1;
+        string? target = null;
+        if (parts.Length > index && !TryParseFilter(parts[index], out _))
+        {
+            target = parts[index];
+            index++;
+        }
 
-        var filter = SamplerFilter.Linear;
-        if (parts.Length > 2 && TryParseFilter(parts[2], out SamplerFilter parsedFilter))
+        // 缺省值与网页端一致（教程 15.3）：Filter=mipmap、Wrap=repeat、VFlip=开。
+        // 站点导出的行本来就带全三个值，只有手写/简写的文件会用到这些缺省。
+        var filter = SamplerFilter.Mipmap;
+        if (parts.Length > index && TryParseFilter(parts[index], out SamplerFilter parsedFilter))
         {
             filter = parsedFilter;
+            index++;
         }
 
-        var wrap = SamplerWrap.Clamp;
-        if (parts.Length > 3 && TryParseWrap(parts[3], out SamplerWrap parsedWrap))
+        var wrap = SamplerWrap.Repeat;
+        if (parts.Length > index && TryParseWrap(parts[index], out SamplerWrap parsedWrap))
         {
             wrap = parsedWrap;
+            index++;
         }
 
-        bool vflip = parts.Length > 4 && parts[4] is "1" or "true" or "yes";
+        bool vflip = parts.Length <= index || parts[index] is "1" or "true" or "yes";
 
         pass.Inputs.Add(new ShaderPresetChannel(channel, type, target, filter, wrap, vflip));
     }

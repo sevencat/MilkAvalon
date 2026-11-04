@@ -259,6 +259,9 @@ public sealed class ShaderToyPlayer : IDisposable
             GlContext.Gl.Viewport(0, 0, (uint)_width, (uint)_height);
             _copy.Draw(output);
         }
+
+        // iFrame 在画完之后才加：第一帧看到的是 0（网页端口径）
+        _clock.MarkRendered();
     }
 
     /// <summary>指针移动（窗口坐标：<b>左上原点</b>、像素；内部转成 <c>gl_FragCoord</c> 口径）。</summary>
