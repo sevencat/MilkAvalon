@@ -541,12 +541,20 @@ public partial class MainWindow : Window
 
     private void OnEditorCloseRequested() => CloseEditor();
 
-    /// <summary>编辑面板点了「保存 / 应用」：把文本交给当前 projectM 页重载（不碰 GL 线程）。</summary>
+    /// <summary>编辑面板点了「保存 / 应用」：把文本交给当前页重载（不碰 GL 线程）。</summary>
     private void OnEditorApplyRequested(string path, string text)
     {
-        if (IsShaderToyTab || ActivePresetPage is not { } page)
+        if (IsShaderToyTab)
         {
-            Editor.ReportEngineWarning("当前页不是 projectM / 脚本页，改动没法应用");
+            // .shaderx：按文本重建工程 → GL 线程重新编译（P13 M5）
+            _shaderToyPage?.ApplyPresetText(path, text);
+            StatusText.Text = "已应用编辑：" + Path.GetFileName(path);
+            return;
+        }
+
+        if (ActivePresetPage is not { } page)
+        {
+            Editor.ReportEngineWarning("当前页没有可重载的预设，改动没法应用");
             return;
         }
 
@@ -560,12 +568,12 @@ public partial class MainWindow : Window
         EditButton.Content = EditGlyph;
     }
 
-    /// <summary>面板的"编辑对象"：projectM / 脚本页是预设文件路径，ShaderToy 是作品 ID。</summary>
+    /// <summary>面板的"编辑对象"：三页都是文件路径（ShaderToy 是当前作品的 <c>.shaderx</c>）。</summary>
     private string? BuildEditorTarget()
     {
         if (IsShaderToyTab)
         {
-            return _shaderToyPage?.View.Player?.CurrentId is { Length: > 0 } id ? "ShaderToy 作品 " + id : null;
+            return _shaderToyPage?.CurrentPresetPath;
         }
 
         return ActivePresetPage?.CurrentPresetPath ?? ActivePresetPage?.View.CurrentPresetName;

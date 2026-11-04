@@ -5,6 +5,7 @@ using MilkAvalon.Controls;
 using MilkAvalon.Rendering;
 using MilkAvalon.Services;
 using MilkDrop.ShaderToy.Pass;
+using MilkDrop.ShaderToy.Preset;
 using MilkDrop.ShaderToy.Renderer;
 
 namespace MilkAvalon.Views;
@@ -89,6 +90,48 @@ public partial class ShaderToyPage : UserControl
 
     /// <summary>ShaderToy 播放控件（工具条需要它的播放状态）。</summary>
     public ShaderToyControl View => ShaderToyView;
+
+    /// <summary>
+    /// 当前正在播（或列表里选中）的作品对应的 <c>.shaderx</c> 路径（右侧编辑器用）。
+    /// </summary>
+    /// <remarks>作品来自 db 兜底时为 null——那种情况下没有可编辑的文件。</remarks>
+    public string? CurrentPresetPath
+    {
+        get
+        {
+            string? playingId = ShaderToyView.Player?.CurrentId;
+            ShaderToyEntry? playing = playingId is { Length: > 0 }
+                ? _visible.FirstOrDefault(entry => string.Equals(entry.Id, playingId, StringComparison.OrdinalIgnoreCase))
+                : null;
+
+            playing ??= ShaderList.SelectedItem as ShaderToyEntry;
+            return playing?.PresetPath;
+        }
+    }
+
+    /// <summary>
+    /// 编辑器「保存 / 应用」后的重新编译：按文本重建工程，丢给 GL 线程重新建管线（保持当前时间）。
+    /// </summary>
+    public void ApplyPresetText(string path, string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+
+        ShaderToyProject project = ShaderPresetMapper.ToProject(ShaderPresetReader.ReadText(text));
+
+        if (project.Passes.Count == 0)
+        {
+            InfoWarning.Text = "⚠ 改动里没有可播放的 pass，已保留当前画面";
+            Console.WriteLine($"[shadertoy] 应用 {Path.GetFileName(path)} 失败：没有可播放的 pass");
+            return;
+        }
+
+        float seek = ShaderToyView.Player?.Time ?? 0f;
+
+        Console.WriteLine(
+            $"[shadertoy] 应用编辑：{Path.GetFileName(path)} → {project.Passes.Count} 个 pass @ {seek:F2}s");
+
+        ShaderToyView.Load(project, seek);
+    }
 
     /// <summary>用真实的数据根初始化（在 XAML 构造之后调用）。</summary>
     /// <param name="options">命令行/数据根。</param>

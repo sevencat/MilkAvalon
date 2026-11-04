@@ -11,7 +11,7 @@ namespace MilkAvalon.Editor;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 候选来自 <see cref="PresetVocabulary"/>（函数/ABI 变量/<c>.milk</c> 参数/<c>.milkx</c> 段名），
+/// 候选来自 <see cref="PresetVocabulary"/>（按文档类型给 EEL / C# 风格 / GLSL 的词表与段名），
 /// 外加"当前文件里已经出现的键"——已存在的名字排在最前面，省得每次翻。
 /// </para>
 /// <para>
@@ -22,22 +22,22 @@ namespace MilkAvalon.Editor;
 public sealed class MilkCompletion : IDisposable
 {
     private readonly TextEditor _editor;
-    private readonly Func<bool> _isMilkx;
+    private readonly Func<EditorKind> _kind;
     private readonly Func<IEnumerable<string>> _documentKeys;
 
     private CompletionWindow? _window;
 
     /// <param name="editor">目标编辑器。</param>
-    /// <param name="isMilkx">当前是不是 <c>.milkx</c>（决定要不要给段名）。</param>
+    /// <param name="kind">当前文档类型（决定词表与段名）。</param>
     /// <param name="documentKeys">当前文档里已有的键名（每次弹列表时现取）。</param>
-    public MilkCompletion(TextEditor editor, Func<bool> isMilkx, Func<IEnumerable<string>> documentKeys)
+    public MilkCompletion(TextEditor editor, Func<EditorKind> kind, Func<IEnumerable<string>> documentKeys)
     {
         ArgumentNullException.ThrowIfNull(editor);
-        ArgumentNullException.ThrowIfNull(isMilkx);
+        ArgumentNullException.ThrowIfNull(kind);
         ArgumentNullException.ThrowIfNull(documentKeys);
 
         _editor = editor;
-        _isMilkx = isMilkx;
+        _kind = kind;
         _documentKeys = documentKeys;
 
         _editor.TextArea.TextEntered += OnTextEntered;
@@ -121,7 +121,7 @@ public sealed class MilkCompletion : IDisposable
 
         if (afterBracket || prefix.StartsWith('['))
         {
-            foreach (VocabularyEntry section in PresetVocabulary.Sections)
+            foreach (VocabularyEntry section in PresetVocabulary.SectionsFor(_kind()))
             {
                 entries.Add(new Entry(section));
             }
@@ -130,7 +130,7 @@ public sealed class MilkCompletion : IDisposable
         {
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (VocabularyEntry entry in PresetVocabulary.Suggest(_isMilkx(), _documentKeys()))
+            foreach (VocabularyEntry entry in PresetVocabulary.Suggest(_kind(), _documentKeys()))
             {
                 if (seen.Add(entry.Text))
                 {

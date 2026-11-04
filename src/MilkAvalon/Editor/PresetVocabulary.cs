@@ -2,6 +2,19 @@ using MilkDrop.Eval;
 
 namespace MilkAvalon.Editor;
 
+/// <summary>编辑器里正在编的文档类型（决定高亮之外还要补什么词）。</summary>
+public enum EditorKind
+{
+    /// <summary><c>.milk</c>：key=value + EEL。</summary>
+    Milk,
+
+    /// <summary><c>.milkx</c>：段 + C# 风格代码。</summary>
+    Milkx,
+
+    /// <summary><c>.shaderx</c>：段 + 原始 Shadertoy GLSL。</summary>
+    Shaderx,
+}
+
 /// <summary>补全列表里的一条：写进文本的 <see cref="Text"/> + 给人看的说明。</summary>
 /// <param name="Text">插入到编辑器的文本（函数只插入名字，括号由使用习惯决定）。</param>
 /// <param name="Kind">分类（函数 / 变量 / 参数 / 段名），显示在列表摘要里。</param>
@@ -123,6 +136,65 @@ public static class PresetVocabulary
         ["equal"] = "equal(a, b) → 近似相等（返回 0/1）",
     };
 
+    /// <summary>GLSL ES 3.0 的常用内建函数（<c>.shaderx</c> 补全用，取最常见的那些）。</summary>
+    private static readonly string[] s_glslFunctions =
+    [
+        "abs", "acos", "all", "any", "asin", "atan", "ceil", "clamp", "cos", "cosh", "cross", "degrees",
+        "determinant", "dFdx", "dFdy", "distance", "dot", "equal", "exp", "exp2", "faceforward", "floatBitsToInt",
+        "floor", "fract", "fwidth", "greaterThan", "greaterThanEqual", "intBitsToFloat", "inverse", "inversesqrt",
+        "isinf", "isnan", "length", "lessThan", "lessThanEqual", "log", "log2", "matrixCompMult", "max", "min",
+        "mix", "mod", "normalize", "not", "notEqual", "packSnorm2x16", "pow", "radians", "reflect", "refract",
+        "round", "sign", "sin", "sinh", "smoothstep", "sqrt", "step", "tan", "tanh", "texelFetch", "texture",
+        "textureGrad", "textureLod", "transpose", "trunc", "unpackSnorm2x16",
+    ];
+
+    /// <summary>GLSL 函数的签名说明（没列到的按"GLSL 内建函数"兜底）。</summary>
+    private static readonly Dictionary<string, string> s_glslNotes = new(StringComparer.Ordinal)
+    {
+        ["texture"] = "texture(sampler, uv) — 采样（2D/Cube 都走它）",
+        ["textureLod"] = "textureLod(sampler, uv, lod) — 指定 mip 层级采样",
+        ["textureGrad"] = "textureGrad(sampler, uv, dPdx, dPdy)",
+        ["texelFetch"] = "texelFetch(sampler, ivec2 坐标, lod) — 按整数像素取",
+        ["mix"] = "mix(a, b, t) — 线性插值",
+        ["clamp"] = "clamp(x, lo, hi)",
+        ["step"] = "step(edge, x) — x < edge ? 0 : 1",
+        ["smoothstep"] = "smoothstep(e0, e1, x) — 平滑过渡",
+        ["fract"] = "fract(x) — 取小数部分",
+        ["mod"] = "mod(x, y) — 浮点取模（整数取余用 %）",
+        ["length"] = "length(v) — 向量长度",
+        ["normalize"] = "normalize(v)",
+        ["dot"] = "dot(a, b)",
+        ["cross"] = "cross(a, b)",
+        ["reflect"] = "reflect(i, n) — 反射",
+        ["refract"] = "refract(i, n, eta) — 折射",
+        ["atan"] = "atan(y, x) — 四象限反正切（也是单参数 atan(x)）",
+        ["pow"] = "pow(x, y) — x 的 y 次方",
+        ["dFdx"] = "dFdx(x) — 屏幕空间水平导数",
+        ["dFdy"] = "dFdy(x) — 屏幕空间垂直导数",
+    };
+
+    /// <summary>ShaderToy 注入的变量与通道（<c>.shaderx</c> 里每个 pass 都能直接用）。</summary>
+    private static readonly string[] s_shadertoyVariables =
+    [
+        "iResolution", "iTime", "iTimeDelta", "iFrame", "iFrameRate", "iMouse", "iDate", "iSampleRate",
+        "iChannelTime", "iChannelResolution",
+        "iChannel0", "iChannel1", "iChannel2", "iChannel3",
+        "fragColor", "fragCoord", "gl_FragCoord",
+    ];
+
+    /// <summary>常见 ShaderToy 变量的说明。</summary>
+    private static readonly Dictionary<string, string> s_shadertoyNotes = new(StringComparer.Ordinal)
+    {
+        ["iResolution"] = "vec3(宽, 高, 1) — 画面像素尺寸",
+        ["iTime"] = "float — 播放秒数",
+        ["iTimeDelta"] = "float — 上一帧耗时",
+        ["iFrame"] = "int — 帧序号",
+        ["iMouse"] = "vec4 — xy 当前位置，zw 按下位置（未按为 0）",
+        ["iChannel0"] = "sampler2D — 通道 0（绑定见 [shadertoy.<角色>.inputs]）",
+        ["fragColor"] = "vec4 — mainImage 的输出",
+        ["fragCoord"] = "vec2 — 像素坐标（= gl_FragCoord.xy）",
+    };
+
     /// <summary>EEL 内建函数（从引擎的 intrinsic 表来，已滤掉内部名 <c>_xxx</c> 与 <c>/*xxx*/</c>）。</summary>
     public static IReadOnlyList<VocabularyEntry> Functions { get; } = BuildFunctions();
 
@@ -134,6 +206,23 @@ public static class PresetVocabulary
 
     /// <summary><c>.milkx</c> 的段名（<c>[params]</c> / <c>[wave_0.per_point]</c> …）。</summary>
     public static IReadOnlyList<VocabularyEntry> Sections { get; } = BuildSections();
+
+    /// <summary>GLSL 内建函数（<c>.shaderx</c> 用）。</summary>
+    public static IReadOnlyList<VocabularyEntry> GlslFunctions { get; } = BuildGlslFunctions();
+
+    /// <summary>ShaderToy 注入变量（<c>iTime</c> / <c>iChannel0</c> …）。</summary>
+    public static IReadOnlyList<VocabularyEntry> GlslVariables { get; } = BuildGlslVariables();
+
+    /// <summary><c>.shaderx</c> 的段名（<c>[shadertoy.image]</c> / <c>[shadertoy.buffer_a.inputs]</c> …）。</summary>
+    public static IReadOnlyList<VocabularyEntry> ShaderSections { get; } = BuildShaderSections();
+
+    /// <summary>当前文档类型该给的段名（<c>[</c> 之后弹这个）。</summary>
+    public static IReadOnlyList<VocabularyEntry> SectionsFor(EditorKind kind) => kind switch
+    {
+        EditorKind.Shaderx => ShaderSections,
+        EditorKind.Milkx => Sections,
+        _ => [],
+    };
 
     /// <summary>取一个名字的说明（函数 / 变量 / 参数 / 段名都查），没找到返回 null。</summary>
     public static string? Describe(string word)
@@ -157,10 +246,10 @@ public static class PresetVocabulary
         return null;
     }
 
-    /// <summary>按上下文给的补全候选：<paramref name="milkx"/> 时额外给段名。</summary>
-    /// <param name="milkx">当前编辑的是 <c>.milkx</c>。</param>
+    /// <summary>按上下文给的补全候选（<c>.shaderx</c> 给 GLSL 与通道变量，<c>.milkx</c> 额外给段名）。</summary>
+    /// <param name="kind">当前文档类型。</param>
     /// <param name="documentKeys">当前文档里已经出现的键名（优先展示）。</param>
-    public static IReadOnlyList<VocabularyEntry> Suggest(bool milkx, IEnumerable<string> documentKeys)
+    public static IReadOnlyList<VocabularyEntry> Suggest(EditorKind kind, IEnumerable<string> documentKeys)
     {
         var result = new List<VocabularyEntry>();
 
@@ -172,11 +261,19 @@ public static class PresetVocabulary
             }
         }
 
+        if (kind == EditorKind.Shaderx)
+        {
+            result.AddRange(GlslFunctions);
+            result.AddRange(GlslVariables);
+            result.AddRange(ShaderSections);
+            return result;
+        }
+
         result.AddRange(Functions);
         result.AddRange(Variables);
         result.AddRange(Parameters);
 
-        if (milkx)
+        if (kind == EditorKind.Milkx)
         {
             result.AddRange(Sections);
         }
@@ -192,6 +289,9 @@ public static class PresetVocabulary
             yield return Variables;
             yield return Parameters;
             yield return Sections;
+            yield return GlslFunctions;
+            yield return GlslVariables;
+            yield return ShaderSections;
         }
     }
 
@@ -278,6 +378,58 @@ public static class PresetVocabulary
             list.Add(new VocabularyEntry(prefix, "代码段", ".milk 的代码键前缀（后面接编号）"));
         }
 
+        return list;
+    }
+
+    /// <summary>GLSL 内建函数（名字固定，说明见 <see cref="s_glslNotes"/>）。</summary>
+    private static IReadOnlyList<VocabularyEntry> BuildGlslFunctions()
+    {
+        var list = new List<VocabularyEntry>(s_glslFunctions.Length);
+
+        foreach (string name in s_glslFunctions)
+        {
+            string note = s_glslNotes.TryGetValue(name, out string? text) ? text : "GLSL 内建函数";
+            list.Add(new VocabularyEntry(name, "函数", note));
+        }
+
+        list.Sort(static (a, b) => string.CompareOrdinal(a.Text, b.Text));
+        return list;
+    }
+
+    private static IReadOnlyList<VocabularyEntry> BuildGlslVariables()
+    {
+        var list = new List<VocabularyEntry>(s_shadertoyVariables.Length);
+
+        foreach (string name in s_shadertoyVariables)
+        {
+            string note = s_shadertoyNotes.TryGetValue(name, out string? text) ? text : "ShaderToy 注入变量";
+            list.Add(new VocabularyEntry(name, "变量", note));
+        }
+
+        return list;
+    }
+
+    /// <summary><c>.shaderx</c> 的段名：<c>[shadertoy.&lt;角色&gt;]</c> 与它的 inputs/outputs。</summary>
+    private static IReadOnlyList<VocabularyEntry> BuildShaderSections()
+    {
+        var list = new List<VocabularyEntry>
+        {
+            new("meta", "段名", "作品元信息（kind/id/title/author/code_hash…）"),
+            new("shadertoy.common", "段名", "common 代码（拼在每个 pass 前面）"),
+            new("shadertoy.image", "段名", "Image pass 的 GLSL（mainImage）"),
+            new("shadertoy.image.inputs", "段名", "Image 的通道绑定（通道号 = 类型 目标 过滤 环绕 vflip）"),
+            new("shadertoy.image.outputs", "段名", "Image 的输出（通常 0 = id）"),
+            new("shadertoy.sound", "段名", "Sound pass（mainSound）"),
+        };
+
+        for (char letter = 'a'; letter <= 'd'; letter++)
+        {
+            list.Add(new VocabularyEntry($"shadertoy.buffer_{letter}", "段名", $"Buffer {char.ToUpperInvariant(letter)} 的 GLSL"));
+            list.Add(new VocabularyEntry($"shadertoy.buffer_{letter}.inputs", "段名", $"Buffer {char.ToUpperInvariant(letter)} 的通道绑定"));
+            list.Add(new VocabularyEntry($"shadertoy.buffer_{letter}.outputs", "段名", $"Buffer {char.ToUpperInvariant(letter)} 的输出 id"));
+        }
+
+        list.Add(new VocabularyEntry("shadertoy.cubemap_a", "段名", "Cubemap pass（可选）"));
         return list;
     }
 

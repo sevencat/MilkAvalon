@@ -11,11 +11,12 @@ using AvaloniaEdit.Search;
 using MilkAvalon.Editor;
 using MilkAvalon.Services;
 using MilkDrop.ProjectM.MilkdropPreset;
+using MilkDrop.ShaderToy.Preset;
 
 namespace MilkAvalon.Views;
 
 /// <summary>
-/// 右侧编辑面板：直接编辑 <c>.milk</c> / <c>.milkx</c> 的原文。
+/// 右侧编辑面板：直接编辑 <c>.milk</c> / <c>.milkx</c> / <c>.shaderx</c> 的原文。
 /// </summary>
 /// <remarks>
 /// <para>
@@ -45,6 +46,20 @@ public partial class EditorPanel : UserControl, IEditorPanel
 
     /// <summary>当前编辑的是 <c>.milkx</c> 脚本（参数导航只列键值段的项，校验规则也不一样）。</summary>
     private bool _isMilkx;
+
+    /// <summary>当前编辑的是 <c>.shaderx</c>（纯文本：段 + GLSL，不解析成参数，保存后直接重新编译）。</summary>
+    private bool _isShaderx;
+
+    /// <summary><c>.shaderx</c> 的文本（这个格式没有 <see cref="MilkPresetDocument"/> 那层模型）。</summary>
+    private string _shaderxText = string.Empty;
+    private bool _shaderxDirty;
+
+    /// <summary>补全/高亮按文档类型切换。</summary>
+    private EditorKind Kind => _isShaderx ? EditorKind.Shaderx : _isMilkx ? EditorKind.Milkx : EditorKind.Milk;
+
+    /// <summary>是否有未保存的改动（两种模型合起来算）。</summary>
+    private bool IsDirty => _document?.IsDirty ?? _shaderxDirty;
+
     private IReadOnlyList<MilkPresetEntry> _filtered = [];
     private bool _suppressTextChanged;
     private bool _suppressParamSelection;
@@ -97,19 +112,36 @@ public partial class EditorPanel : UserControl, IEditorPanel
         // AvaloniaEdit 自带查找条：Ctrl+F 就够用，不额外做 UI
         SearchPanel.Install(CodeBox);
 
-        _completion = new MilkCompletion(CodeBox, () => _isMilkx, DocumentKeys);
+        _completion = new MilkCompletion(CodeBox, () => Kind, DocumentKeys);
         CodeBox.TextArea.Caret.PositionChanged += OnCaretMoved;
 
         Console.WriteLine(
-            $"[editor] 词表：函数 {PresetVocabulary.Functions.Count}，变量 {PresetVocabulary.Variables.Count}，"
-            + $"参数 {PresetVocabulary.Parameters.Count}，段名 {PresetVocabulary.Sections.Count}"
+            $"[editor] 词表：EEL 函数 {PresetVocabulary.Functions.Count}，变量 {PresetVocabulary.Variables.Count}，"
+            + $"参数 {PresetVocabulary.Parameters.Count}，.milkx 段名 {PresetVocabulary.Sections.Count}，"
+            + $"GLSL 函数 {PresetVocabulary.GlslFunctions.Count}，ShaderToy 变量 {PresetVocabulary.GlslVariables.Count}，"
+            + $".shaderx 段名 {PresetVocabulary.ShaderSections.Count}"
             + "（敲字母自动补全，Ctrl+Space 全量，Ctrl+F 查找）");
     }
 
     /// <summary>补全候选里的"本文档已有的键"（每次弹列表现取，不缓存）。</summary>
-    private IEnumerable<string> DocumentKeys() =>
-        _document?.Entries.Select(entry => entry.Key).Distinct(StringComparer.OrdinalIgnoreCase)
-        ?? Enumerable.Empty<string>();
+    private IEnumerable<string> DocumentKeys()
+    {
+        if (_isShaderx)
+        {
+            return ShaderxMetaKeys();
+        }
+
+        return _document?.Entries.Select(entry => entry.Key).Distinct(StringComparer.OrdinalIgnoreCase)
+               ?? Enumerable.Empty<string>();
+    }
+
+    /// <summary><c>.shaderx</c> 的 <c>[meta]</c> 键（补全时排最前）。</summary>
+    private IEnumerable<string> ShaderxMetaKeys() =>
+        _shaderxText
+            .Split('\n')
+            .Select(line => ShaderPresetReader.TryParseMetaLine(line, out string key, out _) ? key : null)
+            .OfType<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>宿主（主窗口）点"关闭"时触发，用来同步工具栏按钮的文字。</summary>
     public event Action? CloseRequested;
@@ -123,7 +155,7 @@ public partial class EditorPanel : UserControl, IEditorPanel
     public string? CurrentPath => _path;
 
     /// <summary>是否有未保存的改动。</summary>
-    public bool HasUnsavedChanges => _document?.IsDirty == true;
+    public bool HasUnsavedChanges => IsDirty;
 
     /// <summary>
     /// 打开（或切换）编辑目标。<paramref name="target"/> 为 <c>.milk</c> 路径时载入文件；
@@ -138,18 +170,24 @@ public partial class EditorPanel : UserControl, IEditorPanel
 
         if (target is not string path || path.Length == 0)
         {
-            ShowUnsupported("当前没有可编辑的预设（先播一个 .milk）");
+            ShowUnsupported("当前没有可编辑的内容（先播一个 .milk / .milkx / .shaderx）");
+            return;
+        }
+
+        if (path.EndsWith(".shaderx", StringComparison.OrdinalIgnoreCase))
+        {
+            OpenShaderx(path);
             return;
         }
 
         if (!path.EndsWith(".milk", StringComparison.OrdinalIgnoreCase)
             && !path.EndsWith(".milkx", StringComparison.OrdinalIgnoreCase))
         {
-            ShowUnsupported("只支持编辑 .milk / .milkx 预设：" + path);
+            ShowUnsupported("只支持编辑 .milk / .milkx / .shaderx：" + path);
             return;
         }
 
-        bool sameFile = string.Equals(_path, path, StringComparison.OrdinalIgnoreCase);
+        bool sameFile = !_isShaderx && string.Equals(_path, path, StringComparison.OrdinalIgnoreCase);
 
         if (sameFile && _document is not null)
         {
@@ -157,7 +195,7 @@ public partial class EditorPanel : UserControl, IEditorPanel
             return;
         }
 
-        if (_document is not null && _document.IsDirty)
+        if (IsDirty)
         {
             RefreshHeader();
             ShowStatus($"有未保存的改动，仍在编辑 {Path.GetFileName(_path)}（当前播放已换到 {Path.GetFileName(path)}）");
@@ -196,6 +234,9 @@ public partial class EditorPanel : UserControl, IEditorPanel
             _document = document;
             _path = document.FilePath ?? path;
             _isMilkx = _path.EndsWith(".milkx", StringComparison.OrdinalIgnoreCase);
+            _isShaderx = false;
+            _shaderxText = string.Empty;
+            _shaderxDirty = false;
 
             _suppressTextChanged = true;
             CodeBox.Text = document.Text;
@@ -234,8 +275,148 @@ public partial class EditorPanel : UserControl, IEditorPanel
         }
     }
 
+    /// <summary>打开一个 <c>.shaderx</c>（纯文本模式：有未保存改动时不抢缓冲区）。</summary>
+    private void OpenShaderx(string path)
+    {
+        string full = Path.GetFullPath(path);
+
+        if (_isShaderx && string.Equals(_path, full, StringComparison.OrdinalIgnoreCase))
+        {
+            RefreshHeader();
+            return;
+        }
+
+        if (IsDirty)
+        {
+            RefreshHeader();
+            ShowStatus($"有未保存的改动，仍在编辑 {Path.GetFileName(_path)}（当前播放已换到 {Path.GetFileName(full)}）");
+            return;
+        }
+
+        LoadShaderx(full);
+    }
+
+    private void LoadShaderx(string path)
+    {
+        try
+        {
+            if (!File.Exists(path))
+            {
+                ShowUnsupported("文件不存在：" + path);
+                return;
+            }
+
+            string text = NormalizeNewlines(File.ReadAllText(path));
+
+            _document = null;
+            _isMilkx = false;
+            _isShaderx = true;
+            _path = path;
+            _shaderxText = text;
+            _shaderxDirty = false;
+
+            _suppressTextChanged = true;
+            CodeBox.Text = text;
+            _suppressTextChanged = false;
+            CodeBox.IsReadOnly = false;
+            CodeBox.CaretOffset = 0;
+            MilkHighlighting.Apply(CodeBox, path);
+
+            RefreshHeader();
+            RefreshParameters();
+            UpdateHint();
+
+            ShowStatus($"已载入 {Path.GetFileName(path)}：{CountLines(text)} 行（.shaderx 原文，Ctrl+S 保存并重新编译）");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            ShowUnsupported("打开失败：" + ex.Message);
+        }
+    }
+
+    /// <summary><c>.shaderx</c> 的保存：统一 <c>\n</c> + UTF-8 无 BOM（格式约定，见 plan.md §1）。</summary>
+    private void SaveShaderx(bool applyToEngine)
+    {
+        if (!_isShaderx || _path is null)
+        {
+            ShowStatus("没有打开的文件", isError: true);
+            return;
+        }
+
+        string text = NormalizeNewlines(CodeBox.Text ?? string.Empty);
+
+        if (!ValidateShaderx(text, out string problem))
+        {
+            ShowStatus(problem, isError: true);
+            return;
+        }
+
+        try
+        {
+            File.WriteAllText(_path, text, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            ShowStatus("保存失败：" + ex.Message, isError: true);
+            return;
+        }
+
+        _shaderxText = text;
+        _shaderxDirty = false;
+        RefreshHeader();
+        RefreshParameters();
+
+        if (applyToEngine)
+        {
+            ApplyRequested?.Invoke(_path, text);
+        }
+
+        ShowStatus($"已保存 {Path.GetFileName(_path)}（{CountLines(text)} 行）"
+            + (applyToEngine ? "，并已重新编译" : string.Empty));
+    }
+
+    /// <summary><c>.shaderx</c> 的粗校验：至少要能解析出一个 pass。</summary>
+    private static bool ValidateShaderx(string text, out string message)
+    {
+        if (text.Length == 0)
+        {
+            message = "内容为空";
+            return false;
+        }
+
+        if (text.Contains('\0'))
+        {
+            message = "内容里有 NUL 字符，读回来会变成乱码";
+            return false;
+        }
+
+        ShaderPresetDocument document = ShaderPresetReader.ReadText(text);
+
+        if (document.Passes.Count == 0)
+        {
+            message = "没有任何 [shadertoy.<角色>] 段，这个文件播放不了";
+            return false;
+        }
+
+        message = string.Empty;
+        return true;
+    }
+
+    /// <summary>换行统一成 <c>\n</c>（Windows 编辑器可能插进来 <c>\r\n</c>）。</summary>
+    private static string NormalizeNewlines(string text) =>
+        text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
+
+    private static int CountLines(string text) =>
+        text.Length == 0 ? 0 : text.Count(c => c == '\n') + (text[^1] == '\n' ? 0 : 1);
+
     private void Save(bool applyToEngine)
     {
+        if (_isShaderx)
+        {
+            SaveShaderx(applyToEngine);
+            return;
+        }
+
         if (_document is null || _path is null)
         {
             ShowStatus("没有打开的文件", isError: true);
@@ -268,6 +449,28 @@ public partial class EditorPanel : UserControl, IEditorPanel
 
     private void ApplyOnly()
     {
+        if (_isShaderx)
+        {
+            if (_path is null)
+            {
+                ShowStatus("没有打开的文件", isError: true);
+                return;
+            }
+
+            string text = NormalizeNewlines(CodeBox.Text ?? string.Empty);
+
+            if (!ValidateShaderx(text, out string shaderxProblem))
+            {
+                ShowStatus(shaderxProblem, isError: true);
+                return;
+            }
+
+            _shaderxText = text;
+            ApplyRequested?.Invoke(_path, text);
+            ShowStatus("已把当前文本重新编译（未写盘；Ctrl+S 才保存）");
+            return;
+        }
+
         if (_document is null || _path is null)
         {
             ShowStatus("没有打开的文件", isError: true);
@@ -333,7 +536,7 @@ public partial class EditorPanel : UserControl, IEditorPanel
 
     private void RefreshHeader()
     {
-        if (_document is null || _path is null)
+        if (_path is null || (!_isShaderx && _document is null))
         {
             TitleText.Text = "预设编辑";
             PathText.Text = "—";
@@ -341,13 +544,22 @@ public partial class EditorPanel : UserControl, IEditorPanel
             return;
         }
 
-        TitleText.Text = Path.GetFileName(_path) + (_document.IsDirty ? " •" : string.Empty);
+        TitleText.Text = Path.GetFileName(_path) + (IsDirty ? " •" : string.Empty);
         PathText.Text = _path;
-        RevertButton.IsEnabled = _document.IsDirty;
+        RevertButton.IsEnabled = IsDirty;
     }
 
     private void RefreshParameters()
     {
+        if (_isShaderx)
+        {
+            // .shaderx 是整段 GLSL：没有"参数"可导航，左栏给一句说明就够
+            _filtered = [];
+            ParamList.ItemsSource = _filtered;
+            ParamCountText.Text = "GLSL 原文";
+            return;
+        }
+
         if (_document is null)
         {
             return;
@@ -403,6 +615,9 @@ public partial class EditorPanel : UserControl, IEditorPanel
         _document = null;
         _path = null;
         _isMilkx = false;
+        _isShaderx = false;
+        _shaderxText = string.Empty;
+        _shaderxDirty = false;
 
         _suppressTextChanged = true;
         CodeBox.Text = string.Empty;
@@ -431,7 +646,20 @@ public partial class EditorPanel : UserControl, IEditorPanel
 
     private void OnCodeChanged(object? sender, EventArgs e)
     {
-        if (_suppressTextChanged || _document is null)
+        if (_suppressTextChanged)
+        {
+            return;
+        }
+
+        if (_isShaderx)
+        {
+            _shaderxText = CodeBox.Text ?? string.Empty;
+            _shaderxDirty = true;
+            RefreshHeader();
+            return;
+        }
+
+        if (_document is null)
         {
             return;
         }
@@ -507,6 +735,12 @@ public partial class EditorPanel : UserControl, IEditorPanel
             return;
         }
 
+        if (_isShaderx)
+        {
+            LoadShaderx(_path);
+            return;
+        }
+
         LoadDocument(_path);
     }
 
@@ -524,22 +758,31 @@ public partial class EditorPanel : UserControl, IEditorPanel
             IReadOnlyList<IStorageFile> files = await top.StorageProvider.OpenFilePickerAsync(
                 new FilePickerOpenOptions
                 {
-                    Title = "打开 .milk / .milkx 预设",
+                    Title = "打开 .milk / .milkx / .shaderx",
                     AllowMultiple = false,
                     FileTypeFilter =
                     [
+                        new FilePickerFileType("全部支持的格式") { Patterns = ["*.milk", "*.milkx", "*.shaderx"] },
                         new FilePickerFileType("MilkDrop 预设") { Patterns = ["*.milk", "*.milkx"] },
+                        new FilePickerFileType("ShaderToy 作品") { Patterns = ["*.shaderx"] },
                     ],
                 });
 
             if (files.Count > 0 && files[0].TryGetLocalPath() is { Length: > 0 } path)
             {
-                if (_document?.IsDirty == true)
+                if (IsDirty)
                 {
                     ShowStatus($"注意：{Path.GetFileName(_path)} 的未保存改动被丢弃");
                 }
 
-                LoadDocument(path);
+                if (path.EndsWith(".shaderx", StringComparison.OrdinalIgnoreCase))
+                {
+                    LoadShaderx(Path.GetFullPath(path));
+                }
+                else
+                {
+                    LoadDocument(path);
+                }
             }
         }
         catch (Exception ex)

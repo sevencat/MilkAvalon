@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- .shaderx：段名 + [meta] 键值 + 原始 Shadertoy GLSL（格式见 src/MilkDrop.ShaderToy/plan.md §1） -->
+<SyntaxDefinition name="shaderx" extensions=".shaderx" xmlns="http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008">
+  <Color name="Comment" foreground="#6A9955" fontStyle="italic" />
+  <Color name="Section" foreground="#FFB86C" fontWeight="bold" />
+  <Color name="Key" foreground="#82AAFF" />
+  <Color name="Preprocessor" foreground="#C792EA" />
+  <Color name="Keyword" foreground="#C792EA" />
+  <Color name="Type" foreground="#FFCB6B" />
+  <Color name="Function" foreground="#C3E88D" />
+  <Color name="Variable" foreground="#89DDFF" />
+  <Color name="Number" foreground="#F78C6C" />
+  <Color name="Operator" foreground="#89DDFF" />
+
+  <RuleSet>
+    <!-- 段头：[meta] / [shadertoy.image.inputs]（整行才算，GLSL 里的 data[2] 不会被染色） -->
+    <Rule color="Section">^\[[A-Za-z0-9_.\-]+\][ \t]*$</Rule>
+
+    <!-- 注释：GLSL 只有 // 与 /* */；分号是语句结束符，不能当注释 -->
+    <Span color="Comment" begin="/\*" end="\*/" />
+    <Span color="Comment" begin="//" />
+
+    <!-- 预处理器：#version / #define / #ifdef … -->
+    <Rule color="Preprocessor">^[ \t]*#[a-zA-Z]*.*$</Rule>
+
+    <!-- [meta] 的键：行首 identifier 后面跟 = -->
+    <Rule color="Key">^[ \t]*[A-Za-z_][A-Za-z0-9_]*(?=[ \t]*=)</Rule>
+
+    <!-- GLSL 类型（放在 Function 之前，vec4( 才不会被当成函数名） -->
+    <Rule color="Type">\b(void|bool|int|uint|float|double|vec2|vec3|vec4|ivec2|ivec3|ivec4|uvec2|uvec3|uvec4|bvec2|bvec3|bvec4|mat2|mat3|mat4|mat2x2|mat2x3|mat2x4|mat3x2|mat3x3|mat3x4|mat4x2|mat4x3|mat4x4|sampler2D|sampler3D|samplerCube|sampler2DArray|struct)\b</Rule>
+
+    <Rule color="Keyword">\b(if|else|for|while|do|break|continue|return|discard|switch|case|default|const|uniform|in|out|inout|varying|attribute|precision|highp|mediump|lowp|layout|flat|smooth|centroid|true|false)\b</Rule>
+
+    <!-- ShaderToy 注入的变量与通道 -->
+    <Rule color="Variable">\b(iResolution|iTime|iTimeDelta|iFrame|iFrameRate|iMouse|iDate|iSampleRate|iChannelTime|iChannelResolution|iChannel[0-3]|gl_FragCoord|gl_FragColor|gl_FragDepth|fragColor|fragCoord)\b</Rule>
+
+    <!-- 任何 "名字(" 都按函数上色 -->
+    <Rule color="Function">\b[A-Za-z_][A-Za-z0-9_]*(?=[ \t]*\()</Rule>
+
+    <Rule color="Number">\b\d+(\.\d+)?([eE][-+]?\d+)?\b</Rule>
+    <Rule color="Operator">[+\-*/%^&amp;|!&lt;&gt;=?:]</Rule>
+  </RuleSet>
+</SyntaxDefinition>

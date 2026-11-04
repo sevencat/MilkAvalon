@@ -7,8 +7,9 @@ using AvaloniaEdit.Highlighting.Xshd;
 namespace MilkAvalon.Editor;
 
 /// <summary>
-/// 给编辑器的文本按后缀挂高亮定义：<c>.milkx</c> 用 <c>Editor/MilkX.xshd</c>，
-/// <c>.milk</c> 用 <c>Editor/Milk.xshd</c>（都随程序集打包成 AvaloniaResource）。
+/// 给编辑器的文本按后缀挂高亮定义：<c>.milkx</c> → <c>Editor/MilkX.xshd</c>，
+/// <c>.milk</c> → <c>Editor/Milk.xshd</c>，<c>.shaderx</c> → <c>Editor/ShaderToy.xshd</c>
+/// （都随程序集打包成 AvaloniaResource）。
 /// </summary>
 /// <remarks>
 /// 定义只读一次（进程内缓存）；加载失败不抛，只写一行日志并把高亮清空——编辑器本身必须还能用。
@@ -19,6 +20,7 @@ public static class MilkHighlighting
 
     private static IHighlightingDefinition? _milkx;
     private static IHighlightingDefinition? _milk;
+    private static IHighlightingDefinition? _shaderx;
 
     /// <summary>按文件路径换高亮定义（其他后缀 = 取消高亮）。</summary>
     public static void Apply(TextEditor editor, string? path)
@@ -38,6 +40,10 @@ public static class MilkHighlighting
         else if (path.EndsWith(".milk", StringComparison.OrdinalIgnoreCase))
         {
             editor.SyntaxHighlighting = _milk ??= Load("Milk.xshd");
+        }
+        else if (path.EndsWith(".shaderx", StringComparison.OrdinalIgnoreCase))
+        {
+            editor.SyntaxHighlighting = _shaderx ??= Load("ShaderToy.xshd");
         }
         else
         {
