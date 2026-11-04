@@ -72,6 +72,11 @@ public sealed class AppOptions
     /// </summary>
     public string? ImportMilkxSource { get; private init; }
 
+    /// <summary>
+    /// 启动后打开「AI 分析」窗口并自动跑一次（<c>--ai &lt;脚本文件&gt;</c>，自检用；配合 <c>--shot</c> 截图）。
+    /// </summary>
+    public string? AiCheckPath { get; private init; }
+
     /// <summary>启动即切到 ShaderToy 页。</summary>
     public bool StartOnShaderToy =>
         string.Equals(InitialTab, "shadertoy", StringComparison.OrdinalIgnoreCase)
@@ -160,6 +165,7 @@ public sealed class AppOptions
             AudioBackend = ParseAudioBackend(ReadOption(args, "--audio-backend")),
             CaptureTarget = ReadOption(args, "--capture"),
             ImportMilkxSource = ReadOption(args, "--import-milkx"),
+            AiCheckPath = ReadOption(args, "--ai"),
         };
     }
 

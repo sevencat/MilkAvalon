@@ -54,6 +54,15 @@ public sealed class AppSettings
     /// <summary>界面缩放（1.0 = 跟随系统）。</summary>
     public double UiScale { get; set; } = 1.0;
 
+    /// <summary>
+    /// DeepSeek 的 API Key，编辑面板「AI 分析」用（标准 OpenAI 兼容接口）。
+    /// </summary>
+    /// <remarks>留空时回退读环境变量 <c>DEEPSEEK_API_KEY</c>。</remarks>
+    public string? DeepSeekApiKey { get; set; }
+
+    /// <summary>「AI 分析」用的模型名（null/空 = <c>deepseek-chat</c>）。</summary>
+    public string? DeepSeekModel { get; set; }
+
     /// <summary>默认配置文件路径。</summary>
     public static string DefaultPath => Path.Combine(AppContext.BaseDirectory, "milkavalon.json");
 
@@ -124,6 +133,8 @@ public sealed class AppSettings
         MeshHeight = MeshHeight,
         ShaderToyBufferMode = ShaderToyBufferMode,
         UiScale = UiScale,
+        DeepSeekApiKey = DeepSeekApiKey,
+        DeepSeekModel = DeepSeekModel,
     };
 
     /// <summary>把 <paramref name="other"/> 的值抄进自己（保持对象引用不变，<see cref="AppOptions"/> 也就能看到新值）。</summary>
@@ -139,6 +150,8 @@ public sealed class AppSettings
         MeshHeight = other.MeshHeight;
         ShaderToyBufferMode = other.ShaderToyBufferMode;
         UiScale = other.UiScale;
+        DeepSeekApiKey = other.DeepSeekApiKey;
+        DeepSeekModel = other.DeepSeekModel;
     }
 }
 

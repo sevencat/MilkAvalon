@@ -45,6 +45,8 @@
       Material 主题下没有，会在启动时 KeyNotFoundException。
     -->
     <StyleInclude Source="avares://AvaloniaEdit/Themes/Simple/AvaloniaEdit.xaml" />
+    <!-- AI 分析结果的 Markdown 渲染（MarkView 的控件模板，缺了就是一片空白） -->
+    <StyleInclude Source="avares://MarkView.Avalonia/Themes/MarkdownTheme.axaml" />
   </Application.Styles>
 
 </Application>

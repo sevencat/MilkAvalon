@@ -152,6 +152,9 @@ public partial class EditorPanel : UserControl, IEditorPanel
     /// <summary>点了「弹出 / 收回」：由宿主决定是放进独立窗口还是贴回右侧。</summary>
     public event Action? PopOutRequested;
 
+    /// <summary>点了「AI 分析」：把 (文件路径, 当前文本) 交给宿主，由它开分析窗口（Key 在设置里）。</summary>
+    public event Action<string, string>? AnalyzeRequested;
+
     public bool IsOpen => IsVisible;
 
     /// <summary>宿主把面板塞进独立窗口（true）或贴回右侧（false）之后调，只切按钮文案。</summary>
@@ -169,6 +172,17 @@ public partial class EditorPanel : UserControl, IEditorPanel
 
     /// <summary>是否有未保存的改动。</summary>
     public bool HasUnsavedChanges => IsDirty;
+
+    /// <summary>
+    /// 取「要分析的脚本」：编辑器里当前显示的文本（含未保存的改动）。
+    /// </summary>
+    /// <returns>没有可编辑的文件 / 文本为空时返回 false。</returns>
+    public bool TryGetAnalysisTarget(out string path, out string text)
+    {
+        path = _path ?? string.Empty;
+        text = CodeBox.Text ?? string.Empty;
+        return _path is not null && !CodeBox.IsReadOnly && text.Length > 0;
+    }
 
     /// <summary>
     /// 打开（或切换）编辑目标。<paramref name="target"/> 为 <c>.milk</c> 路径时载入文件；
@@ -747,6 +761,26 @@ public partial class EditorPanel : UserControl, IEditorPanel
     private void OnSaveClick(object? sender, RoutedEventArgs e) => Save(applyToEngine: true);
 
     private void OnApplyClick(object? sender, RoutedEventArgs e) => ApplyOnly();
+
+    /// <summary>「AI 分析」：拿编辑器里**当前**的文本（可能是未保存的改动），交给宿主开窗口。</summary>
+    private void OnAnalyzeClick(object? sender, RoutedEventArgs e)
+    {
+        if (_path is null || CodeBox.IsReadOnly)
+        {
+            ShowStatus("还没有可分析的脚本：先打开一个 .milk / .milkx / .shaderx", isError: true);
+            return;
+        }
+
+        string text = CodeBox.Text ?? string.Empty;
+
+        if (text.Length == 0)
+        {
+            ShowStatus("脚本是空的，没什么可分析的", isError: true);
+            return;
+        }
+
+        AnalyzeRequested?.Invoke(_path, text);
+    }
 
     private void OnRevertClick(object? sender, RoutedEventArgs e)
     {

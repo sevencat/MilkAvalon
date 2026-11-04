@@ -25,8 +25,8 @@
         </Grid>
       </Border>
 
-      <!-- 工具条：保存（写盘+重载）/ 应用（只重载）/ 还原 / 打开 -->
-      <Grid DockPanel.Dock="Top" Margin="8,8,8,6" ColumnDefinitions="*,*,*,Auto" ColumnSpacing="6">
+      <!-- 工具条：保存（写盘+重载）/ 应用（只重载）/ 还原 / 打开 / AI 分析 -->
+      <Grid DockPanel.Dock="Top" Margin="8,8,8,6" ColumnDefinitions="*,*,*,Auto,Auto" ColumnSpacing="6">
         <Button Name="SaveButton" Classes="toolbar" Content="保存" Click="OnSaveClick"
                 FontSize="12" Padding="8,4" ToolTip.Tip="写回 .milk 并重载引擎（Ctrl+S）" />
         <Button Grid.Column="1" Name="ApplyButton" Classes="toolbar" Content="应用" Click="OnApplyClick"
@@ -35,6 +35,8 @@
                 FontSize="12" Padding="8,4" ToolTip.Tip="丢弃未保存的改动，重新从磁盘读取" />
         <Button Grid.Column="3" Name="OpenFileButton" Classes="toolbar" Content="打开…" Click="OnOpenFileClick"
                 FontSize="12" Padding="8,4" ToolTip.Tip="编辑另一个 .milk 文件" />
+        <Button Grid.Column="4" Name="AiButton" Classes="toolbar" Content="AI 分析" Click="OnAnalyzeClick"
+                FontSize="12" Padding="8,4" ToolTip.Tip="把当前脚本交给 DeepSeek 分析（结果显示在独立窗口）" />
       </Grid>
 
       <!-- 底部状态：光标下的名字提示（函数签名/参数含义）+ 保存结果 / 引擎告警 -->

@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media.Imaging;
 using MilkAvalon.Rendering;
@@ -58,6 +59,11 @@ public partial class App : Application
             else if (options.ImportMilkxSource is { Length: > 0 } importSource)
             {
                 ImportMilkxAfterStartup(window, options, importSource, desktop);
+            }
+            // --ai <脚本>：打开「AI 分析」窗口自动跑一次再退出（配合 --shot 截图，自检用）。
+            else if (options.AiCheckPath is { Length: > 0 } aiPath)
+            {
+                AiCheckAfterStartup(window, options, aiPath, desktop);
             }
             // --shot <png>：启动后截一张窗口图再退出，用于无人值守地检查界面（P0/P9 的回归手段）。
             else if (options.ShotPath is { } shotPath)
@@ -146,6 +152,72 @@ public partial class App : Application
             }
             finally
             {
+                desktop.Shutdown();
+            }
+        };
+    }
+
+    /// <summary>
+    /// <c>--ai &lt;脚本&gt;</c>：开「AI 分析」窗口、自动点一次「分析」、等结果出来后截图并退出。
+    /// 用来无人值守验证 DeepSeek 链路 + MarkView 渲染，不依赖人手点按钮。
+    /// </summary>
+    private static void AiCheckAfterStartup(
+        Window window,
+        AppOptions options,
+        string scriptPath,
+        IClassicDesktopStyleApplicationLifetime desktop)
+    {
+        window.Opened += async (_, _) =>
+        {
+            await Task.Delay(800);
+
+            try
+            {
+                string full = Path.GetFullPath(scriptPath);
+                string text = File.ReadAllText(full);
+
+                var ai = new AiAnalysisWindow(full, text, options.Settings);
+                ai.Show(window);
+
+                await Task.Delay(1200);
+
+                ai.FindControl<Button>("AnalyzeButton")?.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+
+                var clock = Stopwatch.StartNew();
+                while (clock.Elapsed < TimeSpan.FromSeconds(150))
+                {
+                    await Task.Delay(500);
+
+                    string status = ai.FindControl<TextBlock>("StatusText")?.Text ?? string.Empty;
+
+                    if ((ai.Title?.Contains("完成", StringComparison.Ordinal) ?? false)
+                        || status.StartsWith("分析失败", StringComparison.Ordinal)
+                        || status.StartsWith("已取消", StringComparison.Ordinal))
+                    {
+                        break;
+                    }
+                }
+
+                await Task.Delay(800);
+
+                Console.WriteLine("[ai-check] 标题：" + ai.Title);
+                Console.WriteLine("[ai-check] 状态：" + (ai.FindControl<TextBlock>("StatusText")?.Text ?? "<null>"));
+                Console.WriteLine(
+                    "[ai-check] Markdown 长度："
+                    + (ai.FindControl<MarkView.Avalonia.MarkdownViewer>("Viewer")?.Markdown?.Length.ToString() ?? "<null>"));
+
+                if (options.ShotPath is { Length: > 0 } shot)
+                {
+                    SaveWindowShot(ai, shot);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("[ai-check] 失败：" + ex);
+            }
+            finally
+            {
+                await Task.Delay(300);
                 desktop.Shutdown();
             }
         };

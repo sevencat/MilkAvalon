@@ -41,6 +41,8 @@ public partial class SettingsWindow : Window
         BufferModeBox.SelectedIndex = Math.Clamp(_draft.ShaderToyBufferMode, 0, 2);
         VSyncBox.IsChecked = _draft.VSync;
         UiScaleBox.SelectedIndex = _draft.UiScale >= 1.5 ? 2 : _draft.UiScale >= 1.25 ? 1 : 0;
+        DeepSeekKeyBox.Text = _draft.DeepSeekApiKey ?? string.Empty;
+        DeepSeekModelBox.Text = _draft.DeepSeekModel ?? string.Empty;
     }
 
     /// <summary>点「保存」后的结果（取消时为 null）。</summary>
@@ -112,6 +114,8 @@ public partial class SettingsWindow : Window
         _draft.ShaderToyBufferMode = Math.Clamp(BufferModeBox.SelectedIndex, 0, 2);
         _draft.VSync = VSyncBox.IsChecked ?? true;
         _draft.UiScale = UiScaleBox.SelectedIndex switch { 2 => 1.5, 1 => 1.25, _ => 1.0 };
+        _draft.DeepSeekApiKey = NullIfEmpty(DeepSeekKeyBox.Text);
+        _draft.DeepSeekModel = NullIfEmpty(DeepSeekModelBox.Text);
 
         Result = _draft;
         Close(_draft);

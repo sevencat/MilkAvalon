@@ -94,6 +94,21 @@
         </Grid>
 
         <Separator Background="{DynamicResource MaterialDividerBrush}" />
+
+        <TextBlock Text="AI 分析（DeepSeek / OpenAI 兼容接口）" FontWeight="SemiBold" />
+        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto" RowSpacing="8">
+          <TextBlock Grid.Row="0" Text="API Key" VerticalAlignment="Center" />
+          <TextBox Grid.Row="0" Grid.Column="1" Name="DeepSeekKeyBox" PasswordChar="●"
+                   PlaceholderText="留空 = 读环境变量 DEEPSEEK_API_KEY" />
+
+          <TextBlock Grid.Row="1" Text="模型" VerticalAlignment="Center" />
+          <TextBox Grid.Row="1" Grid.Column="1" Name="DeepSeekModelBox"
+                   PlaceholderText="deepseek-chat（可选 deepseek-reasoner）" />
+        </Grid>
+        <TextBlock FontSize="11" Opacity="0.55" TextWrapping="Wrap"
+                   Text="Key 会明文写进 exe 旁的 milkavalon.json；也可以只放在环境变量里。接口地址固定为 https://api.deepseek.com/v1。" />
+
+        <Separator Background="{DynamicResource MaterialDividerBrush}" />
         <TextBlock FontSize="11" Opacity="0.5" TextWrapping="Wrap"
                    Text="保存后立即生效：当前页面会被重建（切页逻辑同点 Tab），不会退出播放。配置文件：exe 旁的 milkavalon.json。" />
       </StackPanel>

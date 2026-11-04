@@ -14,7 +14,7 @@
         WindowDecorations="BorderOnly">
 
   <Window.Styles>
-    <!-- 页面切换按钮里的手绘线条图标：Stroke 不吃 TextBlock.Foreground，得自己上色 -->
+    <!-- 页签图标：Stroke 不吃 TextBlock.Foreground，得自己上色（深紫底 → 浅色描边） -->
     <Style Selector="Path.tabIcon">
       <Setter Property="Stroke" Value="{DynamicResource MaterialBodyLightBrush}" />
       <Setter Property="StrokeThickness" Value="1.6" />
@@ -22,13 +22,58 @@
       <Setter Property="StrokeJoin" Value="Round" />
     </Style>
 
-    <!-- 页面切换按钮：未选中透明（像标签），选中铺一层亮紫（比工具栏底色浅一档） -->
-    <Style Selector="Button.toolbar.pageTab">
-      <Setter Property="Background" Value="Transparent" />
-      <Setter Property="Padding" Value="10,4" />
+    <!--
+      工具栏按钮：颜色沿用 AppStyles 的紫色系（底 #5E35B1 / 悬停 #7E57C2 / 按下 #4527A0）。
+      这里只管"分段组"的圆角：一组里第一个/最后一个才有外侧圆角，中间是直角，
+      块与块之间 1px 的缝由外层 Border 的深紫底色透出来。
+    -->
+    <!-- 组内默认直角，拼起来才是一条连续的胶囊（不设 0 的话每块都是圆角，缝里会露出缺口） -->
+    <Style Selector="Border#ToolBar Button.toolbar">
+      <Setter Property="CornerRadius" Value="0" />
+      <Setter Property="BorderThickness" Value="0" />
     </Style>
+
+    <!-- 单独一个按钮（☰）还是给它圆角 -->
+    <Style Selector="Border#ToolBar Button#LibraryToggleButton">
+      <Setter Property="CornerRadius" Value="6" />
+    </Style>
+
+    <Style Selector="Border#ToolBar Button.toolbar.segFirst">
+      <Setter Property="CornerRadius" Value="6,0,0,6" />
+    </Style>
+
+    <Style Selector="Border#ToolBar Button.toolbar.segLast">
+      <Setter Property="CornerRadius" Value="0,6,6,0" />
+    </Style>
+
+    <!-- 页面切换：同样拼成一段胶囊，未选中 #5E35B1、选中亮一档 #7E57C2 -->
+    <Style Selector="Button.toolbar.pageTab">
+      <Setter Property="Padding" Value="10,4" />
+      <Setter Property="CornerRadius" Value="0" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Background" Value="#5E35B1" />
+    </Style>
+
+    <Style Selector="Button#ProjectMTabButton">
+      <Setter Property="CornerRadius" Value="6,0,0,6" />
+    </Style>
+
+    <Style Selector="Button#ScriptTabButton">
+      <Setter Property="CornerRadius" Value="0,6,6,0" />
+    </Style>
+
+    <!-- 选中态：亮一档 + 加粗 + 对勾盾牌亮出来（用 Opacity 切换，避免宽度跳动） -->
     <Style Selector="Button.toolbar.pageTab.active">
       <Setter Property="Background" Value="#7E57C2" />
+      <Setter Property="FontWeight" Value="Bold" />
+    </Style>
+
+    <Style Selector="Button.toolbar.pageTab Path.segCheck">
+      <Setter Property="Opacity" Value="0" />
+    </Style>
+
+    <Style Selector="Button.toolbar.pageTab.active Path.segCheck">
+      <Setter Property="Opacity" Value="1" />
     </Style>
   </Window.Styles>
 
@@ -55,46 +100,56 @@
              VerticalAlignment="Center"
              Stretch="Uniform" />
 
-      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
                   chrome:WindowDecorationProperties.ElementRole="User">
         <Button Classes="toolbar" Name="LibraryToggleButton" Content="☰"
                 Click="OnToggleLibraryClick" ToolTip.Tip="收起 / 展开左栏" MinWidth="36" />
-        <Separator Width="1" Margin="2,4" Background="{DynamicResource MaterialDividerBrush}" />
 
-        <Button Classes="toolbar" Name="PreviousButton" Content="◀◀"
-                Click="OnPreviousClick" ToolTip.Tip="上一个" MinWidth="40" />
-        <Button Classes="toolbar" Name="PauseButton" Content="▮▮"
-                Click="OnPauseClick" ToolTip.Tip="暂停 / 继续" MinWidth="40" />
-        <Button Classes="toolbar" Name="NextButton" Content="▶▶"
-                Click="OnNextClick" ToolTip.Tip="下一个" MinWidth="40" />
-        <Button Classes="toolbar" Name="RandomButton" Content="⇄"
-                Click="OnRandomClick" ToolTip.Tip="随机" MinWidth="40" />
-        <Button Classes="toolbar" Name="ReloadButton" Content="⟳"
-                Click="OnReloadClick" ToolTip.Tip="重载当前" MinWidth="40" />
+        <!-- 播放组：五个按钮拼成一段，只有两端有圆角，缝靠外层深紫底色透出来 -->
+        <Border BorderBrush="#4527A0" BorderThickness="1" CornerRadius="7">
+          <StackPanel Orientation="Horizontal" Spacing="1" Background="#4527A0">
+            <Button Classes="toolbar segFirst" Name="PreviousButton" Content="◀◀"
+                    Click="OnPreviousClick" ToolTip.Tip="上一个" MinWidth="40" />
+            <Button Classes="toolbar" Name="PauseButton" Content="▮▮"
+                    Click="OnPauseClick" ToolTip.Tip="暂停 / 继续" MinWidth="40" />
+            <Button Classes="toolbar" Name="NextButton" Content="▶▶"
+                    Click="OnNextClick" ToolTip.Tip="下一个" MinWidth="40" />
+            <Button Classes="toolbar" Name="RandomButton" Content="⇄"
+                    Click="OnRandomClick" ToolTip.Tip="随机" MinWidth="40" />
+            <Button Classes="toolbar segLast" Name="ReloadButton" Content="⟳"
+                    Click="OnReloadClick" ToolTip.Tip="重载当前" MinWidth="40" />
+          </StackPanel>
+        </Border>
 
-        <Separator Width="1" Margin="2,4" Background="{DynamicResource MaterialDividerBrush}" />
+        <!-- 工具组：编辑 / AI / 抓取 / 全屏 / 信息 / 设置 拼成一段 -->
+        <Border BorderBrush="#4527A0" BorderThickness="1" CornerRadius="7">
+          <StackPanel Orientation="Horizontal" Spacing="1" Background="#4527A0">
+            <Button Classes="toolbar segFirst" Name="EditButton" Content="✎"
+                    Click="OnEditClick" ToolTip.Tip="编辑当前预设（.milk / .milkx）" MinWidth="40" />
 
-        <Button Classes="toolbar" Name="EditButton" Content="✎"
-                Click="OnEditClick" ToolTip.Tip="编辑当前预设（.milk / .milkx）" MinWidth="40" />
+            <Button Classes="toolbar" Name="AnalyzeButton" Content="AI"
+                    Click="OnAnalyzeToolbarClick" ToolTip.Tip="AI 分析当前脚本（DeepSeek，流式输出）" MinWidth="36" />
 
-        <Button Classes="toolbar" Name="CaptureButton" Content="⧉"
-                ToolTip.Tip="抓取：保存当前画面 / 抓取站点作品" MinWidth="40">
-          <Button.Flyout>
-            <MenuFlyout>
-              <MenuItem Header="保存当前画面…" Click="OnSaveFrameClick" />
-              <MenuItem Header="抓取站点作品…" Click="OnGrabShaderClick" />
-            </MenuFlyout>
-          </Button.Flyout>
-        </Button>
+            <Button Classes="toolbar" Name="CaptureButton" Content="⧉"
+                    ToolTip.Tip="抓取：保存当前画面 / 抓取站点作品" MinWidth="40">
+              <Button.Flyout>
+                <MenuFlyout>
+                  <MenuItem Header="保存当前画面…" Click="OnSaveFrameClick" />
+                  <MenuItem Header="抓取站点作品…" Click="OnGrabShaderClick" />
+                </MenuFlyout>
+              </Button.Flyout>
+            </Button>
 
-        <Button Classes="toolbar" Name="FullScreenButton" Content="⛶"
-                Click="OnFullScreenClick" ToolTip.Tip="全屏（F11，Esc 退出）" MinWidth="40" />
+            <Button Classes="toolbar" Name="FullScreenButton" Content="⛶"
+                    Click="OnFullScreenClick" ToolTip.Tip="全屏（F11，Esc 退出）" MinWidth="40" />
 
-        <Button Classes="toolbar" Name="InfoToggleButton" Content="▤"
-                Click="OnToggleInfoClick" ToolTip.Tip="显示 / 隐藏底部信息条（预设、进度、尺寸、音频）" MinWidth="40" />
+            <Button Classes="toolbar" Name="InfoToggleButton" Content="▤"
+                    Click="OnToggleInfoClick" ToolTip.Tip="显示 / 隐藏底部信息条（预设、进度、尺寸、音频）" MinWidth="40" />
 
-        <Button Classes="toolbar" Name="SettingsButton" Content="⚙"
-                Click="OnSettingsClick" ToolTip.Tip="设置" MinWidth="40" />
+            <Button Classes="toolbar segLast" Name="SettingsButton" Content="⚙"
+                    Click="OnSettingsClick" ToolTip.Tip="设置" MinWidth="40" />
+          </StackPanel>
+        </Border>
       </StackPanel>
 
       <!--
@@ -102,12 +157,18 @@
         点哪个按钮就切哪页；再点当前页 = 强制重建（R2：整页销毁重建）。
         必须标 ElementRole="User"：这块在标题栏区域内，不标的话点击会被系统当"拖动窗口"吃掉。
       -->
-      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2"
-                  HorizontalAlignment="Right" VerticalAlignment="Center"
-                  chrome:WindowDecorationProperties.ElementRole="User">
+      <!-- 注意：这里**不能**加 BoxShadow —— Avalonia 12.1.5 下带阴影的 Border 会把子元素整个画没 -->
+      <Border Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center"
+              BorderBrush="#4527A0" BorderThickness="1" CornerRadius="7"
+              chrome:WindowDecorationProperties.ElementRole="User">
+      <StackPanel Orientation="Horizontal" Spacing="1" Background="#4527A0">
         <Button Classes="toolbar pageTab" Name="ProjectMTabButton" Click="OnPageButtonClick"
                 ToolTip.Tip="projectM（再点一次重建当前页）">
           <StackPanel Orientation="Horizontal" Spacing="6">
+            <!-- 选中标记：对勾盾牌（参考图里的那个，只有当前页显示） -->
+            <Path Classes="tabIcon segCheck"
+                  Data="M8,1.5 L13.6,3.6 V8.2 C13.6,11.1 11.2,13.6 8,14.6 C4.8,13.6 2.4,11.1 2.4,8.2 V3.6 Z M4.7,7.9 L7.1,10.3 L11.4,5.5"
+                  VerticalAlignment="Center" />
             <!-- 音频柱（可视化） -->
             <Path Classes="tabIcon" Data="M2,13 V9 M6,13 V3 M10,13 V7 M14,13 V11" VerticalAlignment="Center" />
             <TextBlock Text="projectM" FontSize="12" VerticalAlignment="Center" />
@@ -117,6 +178,9 @@
         <Button Classes="toolbar pageTab" Name="ShaderToyTabButton" Click="OnPageButtonClick"
                 ToolTip.Tip="ShaderToy（再点一次重建当前页）">
           <StackPanel Orientation="Horizontal" Spacing="6">
+            <Path Classes="tabIcon segCheck"
+                  Data="M8,1.5 L13.6,3.6 V8.2 C13.6,11.1 11.2,13.6 8,14.6 C4.8,13.6 2.4,11.1 2.4,8.2 V3.6 Z M4.7,7.9 L7.1,10.3 L11.4,5.5"
+                  VerticalAlignment="Center" />
             <!-- 代码尖括号（shader 编辑） -->
             <Path Classes="tabIcon" Data="M6,3 L1,8 L6,13 M10,3 L15,8 L10,13" VerticalAlignment="Center" />
             <TextBlock Text="ShaderToy" FontSize="12" VerticalAlignment="Center" />
@@ -127,6 +191,9 @@
         <Button Classes="toolbar pageTab" Name="ScriptTabButton" Click="OnPageButtonClick"
                 ToolTip.Tip="milkx（.milkx 脚本预设，再点一次重建当前页）">
           <StackPanel Orientation="Horizontal" Spacing="6">
+            <Path Classes="tabIcon segCheck"
+                  Data="M8,1.5 L13.6,3.6 V8.2 C13.6,11.1 11.2,13.6 8,14.6 C4.8,13.6 2.4,11.1 2.4,8.2 V3.6 Z M4.7,7.9 L7.1,10.3 L11.4,5.5"
+                  VerticalAlignment="Center" />
             <!-- 一滴牛奶（与 projectM 的音频柱、ShaderToy 的尖括号区分开） -->
             <Path Classes="tabIcon"
                   Data="M8,2 C8,2 3.5,7 3.5,10 A4.5,4.5 0 0 0 12.5,10 C12.5,7 8,2 8,2 Z"
@@ -135,6 +202,7 @@
           </StackPanel>
         </Button>
       </StackPanel>
+      </Border>
 
       <!--
         自绘窗口按钮。必须标 ElementRole="User"：标题栏区域默认是非客户区（点击会被系统吃掉），

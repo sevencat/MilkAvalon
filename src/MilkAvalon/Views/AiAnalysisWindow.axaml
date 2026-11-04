@@ -1,0 +1,58 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:chrome="using:Avalonia.Controls.Chrome"
+        xmlns:mv="using:MarkView.Avalonia"
+        x:Class="MilkAvalon.Views.AiAnalysisWindow"
+        Title="AI 分析"
+        Icon="/Assets/milkdropsharp.png"
+        Width="820" Height="680"
+        MinWidth="560" MinHeight="400"
+        Background="{DynamicResource MaterialBackgroundBrush}"
+        WindowStartupLocation="CenterOwner"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="36"
+        WindowDecorations="BorderOnly">
+
+  <DockPanel>
+    <!-- 自绘标题栏（同抓取/设置窗口：系统标题栏在暗色主题下对不上） -->
+    <Border DockPanel.Dock="Top" Name="CaptionBar"
+            Background="{DynamicResource MaterialToolBarBackgroundBrush}"
+            Padding="14,0,4,0"
+            chrome:WindowDecorationProperties.ElementRole="TitleBar">
+      <Grid ColumnDefinitions="*,Auto" Height="36">
+        <TextBlock Name="CaptionText" Text="AI 分析" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"
+                   TextTrimming="CharacterEllipsis" />
+        <Button Grid.Column="1" Classes="caption" Content="✕"
+                Click="OnCaptionCloseClick"
+                chrome:WindowDecorationProperties.ElementRole="User" />
+      </Grid>
+    </Border>
+
+    <!-- 提示词：用户可改；回车 = 分析。整条压扁（高度 26），别占太多画面 -->
+    <Border DockPanel.Dock="Top" Background="{DynamicResource MaterialToolBarBackgroundBrush}" Padding="10,4">
+      <StackPanel Spacing="3">
+        <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="6">
+          <TextBox Name="PromptBox" Height="26" FontSize="12" VerticalContentAlignment="Center"
+                   PlaceholderText="用户提示词（可改）"
+                   KeyDown="OnPromptKeyDown" />
+          <Button Grid.Column="1" Name="AnalyzeButton" Classes="toolbar" Content="分析" Height="26"
+                  Click="OnAnalyzeClick" Padding="14,0" FontSize="12" MinWidth="64" />
+          <!-- 请求要等几十秒：给个出口（关窗也会中止） -->
+          <Button Grid.Column="2" Name="CancelButton" Classes="toolbar" Content="取消" Height="26"
+                  Click="OnCancelClick" IsEnabled="False" Padding="10,0" FontSize="12" MinWidth="56"
+                  ToolTip.Tip="中止这次请求（关窗也会中止）" />
+          <!-- 存到脚本同目录：<文件名>.ai.md -->
+          <Button Grid.Column="3" Name="SaveButton" Classes="toolbar" Content="保存" Height="26"
+                  Click="OnSaveClick" Padding="10,0" FontSize="12" MinWidth="56"
+                  ToolTip.Tip="把分析结果保存到脚本同目录（&lt;文件名&gt;.ai.md）" />
+        </Grid>
+        <TextBlock Name="StatusText" FontSize="10" Opacity="0.65" TextWrapping="Wrap"
+                   Text="系统提示词按文件类型自动选择（shadertoy / milkdrop）" />
+      </StackPanel>
+    </Border>
+
+    <!-- 结果：Markdown（MarkView.Avalonia） -->
+    <mv:MarkdownViewer Name="Viewer" Margin="10,6,10,10" />
+  </DockPanel>
+
+</Window>

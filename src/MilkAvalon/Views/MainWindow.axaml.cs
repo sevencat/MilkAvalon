@@ -43,6 +43,9 @@ public partial class MainWindow : Window
     /// <summary>编辑面板弹出后的独立窗口（null = 贴在右侧）。</summary>
     private EditorWindow? _editorWindow;
 
+    /// <summary>「AI 分析」窗口（每次点都开新的；这里只留引用，防止打开期间被回收）。</summary>
+    private AiAnalysisWindow? _aiWindow;
+
     /// <summary>贴回右侧时用的宽度（拖过分隔条/弹出前的宽度，关面板也记着）。</summary>
     private double _editorDockWidth = 560;
 
@@ -71,6 +74,7 @@ public partial class MainWindow : Window
         Editor.CloseRequested += OnEditorCloseRequested;
         Editor.ApplyRequested += OnEditorApplyRequested;
         Editor.PopOutRequested += OnEditorPopOutRequested;
+        Editor.AnalyzeRequested += OnEditorAnalyzeRequested;
 
         // P8：F11 全屏 / Esc 退出；画面双击也能切
         AddHandler(KeyDownEvent, OnWindowKeyDown, RoutingStrategies.Tunnel);
@@ -662,6 +666,59 @@ public partial class MainWindow : Window
 
         page.ApplyPresetText(path, text);
         StatusText.Text = "已应用编辑：" + Path.GetFileName(path);
+    }
+
+    /// <summary>
+    /// 编辑面板点了「AI 分析」：把当前文本交给 DeepSeek（标准 OpenAI 兼容接口），结果显示在独立窗口里
+    /// （MarkView 流式渲染）。Key / 模型都从设置里取，没有 Key 时窗口自己提示去设置。
+    /// </summary>
+    private void OnEditorAnalyzeRequested(string path, string text)
+    {
+        var window = new AiAnalysisWindow(path, text, _options.Settings);
+
+        window.Closed += (_, _) =>
+        {
+            if (ReferenceEquals(_aiWindow, window))
+            {
+                _aiWindow = null;
+            }
+        };
+
+        _aiWindow = window;
+        window.Show(this);
+        window.Activate();
+
+        StatusText.Text = "AI 分析：" + Path.GetFileName(path);
+    }
+
+    /// <summary>
+    /// 工具栏「AI」：优先分析编辑器里当前的文本（可能是未保存的改动）；
+    /// 编辑器没开就按"当前正在播的预设文件"读盘。
+    /// </summary>
+    private void OnAnalyzeToolbarClick(object? sender, RoutedEventArgs e)
+    {
+        if (Editor.IsOpen && Editor.TryGetAnalysisTarget(out string editorPath, out string editorText))
+        {
+            OnEditorAnalyzeRequested(editorPath, editorText);
+            return;
+        }
+
+        string? target = BuildEditorTarget();
+
+        if (target is null || !File.Exists(target))
+        {
+            StatusText.Text = "没有可分析的脚本：先播一个预设，或打开编辑器";
+            return;
+        }
+
+        try
+        {
+            OnEditorAnalyzeRequested(target, File.ReadAllText(target));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            StatusText.Text = "读取脚本失败：" + ex.Message;
+        }
     }
 
     private void CloseEditor()
