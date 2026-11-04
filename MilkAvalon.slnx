@@ -11,6 +11,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/MilkDrop.Eval.Tests/MilkDrop.Eval.Tests.csproj" />
     <Project Path="tests/MilkDrop.PresetScript.Tests/MilkDrop.PresetScript.Tests.csproj" />
+    <Project Path="tests/MilkDrop.ShaderToy.Tests/MilkDrop.ShaderToy.Tests.csproj" />
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/MilkDrop.PresetConvert/MilkDrop.PresetConvert.csproj" />

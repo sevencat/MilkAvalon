@@ -72,6 +72,15 @@ public sealed class AppOptions
     /// </summary>
     public string? ImportMilkxSource { get; private init; }
 
+    /// <summary>
+    /// 启动后把 ShaderToy 数据根里的 <c>shadertoy.db</c> 全部导出成 <c>presets/*.shaderx</c> 再退出
+    /// （<c>--export-shaderx</c>，迁移/自检用）。
+    /// </summary>
+    public bool ExportShaderx { get; private init; }
+
+    /// <summary><c>code_hash</c> 相同也重写（<c>--force</c>，只影响 <c>--export-shaderx</c>）。</summary>
+    public bool Force { get; private init; }
+
     /// <summary>启动即切到 ShaderToy 页。</summary>
     public bool StartOnShaderToy =>
         string.Equals(InitialTab, "shadertoy", StringComparison.OrdinalIgnoreCase)
@@ -160,6 +169,8 @@ public sealed class AppOptions
             AudioBackend = ParseAudioBackend(ReadOption(args, "--audio-backend")),
             CaptureTarget = ReadOption(args, "--capture"),
             ImportMilkxSource = ReadOption(args, "--import-milkx"),
+            ExportShaderx = args.Contains("--export-shaderx", StringComparer.OrdinalIgnoreCase),
+            Force = args.Contains("--force", StringComparer.OrdinalIgnoreCase),
         };
     }
 

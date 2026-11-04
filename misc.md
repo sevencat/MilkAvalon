@@ -713,6 +713,7 @@ MilkdropPreset.cs 初始化里也有一次（unbind 后没有 Draw，安全）
 | D9 | 数据目录固定放 **exe 旁**（`projectm/`、`shadertoy/`） | 用户要求；绿色部署，拷走整个目录就能跑 | `%APPDATA%`（用户看不到数据，AOT 单文件时也不便） |
 | D10 | 「编辑」「抓取」**本期只放按钮** | 用户明确"后续再说"；先固定布局与接口，避免后期改 UI | 一次做全（工期 +3.5d，且 AvaloniaEdit 会多一个 AOT 变量） |
 | D11 | `.milkx` 单独占**第三个页签「milkx」**，不复用 projectM 页的清单；播放链共用同一个引擎 | 用户要 `.milk` 与 `.milkx` 并存，且原 projectM 页一行不改（P12 的 D1/D2） | 混在一个清单里（要按后缀分流 UI、索引/缓存都得双份，反而更乱） |
+| D12 | ShaderToy 作品也用**文本**落地，但后缀是 **`.shaderx`**（不与 `.milkx` 混用）；`presets/**/*.shaderx` 为唯一真相，`shadertoy.db` 降级为过渡期只读；**抓取只写文件、不写 db** | 后缀在拖放路由/清单过滤/高亮三处就是"引擎选择器"；用户要求"从 web 导入也落到文件里"（2026-11-04，P13） | 共用一个后缀 + `[meta] kind`（三处都要读文件头，且 milkx 页会列出播不了的 ShaderToy 文件）；全族改名 `.mvp`（要动已发布的 4494 个 `.milkx`，纯 churn） |
 
 ---
 

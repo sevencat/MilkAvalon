@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>MilkDrop.PresetConvert</RootNamespace>
+    <AssemblyName>MilkDrop.PresetConvert</AssemblyName>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\MilkDrop.PresetScript\MilkDrop.PresetScript.csproj" />
+  </ItemGroup>
+</Project>
