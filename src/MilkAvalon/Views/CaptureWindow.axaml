@@ -27,22 +27,24 @@
       </Grid>
     </Border>
 
-    <!-- 地址栏：粘贴作品链接或短 ID，回车即打开 -->
-    <Border DockPanel.Dock="Top" Background="{DynamicResource MaterialToolBarBackgroundBrush}" Padding="12,8">
-      <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="8">
-        <TextBlock Text="ID / 链接" VerticalAlignment="Center" FontSize="12" Opacity="0.7" />
-        <TextBox Grid.Column="1" Name="IdBox"
-                 PlaceholderText="flGyWc 或 https://www.shadertoy.com/view/flGyWc"
-                 KeyDown="OnIdKeyDown" />
-        <Button Grid.Column="2" Classes="toolbar" Content="打开" Click="OnOpenClick" MinWidth="72" />
+    <!-- 地址栏：粘贴作品链接，回车或点「打开」即跳转；← → 是浏览历史 -->
+    <Border DockPanel.Dock="Top" Background="{DynamicResource MaterialToolBarBackgroundBrush}" Padding="12,3">
+      <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="6">
+        <Button Grid.Column="0" Classes="toolbar" Name="BackButton" Content="←" Height="28" Padding="8,0"
+                Click="OnBackClick" IsEnabled="False" MinWidth="34" ToolTip.Tip="后退" />
+        <Button Grid.Column="1" Classes="toolbar" Name="ForwardButton" Content="→" Height="28" Padding="8,0"
+                Click="OnForwardClick" IsEnabled="False" MinWidth="34" ToolTip.Tip="前进" />
+
+        <TextBox Grid.Column="2" Name="UrlBox" Height="28" FontSize="12" VerticalContentAlignment="Center"
+                 PlaceholderText="https://www.shadertoy.com/view/flGyWc"
+                 KeyDown="OnUrlKeyDown" />
+        <Button Grid.Column="3" Classes="toolbar" Content="打开" Height="28" Padding="10,0"
+                Click="OnOpenClick" MinWidth="60" FontSize="12" />
 
         <!-- 只在浏览器当前页是 /view/<id> 时可用：ID 直接从地址里取，不用手抄 -->
-        <Button Grid.Column="3" Classes="toolbar" Name="GrabCurrentButton" Content="抓取当前页面"
-                Click="OnGrabCurrentClick" IsEnabled="False" MinWidth="118"
+        <Button Grid.Column="4" Classes="toolbar" Name="GrabCurrentButton" Content="抓取当前页面"
+                Click="OnGrabCurrentClick" Height="28" Padding="10,0" IsEnabled="False" MinWidth="104" FontSize="12"
                 ToolTip.Tip="当前页面是 shadertoy.com/view/&lt;id&gt; 时可用，ID 自动取自地址栏" />
-
-        <Button Grid.Column="4" Classes="toolbar" Name="GrabButton" Content="抓取并保存"
-                Click="OnGrabClick" MinWidth="110" />
       </Grid>
     </Border>
 

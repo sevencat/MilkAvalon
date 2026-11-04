@@ -1,3 +1,4 @@
+using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
@@ -27,6 +28,7 @@ public partial class ShaderToyPage : UserControl
 {
     private ShaderToyLibrary? _library;
     private List<ShaderToyEntry> _visible = [];
+
     private bool _suppressSelection;
     private bool _detached;
     private bool _scanned;
@@ -92,9 +94,9 @@ public partial class ShaderToyPage : UserControl
     public ShaderToyControl View => ShaderToyView;
 
     /// <summary>
-    /// 当前正在播（或列表里选中）的作品对应的 <c>.shaderx</c> 路径（右侧编辑器用）。
+    /// 当前正在播（或列表里选中）的作品文件路径（右侧编辑器用）。
     /// </summary>
-    /// <remarks>作品来自 db 兜底时为 null——那种情况下没有可编辑的文件。</remarks>
+    /// <remarks>作品就是文件，所以正常情况一定有路径；还没选中任何作品时为 null。</remarks>
     public string? CurrentPresetPath
     {
         get
@@ -108,6 +110,9 @@ public partial class ShaderToyPage : UserControl
             return playing?.PresetPath;
         }
     }
+
+    /// <summary>编辑面板要的文件路径（就是 <see cref="CurrentPresetPath"/>，留个语义化的入口）。</summary>
+    public string? EnsureEditablePreset() => CurrentPresetPath;
 
     /// <summary>
     /// 编辑器「保存 / 应用」后的重新编译：按文本重建工程，丢给 GL 线程重新建管线（保持当前时间）。

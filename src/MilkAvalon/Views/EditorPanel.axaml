@@ -10,14 +10,17 @@
 
       <!-- 标题栏：文件名（带 • 脏标记）+ 关闭 -->
       <Border DockPanel.Dock="Top" Background="{DynamicResource MaterialToolBarBackgroundBrush}" Padding="10,8">
-        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
           <StackPanel Spacing="2" VerticalAlignment="Center">
             <TextBlock Name="TitleText" Text="预设编辑" FontWeight="SemiBold" FontSize="13"
                        TextTrimming="CharacterEllipsis" />
             <TextBlock Name="PathText" Text="—" FontSize="11" Opacity="0.55"
                        TextTrimming="CharacterEllipsis" />
           </StackPanel>
-          <Button Grid.Column="1" Classes="toolbar" Content="关闭" Click="OnCloseClick"
+          <Button Grid.Column="1" Name="PopOutButton" Classes="toolbar" Content="弹出" Click="OnPopOutClick"
+                  Padding="12,3" MinWidth="64" FontSize="12" VerticalAlignment="Center"
+                  ToolTip.Tip="放进独立窗口，可以随便拉大（再点一次收回右侧）" />
+          <Button Grid.Column="2" Classes="toolbar" Content="关闭" Click="OnCloseClick"
                   Padding="12,3" MinWidth="64" FontSize="12" VerticalAlignment="Center" />
         </Grid>
       </Border>
@@ -44,10 +47,11 @@
         </StackPanel>
       </Border>
 
-      <!-- 主体：参数导航 + 原文编辑 -->
-      <Grid ColumnDefinitions="140,*">
+      <!-- 主体：参数导航 + 原文编辑（.shaderx 没有参数，整列会收起来给 GLSL 腾地方） -->
+      <Grid Name="BodyGrid" ColumnDefinitions="140,*">
 
-        <Border Grid.Column="0" BorderBrush="{DynamicResource MaterialDividerBrush}" BorderThickness="0,0,1,0">
+        <Border Grid.Column="0" Name="ParamPane"
+                BorderBrush="{DynamicResource MaterialDividerBrush}" BorderThickness="0,0,1,0">
           <DockPanel>
             <TextBox DockPanel.Dock="Top" Name="ParamFilter" Margin="6,0,6,4"
                      PlaceholderText="过滤参数" FontSize="11"

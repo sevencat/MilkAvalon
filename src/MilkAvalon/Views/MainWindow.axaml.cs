@@ -40,6 +40,12 @@ public partial class MainWindow : Window
     /// <summary>抓取窗口（懒建：只有点「抓取站点作品」才加载 WebView2）。</summary>
     private CaptureWindow? _captureWindow;
 
+    /// <summary>编辑面板弹出后的独立窗口（null = 贴在右侧）。</summary>
+    private EditorWindow? _editorWindow;
+
+    /// <summary>贴回右侧时用的宽度（拖过分隔条/弹出前的宽度，关面板也记着）。</summary>
+    private double _editorDockWidth = 560;
+
     private ProjectMPage? _projectMPage;
     private ProjectMPage? _scriptPage;
     private ShaderToyPage? _shaderToyPage;
@@ -64,6 +70,7 @@ public partial class MainWindow : Window
 
         Editor.CloseRequested += OnEditorCloseRequested;
         Editor.ApplyRequested += OnEditorApplyRequested;
+        Editor.PopOutRequested += OnEditorPopOutRequested;
 
         // P8：F11 全屏 / Esc 退出；画面双击也能切
         AddHandler(KeyDownEvent, OnWindowKeyDown, RoutingStrategies.Tunnel);
@@ -535,11 +542,106 @@ public partial class MainWindow : Window
 
         Editor.Open(BuildEditorTarget());
         EditButton.Content = CloseGlyph;
+        ShowEditorColumn(true);
 
         Console.WriteLine("[editor] 打开编辑面板，目标：" + (BuildEditorTarget() ?? "—"));
     }
 
     private void OnEditorCloseRequested() => CloseEditor();
+
+    /// <summary>「弹出 / 收回」：把面板摘到独立窗口，或收回右侧（<see cref="_editorWindow"/> 是开关）。</summary>
+    private void OnEditorPopOutRequested()
+    {
+        if (_editorWindow is not null)
+        {
+            _editorWindow.Close();
+            return;
+        }
+
+        PopOutEditor();
+    }
+
+    /// <summary>
+    /// 把编辑面板从右侧栏摘出来放进独立窗口（大屏/长 GLSL 用）。面板实例是同一个，
+    /// 所以光标、滚动位置、未保存的改动都跟着走。
+    /// </summary>
+    private void PopOutEditor()
+    {
+        if (!Editor.IsOpen)
+        {
+            return;
+        }
+
+        RememberEditorWidth();
+        PageArea.Children.Remove(Editor);
+        ShowEditorColumn(false);
+
+        // 外观跟主窗口一套（自绘标题栏 + logo + 窗口按钮），见 EditorWindow.axaml
+        var window = new EditorWindow
+        {
+            Width = Math.Max(920, _editorDockWidth * 1.5),
+            Height = 820,
+            Body = Editor,
+        };
+
+        window.SetCaption(Editor.CurrentPath is { Length: > 0 } path ? Path.GetFileName(path) : null);
+        window.Closed += OnEditorWindowClosed;
+
+        _editorWindow = window;
+        window.Show(this);
+        Editor.SetPoppedOut(true);
+
+        Console.WriteLine($"[editor] 弹出为独立窗口（{window.Width:F0}×{window.Height:F0}）：{window.Title}");
+    }
+
+    /// <summary>独立窗口被关掉（点 X 或「收回」）→ 面板贴回右侧，保持打开状态。</summary>
+    private void OnEditorWindowClosed(object? sender, EventArgs e)
+    {
+        if (_editorWindow is null)
+        {
+            return;
+        }
+
+        _editorWindow.Closed -= OnEditorWindowClosed;
+        _editorWindow.Body = null;
+        _editorWindow = null;
+
+        PageArea.Children.Add(Editor);
+        Grid.SetColumn(Editor, 2);
+        Editor.SetPoppedOut(false);
+
+        ShowEditorColumn(Editor.IsOpen);
+
+        Console.WriteLine("[editor] 收回右侧：" + (Editor.CurrentPath ?? "—"));
+    }
+
+    /// <summary>
+    /// 右侧编辑栏的列宽：开 = 用记着的宽度（拖分隔条可改），关 = 0（页面占满）。
+    /// 弹出状态下这一列也是 0/隐藏的。
+    /// </summary>
+    private void ShowEditorColumn(bool show)
+    {
+        bool docked = show && _editorWindow is null;
+        PageArea.ColumnDefinitions[2].Width = docked
+            ? new GridLength(Math.Max(_editorDockWidth, Editor.MinWidth), GridUnitType.Pixel)
+            : new GridLength(0);
+        EditorSplitter.IsVisible = docked;
+    }
+
+    /// <summary>弹出窗口的标题跟着当前文件走（换预设/换作品时调）。</summary>
+    private void UpdateEditorWindowTitle() =>
+        _editorWindow?.SetCaption(Editor.CurrentPath is { Length: > 0 } path ? Path.GetFileName(path) : null);
+
+    /// <summary>把当前列宽记下来（关面板/弹出/收回都用它恢复）。</summary>
+    private void RememberEditorWidth()
+    {
+        double width = PageArea.ColumnDefinitions[2].Width.Value;
+
+        if (_editorWindow is null && width >= Editor.MinWidth)
+        {
+            _editorDockWidth = width;
+        }
+    }
 
     /// <summary>编辑面板点了「保存 / 应用」：把文本交给当前页重载（不碰 GL 线程）。</summary>
     private void OnEditorApplyRequested(string path, string text)
@@ -564,7 +666,16 @@ public partial class MainWindow : Window
 
     private void CloseEditor()
     {
+        RememberEditorWidth();
+
+        if (_editorWindow is not null)
+        {
+            // 关掉独立窗口（Closed 里会先把面板贴回来），再统一隐藏
+            _editorWindow.Close();
+        }
+
         Editor.Close();
+        ShowEditorColumn(false);
         EditButton.Content = EditGlyph;
     }
 
@@ -573,7 +684,8 @@ public partial class MainWindow : Window
     {
         if (IsShaderToyTab)
         {
-            return _shaderToyPage?.CurrentPresetPath;
+            // db 兜底的作品会在这一次调用里落成 .shaderx（P13：作品 = 文本）
+            return _shaderToyPage?.EnsureEditablePreset();
         }
 
         return ActivePresetPage?.CurrentPresetPath ?? ActivePresetPage?.View.CurrentPresetName;
@@ -626,7 +738,7 @@ public partial class MainWindow : Window
             folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
             {
                 Title = shaderToy
-                    ? "选择 ShaderToy 数据根（含 presets/*.shaderx 或 shadertoy.db 的目录）"
+                    ? "选择 ShaderToy 数据根（含 presets/*.shaderx 的目录）"
                     : script
                         ? "选择脚本预设目录（放 .milkx 的目录）"
                         : "选择 projectM 数据根（含 presets/ 的目录）",
@@ -707,6 +819,7 @@ public partial class MainWindow : Window
         if (Editor.IsOpen)
         {
             Editor.Open(BuildEditorTarget());
+            UpdateEditorWindowTitle();
 
             // 编辑的就是正在播的这个文件：把引擎的降级/失败信息回灌到面板（正常时不动状态栏）
             string? current = ActivePresetPage?.CurrentPresetPath;
@@ -724,6 +837,7 @@ public partial class MainWindow : Window
         if (Editor.IsOpen)
         {
             Editor.Open(BuildEditorTarget());
+            UpdateEditorWindowTitle();
         }
 
         UpdateStatus();
@@ -847,7 +961,7 @@ public partial class MainWindow : Window
 
         EmptyStateText.Text = IsShaderToyTab
             ? $"当前数据根：{_options.EffectiveShaderToyRoot}\n"
-              + "这里需要有 presets/*.shaderx（或 shadertoy.db）和 media/（media/media/a/<hash>.png）。\n"
+              + "这里需要有 presets/*.shaderx（作品文本）和 media/（media/media/a/<hash>.png）。\n"
               + "用下面的按钮换个目录，或用 --shadertoy-data 指定。"
             : IsScriptTab
                 ? $"当前脚本目录：{_options.EffectiveMilkxDirectory}\n"

@@ -20,8 +20,9 @@
     <Span color="Comment" begin="/\*" end="\*/" />
     <Span color="Comment" begin="//" />
 
-    <!-- 预处理器：#version / #define / #ifdef … -->
-    <Rule color="Preprocessor">^[ \t]*#[a-zA-Z]*.*$</Rule>
+    <!-- 预处理器：#version / #define / #ifdef …（# 必须转义：XSHD 的正则带 IgnorePatternWhitespace，
+         不转义会被当成"注释开始"，规则退化成零宽匹配 → 引擎直接抛 endless loop） -->
+    <Rule color="Preprocessor">^[ \t]*\#[a-zA-Z]+.*</Rule>
 
     <!-- [meta] 的键：行首 identifier 后面跟 = -->
     <Rule color="Key">^[ \t]*[A-Za-z_][A-Za-z0-9_]*(?=[ \t]*=)</Rule>

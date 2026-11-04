@@ -27,8 +27,7 @@ public sealed record ShaderToyCaptureResult(
 /// </summary>
 /// <remarks>
 /// <para>
-/// P13 D13-4：抓取落地就是"一个文本文件 + 若干图片"，**不再写 <c>shadertoy.db</c>**
-/// （db 只作为过渡期只读来源留着）。文件里存的是**原始 GLSL** 与站点图片路径
+/// P13：抓取落地就是"一个文本文件 + 若干图片"，没有数据库。文件里存的是**原始 GLSL** 与站点图片路径
 /// （<c>/media/a/x.png</c>），图片下到 <c>&lt;数据根&gt;/media/&lt;站点路径&gt;</c>，两边靠路径对上。
 /// </para>
 /// <para>
@@ -57,7 +56,7 @@ public sealed class ShaderToyCaptureStore
     /// <summary>作品文件目录（<c>&lt;数据根&gt;/presets</c>）。</summary>
     public string PresetsDirectory => Path.Combine(Root, ShaderPresetLibrary.PresetsFolderName);
 
-    /// <summary>落文件 + 下图片。不写 <c>shadertoy.db</c>，也不写 <c>shaders/</c> 目录。</summary>
+    /// <summary>落文件 + 下图片：只写 <c>presets/</c> 与 <c>media/</c>。</summary>
     /// <param name="project">解析好的工程（pass 代码必须是原文）。</param>
     /// <param name="fetchedMedia">
     /// 已经在页面里下好的图片字节，键是 JSON 里的原始路径（<c>/media/a/x.png</c>）。
@@ -126,7 +125,7 @@ public sealed class ShaderToyCaptureStore
             }
         }
 
-        ShaderPresetSaveResult write = ShaderPresetExporter.SaveProject(Root, project, ExtraMeta(project));
+        ShaderPresetSaveResult write = ShaderPresetStore.SaveProject(Root, project, ExtraMeta(project));
 
         Console.WriteLine(
             $"[capture] 已写入 {id}「{project.Metadata.Name}」：{project.Passes.Count} 个 pass，"
@@ -154,7 +153,7 @@ public sealed class ShaderToyCaptureStore
         new(StringComparer.OrdinalIgnoreCase)
         {
             ["captured"] = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:sszzz", CultureInfo.InvariantCulture),
-            ["source_url"] = ShaderPresetExporter.SourceUrlPrefix + project.Metadata.Id,
+            ["source_url"] = ShaderPresetStore.SourceUrlPrefix + project.Metadata.Id,
         };
 
     /// <summary>把页面里抓到的字节写进 <c>media/</c>（已存在且大小相同就跳过）。</summary>

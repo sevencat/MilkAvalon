@@ -27,7 +27,7 @@
 - 不重写引擎：`MilkDrop.ProjectM` / `MilkDrop.ShaderToy` 的语义（预设解析、EEL VM、pass 图、音频）**原样沿用**。
 - 不移植 `MilkDrop.Classic`（D3D9/HLSL 线）。
 - 不保留 ImGui 界面（`ImGui.NET` / `cimgui.dll` 不进本仓库产物），Avalonia 取代它。
-- 不做跨平台（Avalonia 可以，但 ANGLE 原生库 / NAudio / `winsqlite3.dll` 都是 Windows 路径，先只保证 Windows）。
+- 不做跨平台（Avalonia 可以，但 ANGLE 原生库 / NAudio 都是 Windows 路径，先只保证 Windows）。
 
 ---
 
@@ -189,7 +189,7 @@ MilkAvalon/
 ```
 
 - **左栏**（可折叠）：projectM 页显示预设库（9795 个 `.milk`，必须虚拟化 + 后台扫描）；
-  ShaderToy 页显示作品库（见 §6.2：只从 `shadertoy.db` 读）；
+  ShaderToy 页显示作品库（见 §6.2：只从 `presets/*.shaderx` 读）；
   milkx 页显示 `.milkx` 库（P12，默认 `<exe>/milkx` 或设置里的脚本目录，左栏另有「导入目录…/导入文件…」）。
 - **页内底部信息条**（P3 已落地）：每条都是"随时间变"的量，用 400ms 定时器刷，不靠事件驱动
   （否则会出现"框里停在第一行 / 0.0 FPS"的假象）：
@@ -213,14 +213,15 @@ MilkAvalon/
 │   └─ res/                   ← 可选：MilkDrop3 的 shapes/png（第二预设源）
 ├─ shadertoy/                 ← ShaderToy 数据根
 │   ├─ presets/**/*.shaderx   ← **P13 之后的唯一真相**：作品 = 文本（详见 src/MilkDrop.ShaderToy/plan.md）
-│   ├─ shadertoy.db           ← 过渡期只读：没导出成 .shaderx 的作品回这里找；抓取不再写它（D12）
+│   └─ （没有数据库：shadertoy.db / sqlite 已整体删除，P13 收尾）
 │   ├─ media/                 ← 站点资源，按 /media/a/<hash>.png 原路径存放（<根>/media/media/a/<hash>.png）
 │   └─ shaders/<id>/          ← **不读**（下载/导入工具的写侧产物，播放侧忽略）
 └─ screenshots/               ← 截图输出（两页共用，抓取功能上线后启用）
 ```
 
-**ShaderToy 数据源（决策 D8 → **D12 修订**，2026-11-04）**：**`.shaderx` 文本优先，`shadertoy.db` 降级为过渡期只读**，
-**不扫描 `shaders/<id>/` 目录**。理由：用户要求"以后从 web 导入都落到文件里，不写数据库"，而文本可控、可 diff、可手改。
+**ShaderToy 数据源（决策 D8 → **D12 修订** → **P13 收尾**，2026-11-04）**：**作品 = `presets/*.shaderx` 文本，唯一来源**，
+**不扫描 `shaders/<id>/` 目录、也没有 `shadertoy.db`**。理由：用户要求"以后从 web 导入都落到文件里，不写数据库"，
+文本可控、可 diff、可手改；迁移完成后 sqlite 相关代码全部删除。
 
 | 环节 | 走哪条路 |
 |---|---|
@@ -243,7 +244,7 @@ MilkAvalon/
 |---|---|
 | 开发期直连现成数据 | 命令行 `--projectm-data D:\media\MilkDropSharp\presets`、`--shadertoy-data F:\code\MilkAvalon\testdata`（临时覆盖，不写设置） |
 | 长期 | 在设置页把数据根指过去并持久化到 `milkavalon.json` |
-| 发布 | 按上图把目录放到 exe 旁（`presets/*.shaderx` + `media/media/`；`shadertoy.db` 可选，仅兼容旧数据；不需要 `shaders/`） |
+| 发布 | 按上图把目录放到 exe 旁（`presets/*.shaderx` + `media/media/`；不需要 `shadertoy.db`，也不需要 `shaders/`） |
 
 - 数据根缺失/为空 **不崩**：页面中央显示一条说明 + 「选择目录」按钮，状态栏同步提示。
 - projectM 的两级回退：`projectm/presets` → 不存在时退回 `projectm/` 自身（允许把 `.milk` 直接平铺）。
@@ -475,13 +476,19 @@ MilkAvalon/
 | P10 | **编辑** | 2d | 🟨 2026-11-04 | `.milk` / `.milkx` 原文编辑：AvaloniaEdit（行号、XSHD 语法高亮、补全、光标下的名字说明、Ctrl+F、Ctrl+Space）+ 参数导航（点参数跳到行）、保存（写盘+重载）/应用（只重载）/还原/打开、Ctrl+S、编码与换行按原文件保持；仅剩 ShaderToy pass 的 HLSL/GLSL 代码编辑与错误列表 |
 | P11 | **抓取** | 1.5d | 🟨 2026-10-27 | 站点抓取已通（内嵌 WebView2 → `POST /shadertoy` → 只写 db + media，`--capture` 自检）；截图存 PNG 已通；剪贴板/录屏未做 |
 | P12 | `.milk` → `.milkx` 脚本预设（详见 `src/MilkDrop.PresetScript/plan.md`、坑点见 `misc.md`） | 5.5d | ✅ 2026-11-04 | M0–M6 全部完成：全量 4520 `.milk` → 4494 `.milkx`（失败 26 个都是原预设坏了）；第三个页签「milkx」可选/能播/能编辑；导入保留相对层级、按 `source_hash` 跳过；编辑器直接改 `.milkx`；坑点与自检命令落在 `misc.md` |
-| P13 | **ShaderToy 作品改用 `.shaderx` 文本**（与 `.milkx` 同族容器；抓取落地写文件、不写 db） | 4d | 🟨 2026-11-04 | M0–M4 已完成（格式见 `src/MilkDrop.ShaderToy/plan.md`；`--export-shaderx` 把 `dist/shadertoy/shadertoy.db` 的 11 个作品导成 `presets/<title> [<id>].shaderx`，二次导出全部跳过；第 2 页扫 `presets/**/*.shaderx`、空了回 db 并提示导出，拖放/`--drop` 认 `.shaderx`；抓取只写 `<title> [<id>].shaderx` + `media/`，不再写 db）；M5–M6 未开工 |
+| P13 | **ShaderToy 作品改用 `.shaderx` 文本**（与 `.milkx` 同族容器；抓取落地写文件、不写 db） | 4d | ✅ 2026-11-04 | M0–M7 全部完成（格式见 `src/MilkDrop.ShaderToy/plan.md`）：迁移期用 `--export-shaderx` 把 db 的 11 个作品导成 `presets/<title> [<id>].shaderx`（参数随后删除）；第 2 页扫 `presets/**/*.shaderx`，拖放/`--drop` 认 `.shaderx`；抓取只写 `.shaderx` + `media/`；编辑器支持 `.shaderx`（`ShaderToy.xshd` + GLSL 词表 + 保存即重编译）。**收尾：sqlite 与所有数据库操作已删除**（`SqliteDatabase`/`ShaderDatabase`/`ShaderLibrary`/db 导出器/`--export-shaderx`），早前的 `LocalJsonImporter`/`ShaderMeta` 也一并清掉 |
 | — | **本期合计（P0–P9）** | **约 12.3 人日** | — | 不含搬入（机械）与调试波动 |
 
 ### 变更记录
 
 | 日期 | 事件 |
 |---|---|
+| 2026-11-04 | **清掉 sqlite 与所有数据库操作（P13 M7）**：删 `SqliteDatabase`（P/Invoke `winsqlite3.dll`）、`ShaderDatabase`、`ShaderLibrary`、`ShaderFiles`（常量并入 `ShaderPresetLibrary`：`PresetsFolderName` / `MediaFolderName`）；删 db 导出器 `ShaderPresetExporter` 与 `--export-shaderx` / `--force`（写入路径收敛到 `ShaderPresetStore.SaveProject`，抓取与编辑器都用它）；`ShaderToyLibrary` / `ShaderToyEntry` 去掉 `DatabasePath`，作品只来自 `presets/**/*.shaderx`，`--shadertoy-data testdata` 仍能列出 11 个作品并播放；测试删掉 db 相关用例，落盘测试改名 `ShaderPresetStoreTests`。`grep -i sqlite` 只剩注释里"没有 sqlite"的说明 |
+| 2026-11-04 | **`.shaderx` 编辑时隐藏参数导航列**：GLSL 没有"参数"可导航，左侧 140px 的「过滤参数 + 参数列表」对 `.shaderx` 纯属占地方——现在按文档类型收放（`EditorPanel.RefreshParameters` 里 `ParamPane.IsVisible` + `BodyGrid` 第 0 列宽 0/140），`.milkx` / `.milk` 照旧显示。截图确认 `.shaderx` 代码区吃满宽度、`.milkx` 的参数导航无回归 |
+| 2026-11-04 | **弹出窗口标题栏与主窗口统一**：新增 `Views/EditorWindow.axaml(.cs)`，照抄主窗口的自绘标题栏（`ExtendClientAreaToDecorationsHint` + `WindowDecorations=BorderOnly` + `ElementRole=TitleBar/User`、缩小版 logo、右上角同一套 `Button.caption` 最小化/最大化/关闭、标题带当前文件名），`MainWindow.PopOutEditor` 改用它（`Body = Editor`），标题刷新走 `EditorWindow.SetCaption`。截屏确认外观与主窗口一致 |
+| 2026-11-04 | **编辑面板可拖宽 + 可弹出**：右侧栏改成 `PageArea` 三列（页面 `*` / `GridSplitter 6px` / 编辑列），拖分隔条即可改宽度（记住本次会话的宽度，关面板归 0、页面自动占满）；面板标题栏新增「弹出 / 收回」——弹出时把同一个 `EditorPanel` 实例摘进独立 `Window`（`ShowInTaskbar=false`、可任意拉大，光标/滚动/未保存改动都跟着走），窗口标题跟当前文件；关掉独立窗口或点「收回」→ 面板贴回右侧并保持打开。UIA 实测：点「弹出」→ 日志 `弹出为独立窗口（920×820）`、窗口标题 `MilkAvalon 编辑 — …shaderx`、按钮变「收回」；关窗 → `收回右侧：…`、主窗口里重新出现 `EditorPanel` |
+| 2026-11-04 | **修：ShaderToy 编辑面板没正文**：数据根只有 `shadertoy.db`（`testdata/` 就是这种）时作品没有文件路径，`BuildEditorTarget` 返回 null → 面板只剩一句"没有可编辑的内容"，看起来就是"编辑框是空的"。现在 `ShaderToyPage.EnsureEditablePreset()` 会把当前工程先落成 `presets/<title> [<id>].shaderx`（带 `captured`/`source_url`）再交给编辑器，之后走文件；同时把 `testdata/shadertoy.db` 的 11 个作品整体导出成 `testdata/presets/*.shaderx`（写出 10 + 跳过 1）。验证：默认数据根启动 → `作品库扫描完成：11 个（presets/*.shaderx）`、`[editor] 已载入 Welcome to hell [f3VSRy].shaderx：417 行` |
+| 2026-11-04 | **P13 M5–M6 完成（P13 收官）**：编辑器支持 `.shaderx`——新增 `Editor/ShaderToy.xshd`（段名/GLSL 关键字与类型/ShaderToy 注入变量/数字/注释，`#` 必须转义否则 XSHD 正则退化成零宽匹配）；`PresetVocabulary` 加 GLSL 内建函数（66 个带签名说明）、`iTime`/`iChannelN` 等注入变量、`shadertoy.*` 段名；`EditorPanel` 改成三种文档类型（`.milk` / `.milkx` / `.shaderx`），`.shaderx` 走纯文本模式（统一 `\n` + UTF-8 无 BOM、保存校验"至少一个 pass"、`Ctrl+S` 保存后 `ShaderToyPage.ApplyPresetText` 重新编译并保持当前时间）；`MainWindow` 的编辑对象改为当前作品的 `.shaderx` 路径。旧写侧 `LocalJsonImporter`/`ShaderMeta` 删除，`ShaderFiles` 只剩 `MediaFolder`。自检：`--tab shadertoy --editor --shot` 自动载入 `Rainforest [4ttSWf].shaderx`（1030 行，段名/键/注释/函数都有色）。坑点见 `misc.md` §7.10 |
 | 2026-11-04 | **P13 M4 完成**：`ShaderToyCaptureStore` 不再写 `shadertoy.db`——抓取落地 = `ShaderPresetExporter.SaveProject` 写 `presets/<title> [<id>].shaderx` + `media/<站点路径>`；覆盖按文件里的 `[meta] id` 认人，站点改了标题会删掉旧名字的文件（`Replaced` 进结果，UI 文案改成"已保存/覆盖旧文件"）。实测 `--capture flGyWc`：产出 `lunchbreak [flGyWc].shaderx` + 1 张图，目录里**没有** db；随后从该目录直接列出并播放（含 sound pass 音频）。`--capture` 自检打印 `file=<路径>` |
 | 2026-11-04 | **P13 M3 完成**：第 2 页清单改为扫 `presets/**/*.shaderx`（`ShaderPresetLibrary` 只读每个文件的 `[meta]` 头几行，坏文件/无 id/重复 id 只警告），目录为空才回 `shadertoy.db` 并提示"建议导出"；列表项统一成 `ShaderToyEntry`（`PresetPath` / `DatabasePath` 二选一）；拖放与 `--drop` 认 `.shaderx`（读文件 → `ShaderPresetMapper.ToProject` → 直接播）。自检：`--tab shadertoy --shot` 从 11 个 `.shaderx` 播放 Rainforest（gl 截图有画面），`--drop "…/Seascape [Ms2SD1].shaderx"` 正常切页播放，`--shadertoy-data testdata` 回退 db 正常 |
 | 2026-11-04 | **P13 M1–M2 完成**：`ShaderPresetDocument/Reader/Writer/Mapper` 往返逐字节稳定（`code_hash` 按"角色 + 文件里那行代码"算，尾部换行不再让哈希漂移）；导出器 `ShaderPresetExporter` + `--export-shaderx [--force]`，文件名 **`<title> [<id>].shaderx`**，按 `[meta] id` 认人、`code_hash` 相同跳过、手改过的文件不覆盖（`--force` 才写）；`[meta]` 多行值（站点 description 常带空行/URL）写出时压成一行。已把 `dist/shadertoy/shadertoy.db` 的 11 个作品实际导出到 `dist/shadertoy/presets/`，二次导出 0 写 11 跳过 |
@@ -524,7 +531,7 @@ MilkAvalon/
 | R-6 | Material.Avalonia / **AvaloniaEdit 12.0.0（已进主链路）** 的 AOT 兼容性未验证 | AOT 下主题或编辑器崩 | P9 前先用 `PublishAot` 试跑一次空白页；失败则编辑器退回 `TextBox`（高亮/补全丢失，但编辑功能不受影响），核心播放链不依赖它 |
 | R-7 | `InvariantGlobalization=true` 与中文文本整形 | 中文显示异常 | 先开着测；异常就关掉（体积换正确性） |
 | R-8 | 9795 个预设的列表扫描阻塞 UI | 首次打开卡 | 后台线程扫描 + 虚拟化列表 + 增量加载 |
-| R-9 | ShaderToy 站点 403（Cloudflare） | 「抓取作品」不可用 | 明确提示 + 以本地数据为可靠来源：P13 之后是 `presets/*.shaderx`（可用 `--export-shaderx` 从 `shadertoy.db` 一次性导出） |
+| R-9 | ShaderToy 站点 403（Cloudflare） | 「抓取作品」不可用 | 明确提示 + 以本地数据为可靠来源：作品就在 `presets/*.shaderx`（文本，可手工添加） |
 | ~~R-10~~ | ~~GPLv3（上游）与本仓库 MIT 冲突~~ | — | **已解决**：本仓库许可证已改为 GPLv3（2026-10-27） |
 | ~~R-11~~ | ~~ShaderToy 文件布局扫描是新写的代码~~ | — | **已消除（2026-10-27）**：用户明确"不读 `shaders/` 目录，全部读 db + media"；`FileLayoutLibrary` 取消，播放侧只有 `ShaderLibrary.Scan` → `ShaderDatabase.TryLoadProject` 一条路（db 已在 `testdata/` 到位） |
 | R-12 | 预设引用的 MilkDrop3 贴图（如 `textures/worms`）在本机数据里缺失 | 引擎降级成 1×1 占位纹理，画面只剩纯色/灰块，容易被误判成"渲染坏了" | 引擎已发 `PresetLoadDegraded` → 界面底部单独一行提示；把贴图放进纹理搜索路径（`<root>/textures`、`<root>/res`、根目录本身）即恢复 |

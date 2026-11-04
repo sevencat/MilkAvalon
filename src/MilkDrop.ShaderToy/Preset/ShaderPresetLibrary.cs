@@ -26,7 +26,7 @@ public sealed record ShaderPresetEntry(
 /// </summary>
 /// <remarks>
 /// <para>
-/// 直接对着文件列作品（P13 D13-3）：<c>shadertoy.db</c> 只在这个目录为空时兜底。
+/// 直接对着文件列作品（P13）：目录就是数据库，没有 sqlite。
 /// 列表一启动就要出来，所以这里逐行读、读到第一个代码段头就停——一个 40 KB 的作品也只读前几行。
 /// </para>
 /// <para>
@@ -35,8 +35,11 @@ public sealed record ShaderPresetEntry(
 /// </remarks>
 public sealed class ShaderPresetLibrary
 {
-    /// <summary>作品文件所在的子目录名。</summary>
-    public const string PresetsFolderName = ShaderPresetExporter.PresetsFolderName;
+    /// <summary>作品文件所在的子目录名（<c>&lt;数据根&gt;/presets</c>）。</summary>
+    public const string PresetsFolderName = ShaderPresetStore.PresetsFolderName;
+
+    /// <summary>站点资源目录名（<c>&lt;数据根&gt;/media</c>，图片按站点路径落在它下面）。</summary>
+    public const string MediaFolderName = "media";
 
     private ShaderPresetLibrary(string dataRoot, string presetsDirectory)
     {

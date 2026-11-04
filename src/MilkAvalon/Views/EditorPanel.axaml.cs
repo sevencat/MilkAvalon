@@ -149,7 +149,20 @@ public partial class EditorPanel : UserControl, IEditorPanel
     /// <summary>「保存」/「应用」时把 (文件路径, 当前文本) 交给宿主，由它转给 projectM 页重载。</summary>
     public event Action<string, string>? ApplyRequested;
 
+    /// <summary>点了「弹出 / 收回」：由宿主决定是放进独立窗口还是贴回右侧。</summary>
+    public event Action? PopOutRequested;
+
     public bool IsOpen => IsVisible;
+
+    /// <summary>宿主把面板塞进独立窗口（true）或贴回右侧（false）之后调，只切按钮文案。</summary>
+    public void SetPoppedOut(bool popped)
+    {
+        PopOutButton.Content = popped ? "收回" : "弹出";
+        ToolTip.SetTip(PopOutButton, popped ? "贴回窗口右侧" : "放进独立窗口，可以随便拉大");
+    }
+
+    private void OnPopOutClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) =>
+        PopOutRequested?.Invoke();
 
     /// <summary>当前正在编辑的文件路径（没在编辑时为 null）。</summary>
     public string? CurrentPath => _path;
@@ -170,7 +183,7 @@ public partial class EditorPanel : UserControl, IEditorPanel
 
         if (target is not string path || path.Length == 0)
         {
-            ShowUnsupported("当前没有可编辑的内容（先播一个 .milk / .milkx / .shaderx）");
+            ShowUnsupported("还没有可编辑的内容：先播一个预设（.milk / .milkx），或在 ShaderToy 页选一个作品");
             return;
         }
 
@@ -551,12 +564,17 @@ public partial class EditorPanel : UserControl, IEditorPanel
 
     private void RefreshParameters()
     {
-        if (_isShaderx)
+        // .shaderx 是整段 GLSL，没有"参数"可导航：整列收起来（列宽也归 0），代码区吃满宽度
+        bool showPane = !_isShaderx;
+
+        ParamPane.IsVisible = showPane;
+        BodyGrid.ColumnDefinitions[0].Width = showPane ? new GridLength(140) : new GridLength(0);
+
+        if (!showPane)
         {
-            // .shaderx 是整段 GLSL：没有"参数"可导航，左栏给一句说明就够
             _filtered = [];
             ParamList.ItemsSource = _filtered;
-            ParamCountText.Text = "GLSL 原文";
+            ParamCountText.Text = string.Empty;
             return;
         }
 
@@ -631,6 +649,8 @@ public partial class EditorPanel : UserControl, IEditorPanel
         ParamCountText.Text = "—";
         _filtered = [];
         ParamList.ItemsSource = _filtered;
+        ParamPane.IsVisible = true;
+        BodyGrid.ColumnDefinitions[0].Width = new GridLength(140);
 
         ShowStatus(message);
     }

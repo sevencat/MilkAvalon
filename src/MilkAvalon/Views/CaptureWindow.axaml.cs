@@ -71,7 +71,7 @@ public partial class CaptureWindow : Window
     }
 
     /// <param name="shaderToyRoot">ShaderToy 数据根（db 与 media 都写这里）。</param>
-    /// <param name="initialIdOrUrl">打开时预填的作品 ID / 链接（<c>--capture</c> 用）。</param>
+    /// <param name="initialIdOrUrl">打开时预填的作品链接（<c>--capture</c> 用，纯 ID 会补成 view 链接）。</param>
     public CaptureWindow(string shaderToyRoot, string? initialIdOrUrl = null)
     {
         _store = new ShaderToyCaptureStore(shaderToyRoot);
@@ -83,9 +83,9 @@ public partial class CaptureWindow : Window
         Web.NavigationCompleted += OnNavigationCompleted;
         Web.NavigationStarted += OnNavigationStarted;
 
-        if (!string.IsNullOrWhiteSpace(initialIdOrUrl))
+        if (NormalizeUrl(initialIdOrUrl ?? string.Empty) is { Length: > 0 } initialUrl)
         {
-            IdBox.Text = initialIdOrUrl;
+            UrlBox.Text = initialUrl;
         }
 
         // 内嵌浏览器是单页应用：地址变化不一定触发 NavigationCompleted，
@@ -137,7 +137,7 @@ public partial class CaptureWindow : Window
 
         if (title is null)
         {
-            throw new TimeoutException("站点一直停在人机验证页：请在这个窗口里手动完成验证后再点「抓取并保存」。");
+            throw new TimeoutException("站点一直停在人机验证页：请在这个窗口里手动完成验证后再点「抓取当前页面」。");
         }
 
         SetStatus($"页面已就绪（{title}），正在请求工程 JSON…");
@@ -524,15 +524,16 @@ public partial class CaptureWindow : Window
             return;
         }
 
-        SetStatus(e.IsSuccess ? "页面已加载。粘贴 ID 后点「抓取并保存」。" : "页面加载失败，可重试或换网络。");
+        SetStatus(e.IsSuccess ? "页面已加载。要保存就在作品页点「抓取当前页面」。" : "页面加载失败，可重试或换网络。");
 
         // 导航一结束就刷新一次，不用等定时器那一拍
+        UpdateHistoryState();
         _ = RefreshCurrentPageAsync();
     }
 
     // ---- 按钮 ----
 
-    private void OnIdKeyDown(object? sender, KeyEventArgs e)
+    private void OnUrlKeyDown(object? sender, KeyEventArgs e)
     {
         if (e.Key != Key.Enter)
         {
@@ -543,24 +544,64 @@ public partial class CaptureWindow : Window
         OnOpenClick(sender, new RoutedEventArgs());
     }
 
+    /// <summary>「打开」：输入框里就是一个地址，回车/点击都直接跳过去。</summary>
     private void OnOpenClick(object? sender, RoutedEventArgs e)
     {
-        string id = NormalizeId(IdBox.Text ?? string.Empty);
+        string url = NormalizeUrl(UrlBox.Text ?? string.Empty);
 
-        if (id.Length == 0)
+        if (url.Length == 0)
         {
-            SetStatus("ID 无效：请输入形如 flGyWc 的短 ID 或完整的 view 链接。");
+            SetStatus("链接无效：请输入 https://www.shadertoy.com/view/<id> 这样的地址。");
             return;
         }
 
-        IdBox.Text = id;
-        Web.Navigate(new Uri($"https://www.shadertoy.com/view/{id}"));
-        SetStatus("正在打开 " + id + " …");
+        UrlBox.Text = url;
+        Web.Navigate(new Uri(url));
+        SetStatus("正在打开 " + url + " …");
     }
 
-    /// <summary>「抓取并保存」：用输入框里的 ID / 链接。</summary>
-    private async void OnGrabClick(object? sender, RoutedEventArgs e) =>
-        await GrabAsync(IdBox.Text ?? string.Empty);
+    /// <summary>浏览历史：后退 / 前进。</summary>
+    private void OnBackClick(object? sender, RoutedEventArgs e) => NavigateHistory(back: true);
+
+    private void OnForwardClick(object? sender, RoutedEventArgs e) => NavigateHistory(back: false);
+
+    private void NavigateHistory(bool back)
+    {
+        try
+        {
+            if (back ? Web.CanGoBack : Web.CanGoForward)
+            {
+                if (back)
+                {
+                    Web.GoBack();
+                }
+                else
+                {
+                    Web.GoForward();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("[capture] 历史导航失败：" + ex);
+        }
+
+        UpdateHistoryState();
+    }
+
+    /// <summary>前进/后退按钮只在浏览器确实有历史可走时才可用。</summary>
+    private void UpdateHistoryState()
+    {
+        try
+        {
+            BackButton.IsEnabled = Web.CanGoBack;
+            ForwardButton.IsEnabled = Web.CanGoForward;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("[capture] 读取历史状态失败：" + ex);
+        }
+    }
 
     /// <summary>
     /// 「抓取当前页面」：ID 直接从内嵌浏览器当前地址里取。
@@ -577,11 +618,11 @@ public partial class CaptureWindow : Window
             return;
         }
 
-        IdBox.Text = _currentPageId;
+        UrlBox.Text = $"https://www.shadertoy.com/view/{_currentPageId}";
         await GrabAsync(_currentPageId);
     }
 
-    /// <summary>抓取 + 落盘 + 通知主窗口（统一处理 busy 状态，两个按钮共用）。</summary>
+    /// <summary>抓取 + 落盘 + 通知主窗口（统一处理 busy 状态）。</summary>
     private async Task GrabAsync(string idOrUrl)
     {
         if (_busy)
@@ -590,7 +631,6 @@ public partial class CaptureWindow : Window
         }
 
         _busy = true;
-        GrabButton.IsEnabled = false;
         UpdateGrabCurrentState();
 
         try
@@ -607,7 +647,6 @@ public partial class CaptureWindow : Window
         finally
         {
             _busy = false;
-            GrabButton.IsEnabled = true;
             UpdateGrabCurrentState();
         }
     }
@@ -652,6 +691,7 @@ public partial class CaptureWindow : Window
         {
             _probingLocation = false;
             UpdateGrabCurrentState();
+            UpdateHistoryState();
         }
     }
 
@@ -699,6 +739,37 @@ public partial class CaptureWindow : Window
     }
 
     private void SetStatus(string text) => StatusText.Text = text;
+
+    /// <summary>
+    /// 把输入框里的内容变成可导航的地址：完整链接原样、只粘域名时补 <c>https://</c>、
+    /// 纯 ID（<c>--capture</c> 传进来的）补成 view 链接；认不出来返回空串。
+    /// </summary>
+    public static string NormalizeUrl(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return string.Empty;
+        }
+
+        string value = text.Trim();
+
+        if (value.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+            || value.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            return Uri.TryCreate(value, UriKind.Absolute, out Uri? absolute) ? absolute.AbsoluteUri : string.Empty;
+        }
+
+        // 只粘了 www.shadertoy.com/view/<id> 这种，补上协议
+        if (value.Contains('.', StringComparison.Ordinal))
+        {
+            return Uri.TryCreate("https://" + value, UriKind.Absolute, out Uri? prefixed)
+                ? prefixed.AbsoluteUri
+                : string.Empty;
+        }
+
+        string id = NormalizeId(value);
+        return id.Length > 0 ? $"https://www.shadertoy.com/view/{id}" : string.Empty;
+    }
 
     /// <summary>从链接或纯 ID 里取出短 ID（与 ShaderToySnap 的规则一致）；不合法返回空串。</summary>
     public static string NormalizeId(string text)

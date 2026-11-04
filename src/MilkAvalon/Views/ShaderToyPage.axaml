@@ -6,7 +6,7 @@
 
   <Grid Name="RootGrid" ColumnDefinitions="300,*">
 
-    <!-- 左栏：作品库（presets/*.shaderx 优先，目录为空才回 shadertoy.db） -->
+    <!-- 左栏：作品库（数据根下 presets/*.shaderx 里的作品，作品就是文本） -->
     <Border Grid.Column="0" Name="LibraryPanel" Background="{DynamicResource MaterialPaperBrush}" BorderBrush="{DynamicResource MaterialDividerBrush}" BorderThickness="0,0,1,0">
       <DockPanel>
         <TextBox Name="SearchBox"

@@ -59,11 +59,6 @@ public partial class App : Application
             {
                 ImportMilkxAfterStartup(window, options, importSource, desktop);
             }
-            // --export-shaderx：把 shadertoy.db 全部导出成 presets/*.shaderx 再退出（P13 M2）。
-            else if (options.ExportShaderx)
-            {
-                ExportShaderxAfterStartup(window, options, desktop);
-            }
             // --shot <png>：启动后截一张窗口图再退出，用于无人值守地检查界面（P0/P9 的回归手段）。
             else if (options.ShotPath is { } shotPath)
             {
@@ -148,45 +143,6 @@ public partial class App : Application
             catch (Exception ex)
             {
                 Console.WriteLine("[import] 失败：" + ex);
-            }
-            finally
-            {
-                desktop.Shutdown();
-            }
-        };
-    }
-
-    /// <summary>
-    /// <c>--export-shaderx</c>：把 <see cref="AppOptions.EffectiveShaderToyRoot"/> 下的 <c>shadertoy.db</c>
-    /// 全部导出成 <c>presets/&lt;title&gt; [&lt;id&gt;].shaderx</c>，打印统计后退出（P13 M2 的自检/迁移入口）。
-    /// </summary>
-    /// <remarks>
-    /// 幂等：第二次跑因为 <c>code_hash</c> 相同会全部跳过；<c>--force</c> 才重写。
-    /// </remarks>
-    private static void ExportShaderxAfterStartup(
-        Window window,
-        AppOptions options,
-        IClassicDesktopStyleApplicationLifetime desktop)
-    {
-        window.Opened += async (_, _) =>
-        {
-            await Task.Delay(400);
-
-            string root = options.EffectiveShaderToyRoot;
-
-            try
-            {
-                ShaderPresetExportResult result = await Task.Run(
-                    () => ShaderPresetExporter.Export(
-                        root,
-                        options.Force,
-                        line => Console.WriteLine(line)));
-
-                Console.WriteLine($"[shaderx] {root}：{result.Describe()}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("[shaderx] 导出失败：" + ex);
             }
             finally
             {

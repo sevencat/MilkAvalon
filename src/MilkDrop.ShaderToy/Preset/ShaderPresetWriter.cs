@@ -28,7 +28,7 @@ public static class ShaderPresetWriter
         var sb = new StringBuilder();
 
         sb.Append("; 由 MilkAvalon 生成（P13：ShaderToy 作品的文本落地格式）\n");
-        sb.Append("; 可以手改；改完重新播放即生效。本文件不会回写成 shadertoy.db。\n");
+        sb.Append("; 可以手改；改完重新播放即生效。作品就是这份文本。\n");
         sb.Append('\n');
 
         WriteMeta(sb, document);

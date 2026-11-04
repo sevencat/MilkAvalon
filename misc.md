@@ -649,7 +649,7 @@ public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>()
 | GL 封装 | `src/MilkDrop.Rendering.Gles3/`：`Egl.cs`、`EglContext.cs`、`GlContext.cs`、`Framebuffer.cs`、`Texture.cs`、`Shader.cs`、`CopyTexture.cs` |
 | 采集/输出 | `MilkDrop.ProjectM.App/AudioCapture.cs`、`MilkDrop.ShaderToy.App/WaveOutAudioSink.cs` |
 | 键盘映射 | `MilkDrop.ShaderToy/Input/KeyboardKeyMap.cs`（GLFW→浏览器 keyCode） |
-| 数据库读取 | `MilkDrop.ShaderToy/Import/ShaderDatabase.cs`、`ShaderLibrary.cs`（`winsqlite3.dll` P/Invoke，只读） |
+| ~~数据库读取~~ | ~~`ShaderDatabase.cs`、`ShaderLibrary.cs`（`winsqlite3.dll` P/Invoke）~~ —— **已删除**（P13 M7，2026-11-04），作品只读 `presets/*.shaderx` |
 | 上游文档 | `shaderToyPlan.md`、`shaderToyIssue.md`、`projectMMisc.md`（**没有** `projectMPlan.md` / `projectMIssue.md`，文中引用是历史文件） |
 
 `Framebuffer.Unbind()` 全部调用点（P-1 补丁的影响面，已确认）：
@@ -809,6 +809,42 @@ MilkdropPreset.cs 初始化里也有一次（unbind 后没有 Draw，安全）
 - **XAML 打包**：`Editor/*.xshd` 要进 `AvaloniaResource`，否则 `AssetLoader.Open("avares://MilkAvalon/Editor/…")` 找不到；
   `XmlReaderSettings.DtdProcessing = Prohibit` 打开（XSHD 里没有 DTD，防止外部实体）。
 
+### 7.10 ✅ `.shaderx`（P13）：哈希、多行 meta、XSHD 里的 `#`
+
+- **`code_hash` 往返漂移**：写文件时 GLSL 的尾部空行被去掉，但哈希算的是原始 `Code`（带尾换行）→
+  写→读→写哈希就变了、幂等性测试直接挂。
+  对策：哈希与写盘共用同一段文本（角色名 + 去尾空行的代码行），见 `ShaderPresetMapper.ComputeCodeHash`。
+- **`[meta]` 多行值**：站点 `description` 常带空行和 URL，原样写出后 reader 只认第一行，其余行被当坏行丢掉。
+  对策：写出时把换行/连续空白压成一个空格（`ShaderPresetWriter.OneLine`）。
+- **XSHD 里的 `#`**：AvaloniaEdit 编译高亮正则带 `IgnorePatternWhitespace`，`#` 会被当成"注释开始"；
+  `^[ \t]*#[a-z]+.*` 于是退化成 `^[ \t]*`（零宽）→ 运行期抛
+  `A highlighting rule matched 0 characters`（整个 App 崩在 `HighlightingLoader.Load`）。
+  对策：`\#` 转义，见 `Editor/ShaderToy.xshd`。
+- **窗口截图截不到 GL/补全窗**：`--shot` 的 RenderTargetBitmap 拿不到 OpenGL 控件内容（全黑是正常的），
+  要看画面得看同名的 `*-gl.png`（FBO 回读）。编辑面板本身能截到。
+- **导出的文件名带 `[id]`**：PowerShell 里 `Get-Content 'a [b].shaderx'` 会被当通配符，要加 `-LiteralPath`。
+- **编辑面板宽度/弹出**：右侧栏宽度是 `PageArea` 第 3 列决定的（不是给 `EditorPanel` 设 `Width`），
+  否则 `GridSplitter` 拖了也不变、面板关掉还会留一条空白列。弹出后是"同一个控件换个爹"：
+  `PageArea.Children.Remove(Editor)` → `new Window { Content = Editor }`，收回再 `Add` 回去并
+  `Grid.SetColumn(Editor, 2)`；**别**把 `Editor.Width` 硬编码，弹出时要 `NaN`（拉伸）。
+- **隐藏 Grid 里的一列**：光把子控件 `IsVisible=false` 不够，列宽还在（会留一条空白）；要把
+  `ColumnDefinitions[i].Width` 一起归 0，恢复时再给回像素值（编辑面板的"参数导航列"就是这么收放的）。
+- **第二个窗口要跟主窗口同款标题栏**：`EditorWindow.axaml` 直接复制主窗口那四项
+  （`ExtendClientAreaToDecorationsHint`、`ExtendClientAreaTitleBarHeightHint`、`WindowDecorations="BorderOnly"`、
+  标题栏 `ElementRole="TitleBar"` + 按钮区 `ElementRole="User"`），样式类 `Button.caption` / `Button.toolbar`
+  在 `Styles/AppStyles.axaml` 里是全局的，新窗口会自动吃到，不用再 include。
+  漏掉 `ElementRole` 的结果是"窗口能拖但按钮点不动"。
+- **UIA 自动化点按钮**：Avalonia 的 owned Window（`ShowInTaskbar=false`）在 UIA 树里是主窗口的**子节点**，
+  不在桌面顶层；`FindAll(Descendants)` 跨 HWND 时偶发 `COMException`，用 `Children` 范围逐层找更稳。
+- **db 已整体移除（P13 M7）**：`SqliteDatabase` / `ShaderDatabase` / `ShaderLibrary` / `ShaderFiles`、
+  db 导出器（`ShaderPresetExporter`）与 `--export-shaderx` / `--force` 全部删除；
+  写侧只剩 `ShaderPresetStore.SaveProject`，读侧只剩 `ShaderPresetLibrary`。
+  **上面 §1.4.1 / §A7-5 / §2 / §4 表格里讲 `shadertoy.db` 的都是历史记录**，现在的数据根只有
+  `presets/*.shaderx` 与 `media/`。
+- **"ShaderToy 的编辑没有文字"**（历史问题，db 时代）：数据根只有 `shadertoy.db` 时作品没有文件路径，
+  编辑面板只能显示"没有可编辑的内容"，看着像编辑框是空的。当时的对策是"第一次点编辑先把工程落成
+  `.shaderx`"；**db 删除后作品本来就是文件，这条分支也一起没了**。
+
 ---
 
 ## 8. 常用命令
@@ -852,7 +888,7 @@ F:\code\MilkAvalon\src\MilkAvalon\bin\Debug\net10.0\win-x64\MilkAvalon.exe `
 
 # 默认数据根（发布布局）：exe 旁的 projectm\ 与 shadertoy\
 #   projectm\presets\*.milk  projectm\textures\*.jpg
-#   shadertoy\shadertoy.db   shadertoy\media\media\a\<hash>.png   （shaders\ 不读）
+#   shadertoy\presets\*.shaderx   shadertoy\media\media\a\<hash>.png   （shadertoy.db / shaders\ 都没有了）
 
 # .milkx 脚本页（P12）：--tab script 启动即切页；--milkx-data 指目录（默认 exe 旁 milkx\）
 F:\code\MilkAvalon\src\MilkAvalon\bin\Debug\net10.0\win-x64\MilkAvalon.exe `
