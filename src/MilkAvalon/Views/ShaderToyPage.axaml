@@ -17,9 +17,12 @@
 
         <!-- buffer 分辨率三模式（Shadertoy 网页端的 viewport / fixed / scale 那三档） -->
         <!-- 初始选中项在代码里设：XAML 里写 SelectedIndex 会在控件还没构造完时触发 SelectionChanged -->
+        <!-- 后两档会改 buffer 分辨率：作品若在 image pass 里用 iResolution 逐像素寻址 buffer
+             （数据纹理 / 逐行存光之类），行列会错位，画面偏黑。网页端同样如此。 -->
         <ComboBox Name="BufferModeBox"
                   DockPanel.Dock="Top"
                   Margin="8,0,8,6"
+                  ToolTip.Tip="非「跟随视口」会改变 buffer 分辨率：按 iResolution 逐像素寻址 buffer 的作品（数据纹理类）会错位、偏黑。"
                   SelectionChanged="OnBufferModeChanged">
           <ComboBoxItem Content="buffer：跟随视口" />
           <ComboBoxItem Content="buffer：固定 1024×256" />

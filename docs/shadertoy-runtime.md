@@ -120,7 +120,15 @@ uniform sampler2D|samplerCube|sampler3D iChannel0..3;
 | video / webcam / 麦克风通道 | 支持 | 没有对应 `ShaderInputType`，按未绑定处理（黑） | ❌（预期内） |
 | `texelFetch` / `textureLod` / `texture2D` 旧名 | 支持 | 支持（ES3 + 兼容宏） | ✅ |
 | `#define` / `struct` / 动态循环 / 矩阵 | 支持 | 透传，ES3 编译 | ✅ |
-| buffer 分辨率 | 每个 buffer 可单独设，默认 = 画布 | 全局设置（`shaderToyBufferMode`，默认跟随视口；选 0.5× 会让跨 pass 用 `iResolution` 寻址 buffer 的作品偏暗） | 🟡 |
+| buffer 分辨率 | 每个 buffer 可单独设，默认 = 画布 | 全局设置（`shaderToyBufferMode`，默认跟随视口） | 🟡 |
+
+> `shaderToyBufferMode` 选 `1`（固定 1024×256）或 `2`（视口 0.5×）会改变 buffer 的实际像素尺寸。
+> 有些作品把 buffer 当**数据纹理**用：`int(fragCoord.y)` 当行号、`int(fragCoord.x)` 当列号，
+> 再在 image pass 里用 `vec2(0, id)/iResolution.xy + 0.5/iResolution.xy` 反算纹素中心
+> （例：`1D Radial Lightmap Test [XsK3RR]`，一行一盏灯）。这类写法隐含假设
+> **buffer 分辨率 == 该 pass 的 iResolution**，分辨率一变，行列就会错位（0.5× 时
+> `0.5/iResolution` 恰好等于一个 buffer 纹素、整行偏移一格），表现为整体偏黑或只剩一盏灯。
+> 这个不是本项目的降级 bug —— 在网页端把 buffer 尺寸改小同样会坏；网页端默认也是"跟随画布"。
 
 ## 5. 缺的与错的（按影响排序）
 

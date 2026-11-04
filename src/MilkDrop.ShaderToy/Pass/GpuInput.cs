@@ -74,6 +74,11 @@ public sealed class GpuInput
         {
             shader.SetUniformFloat($"iChannelTime[{channel}]", ChannelTime[channel]);
             shader.SetUniformFloat3($"iChannelResolution[{channel}]", ChannelResolution[channel]);
+
+            // sampler 分量的默认值是 0：不显式写的话四个通道全去采 unit 0。多通道作品会因此
+            // 拿到错纹理（例如纹理通道读到 buffer 的上一帧），通道类型不同时（cube/3D 对 2D）
+            // 整次 draw 更会直接 GL_INVALID_OPERATION，画面上就是全黑。
+            shader.SetUniformInt($"iChannel{channel}", channel);
         }
     }
 }

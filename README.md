@@ -10,6 +10,7 @@ Avalonia 12（ANGLE/EGL → D3D11）+ Silk.NET（OpenGL ES 3.0）
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)](https://dotnet.microsoft.com/)
 [![Avalonia](https://img.shields.io/badge/Avalonia-12.1.5-8B44AC)](https://avaloniaui.net/)
 [![Platform](https://img.shields.io/badge/platform-Windows%20x64-lightgrey)](#运行要求)
+[![Download](https://img.shields.io/badge/download-MilkAvalon%201.0-brightgreen)](#下载)
 
 </div>
 
@@ -23,6 +24,16 @@ Avalonia 12（ANGLE/EGL → D3D11）+ Silk.NET（OpenGL ES 3.0）
 
 渲染路径：Avalonia 用 ANGLE 建一个 OpenGL ES 3.0 上下文（底层 D3D11），Silk.NET 直接绑定到该上下文，
 每帧把画面画进 Avalonia 交给控件的那个 FBO —— 没有额外的窗口、没有 GLFW、也没有 ImGui。
+
+## 下载
+
+不想自己编译的话，可以直接下打包好的 **1.0** 版（Windows x64）：`MilkAvalon1.0.rar`
+
+- 链接：<https://pan.baidu.com/s/1fqFTX2q3Ggii4PIHEWKchw?pwd=82de>
+- 提取码：`82de`
+
+解压后双击 `MilkAvalon.exe` 即可；首次启动按提示选数据目录。运行环境要求见 [运行要求](#运行要求)，
+想自己编译见 [快速开始](#快速开始)。
 
 ## 界面预览
 
@@ -113,7 +124,7 @@ MilkAvalon.exe --projectm-data "D:\media\MilkDropSharp\presets" --milkx-data ".\
 | `projectMDataRoot` / `shaderToyDataRoot` | `null` | 数据根，空则用 `<exe>/projectm`、`<exe>/shadertoy` |
 | `milkxDirectory` | `null` | `.milkx` 库目录，空则用 `<exe>/milkx` |
 | `meshWidth` / `meshHeight` | `48` / `36` | projectM 网格（预设里的 `nGridX` 可覆盖） |
-| `shaderToyBufferMode` | `0` | `0` 跟随视口（与网页端一致）/ `1` 固定 1024×256 / `2` 半分辨率（省性能，部分作品会偏暗） |
+| `shaderToyBufferMode` | `0` | `0` 跟随视口（与网页端一致）/ `1` 固定 1024×256 / `2` 半分辨率（省性能）。`1`/`2` 会改 buffer 尺寸，按 `iResolution` 逐像素寻址 buffer 的作品会错位偏黑，见 `docs/shadertoy-runtime.md` |
 | `vSync` | `true` | 是否启用垂直同步（帧节奏由 Avalonia 合成器控制） |
 | `uiScale` | `1.0` | 界面缩放 |
 | `deepSeekApiKey` / `deepSeekModel` | `null` | AI 分析用的 Key 与模型 |

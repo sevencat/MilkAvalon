@@ -76,7 +76,8 @@
           </StackPanel>
 
           <TextBlock Grid.Row="1" Text="ShaderToy buffer" VerticalAlignment="Center" />
-          <ComboBox Grid.Row="1" Grid.Column="1" Name="BufferModeBox" Width="260">
+          <ComboBox Grid.Row="1" Grid.Column="1" Name="BufferModeBox" Width="260"
+                    ToolTip.Tip="只有「跟随视口」与网页端默认一致。另两档会改 buffer 分辨率，按 iResolution 逐像素寻址 buffer 的作品（数据纹理类）会行列错位、偏黑。">
             <ComboBoxItem Content="跟随视口" />
             <ComboBoxItem Content="固定 1024×256" />
             <ComboBoxItem Content="视口 0.5×" />
