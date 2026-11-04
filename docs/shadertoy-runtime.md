@@ -120,7 +120,7 @@ uniform sampler2D|samplerCube|sampler3D iChannel0..3;
 | video / webcam / 麦克风通道 | 支持 | 没有对应 `ShaderInputType`，按未绑定处理（黑） | ❌（预期内） |
 | `texelFetch` / `textureLod` / `texture2D` 旧名 | 支持 | 支持（ES3 + 兼容宏） | ✅ |
 | `#define` / `struct` / 动态循环 / 矩阵 | 支持 | 透传，ES3 编译 | ✅ |
-| buffer 分辨率 | 每个 buffer 可单独设 | 全局设置（`shaderToyBufferMode`，默认 0.5×） | 🟡 有意为之 |
+| buffer 分辨率 | 每个 buffer 可单独设，默认 = 画布 | 全局设置（`shaderToyBufferMode`，默认跟随视口；选 0.5× 会让跨 pass 用 `iResolution` 寻址 buffer 的作品偏暗） | 🟡 |
 
 ## 5. 缺的与错的（按影响排序）
 

@@ -45,9 +45,9 @@ public partial class ShaderToyPage : UserControl
     {
         InitializeComponent();
 
-        // 默认「视口 0.5×」（与 AppSettings.ShaderToyBufferMode 的默认值一致）：
-        // buffer 里的像素量与耗时是平方关系，1× 下重一点的作品直接跑不动。
-        BufferModeBox.SelectedIndex = 2;
+        // 默认「跟随视口」（与 AppSettings.ShaderToyBufferMode 的默认值一致）：
+        // 网页端的 buffer 默认就是画布分辨率，降分辨率会让跨 pass 用 iResolution 寻址的作品发黑。
+        BufferModeBox.SelectedIndex = 0;
 
         ShaderToyView.ShaderLoaded += OnShaderLoaded;
 

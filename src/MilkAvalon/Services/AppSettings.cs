@@ -45,11 +45,13 @@ public sealed class AppSettings
     /// ShaderToy buffer 分辨率模式：0=视口 / 1=固定 1024×256 / 2=0.5×。
     /// </summary>
     /// <remarks>
-    /// 默认 0.5×：buffer 里的活（raymarching 那类）和像素数是平方关系，全视口分辨率下
-    /// 稍微重一点的作品就直接跑不动（实测 tutorial by iq 的 Buffer A 在 1× 下掉到个位数帧率）。
-    /// 想要原生的清晰度可以在设置里改回「跟随视口」。
+    /// 默认「跟随视口」：网页端的 buffer 默认就是画布分辨率，很多作品跨 pass 直接用
+    /// <c>iResolution</c> 去寻址 buffer 里的数据（比如 <c>1D Radial Lightmap Test</c> 用
+    /// <c>float(id)/iResolution.y</c> 取行），buffer 一旦降分辨率就会取错行、整体发黑。
+    /// 想省性能可以在设置里改成 0.5×（raymarching 那类作品和像素数是平方关系），
+    /// 但画面可能和网页端不一致。
     /// </remarks>
-    public int ShaderToyBufferMode { get; set; } = 2;
+    public int ShaderToyBufferMode { get; set; } = 0;
 
     /// <summary>界面缩放（1.0 = 跟随系统）。</summary>
     public double UiScale { get; set; } = 1.0;

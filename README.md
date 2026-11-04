@@ -113,7 +113,7 @@ MilkAvalon.exe --projectm-data "D:\media\MilkDropSharp\presets" --milkx-data ".\
 | `projectMDataRoot` / `shaderToyDataRoot` | `null` | 数据根，空则用 `<exe>/projectm`、`<exe>/shadertoy` |
 | `milkxDirectory` | `null` | `.milkx` 库目录，空则用 `<exe>/milkx` |
 | `meshWidth` / `meshHeight` | `48` / `36` | projectM 网格（预设里的 `nGridX` 可覆盖） |
-| `shaderToyBufferMode` | `2` | `0` 视口 / `1` 固定 1024×256 / `2` 半分辨率 |
+| `shaderToyBufferMode` | `0` | `0` 跟随视口（与网页端一致）/ `1` 固定 1024×256 / `2` 半分辨率（省性能，部分作品会偏暗） |
 | `vSync` | `true` | 是否启用垂直同步（帧节奏由 Avalonia 合成器控制） |
 | `uiScale` | `1.0` | 界面缩放 |
 | `deepSeekApiKey` / `deepSeekModel` | `null` | AI 分析用的 Key 与模型 |
