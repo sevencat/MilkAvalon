@@ -21,7 +21,7 @@ namespace MilkAvalon.Views;
 /// <para>
 /// R2（plan.md §6.4）：每次切页都**整页销毁重建**——旧页从视觉树摘掉后，Avalonia 在渲染线程上
 /// 回调 <c>OnOpenGlDeinit</c>，引擎/音频在那里 Dispose（`GlControlBase.OnGlReleased`）。
-/// 切页入口是工具栏右侧的两个按钮；再点当前页的那个也重建（<see cref="OnPageButtonClick"/>）。
+/// 切页入口是工具栏右侧的页面芯片列表；再点当前页的那个也重建（<see cref="OnPageTabSelectionChanged"/>）。
 /// </para>
 /// <para>
 /// 页面的"看到哪了"由 <see cref="PageState"/> 快照兜着：切走时抓、切回时套。
@@ -56,6 +56,15 @@ public partial class MainWindow : Window
     private bool _isFullScreen;
     private bool _libraryCollapsed;
 
+    /// <summary>正在由代码同步页面芯片的选中项（防止 SelectionChanged 反过来触发重建）。</summary>
+    private bool _syncingPageTab;
+
+    /// <summary>
+    /// 芯片显示顺序 → 页面索引。顺序是 projectM / milkx / ShaderToy（后两个是特意对调的），
+    /// 所以不能直接拿 SelectedIndex 当页号。
+    /// </summary>
+    private static readonly int[] PageTabPages = [0, 2, 1];
+
     /// <summary>页面底部信息条（预设 / 进度 / 尺寸 / 音频）是否显示，工具栏 ▤ 切换。</summary>
     private bool _infoVisible = true;
 
@@ -70,6 +79,9 @@ public partial class MainWindow : Window
         _options = options;
 
         InitializeComponent();
+
+        // 再点当前页芯片 = 重建：ListBox 点同一项不会触发 SelectionChanged，只能在隧道阶段自己抓
+        PageTabList.AddHandler(PointerPressedEvent, OnPageTabPointerPressed, RoutingStrategies.Tunnel);
 
         Editor.CloseRequested += OnEditorCloseRequested;
         Editor.ApplyRequested += OnEditorApplyRequested;
@@ -168,37 +180,74 @@ public partial class MainWindow : Window
     // ---- 切页 ----
 
     /// <summary>
-    /// 工具栏右侧的页面按钮：点哪个切哪页；**点当前页则强制重建**（R2 / plan.md §6.4）。
+    /// 页面芯片：选中哪项切哪页；**点当前页则强制重建**（R2 / plan.md §6.4）。
     /// </summary>
-    private void OnPageButtonClick(object? sender, RoutedEventArgs e)
+    private void OnPageTabSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        int index = ReferenceEquals(sender, ShaderToyTabButton) ? 1
-            : ReferenceEquals(sender, ScriptTabButton) ? 2
-            : 0;
+        // 代码同步选中项时不要反过来触发切页（否则 UpdatePageButtons 会把当前页重建一遍）
+        if (_syncingPageTab)
+        {
+            return;
+        }
 
-        ShowPage(index, force: index == _pageIndex);
+        int index = PageTabList.SelectedIndex;
+
+        if (index < 0 || index >= PageTabPages.Length)
+        {
+            return;
+        }
+
+        int page = PageTabPages[index];
+        ShowPage(page, force: page == _pageIndex);
     }
 
-    /// <summary>按钮的选中态跟着当前页走（选中项铺亮紫）。</summary>
+    /// <summary>点当前页芯片时选中项不变，SelectionChanged 不会触发，这里补上「再点一次重建」。</summary>
+    private void OnPageTabPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.Source is not Visual source)
+        {
+            return;
+        }
+
+        ListBoxItem? item = source as ListBoxItem ?? source.FindAncestorOfType<ListBoxItem>();
+
+        if (item is null)
+        {
+            return;
+        }
+
+        int index = PageTabList.IndexFromContainer(item);
+
+        if (index < 0 || index >= PageTabPages.Length || PageTabPages[index] != _pageIndex)
+        {
+            return;
+        }
+
+        ShowPage(_pageIndex, force: true);
+    }
+
+    /// <summary>芯片的选中态跟着当前页走（选中项铺亮紫 + 加粗 + 对勾）。</summary>
     private void UpdatePageButtons()
     {
-        SetActive(ProjectMTabButton, _pageIndex == 0);
-        SetActive(ShaderToyTabButton, _pageIndex == 1);
-        SetActive(ScriptTabButton, _pageIndex == 2);
+        _syncingPageTab = true;
 
-        static void SetActive(Button button, bool active)
+        try
         {
-            if (active)
+            int index = Array.IndexOf(PageTabPages, _pageIndex < 0 ? 0 : _pageIndex);
+
+            if (index < 0)
             {
-                if (!button.Classes.Contains("active"))
-                {
-                    button.Classes.Add("active");
-                }
+                index = 0;
             }
-            else
+
+            if (PageTabList.SelectedIndex != index)
             {
-                button.Classes.Remove("active");
+                PageTabList.SelectedIndex = index;
             }
+        }
+        finally
+        {
+            _syncingPageTab = false;
         }
     }
 

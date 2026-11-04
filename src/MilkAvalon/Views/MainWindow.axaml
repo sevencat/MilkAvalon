@@ -46,34 +46,64 @@
       <Setter Property="CornerRadius" Value="0,6,6,0" />
     </Style>
 
-    <!-- 页面切换：同样拼成一段胶囊，未选中 #5E35B1、选中亮一档 #7E57C2 -->
-    <Style Selector="Button.toolbar.pageTab">
+    <!-- 页面切换是 ListBox（Material 的 ChoiceChips）：芯片内边距收窄一点，别把工具栏撑高 -->
+    <Style Selector="ListBox.ChoiceChips">
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <Style Selector="ListBox.ChoiceChips ListBoxItem">
+      <Setter Property="Margin" Value="0" />
       <Setter Property="Padding" Value="10,4" />
-      <Setter Property="CornerRadius" Value="0" />
-      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Background" Value="#4527A0" />
+
+      <!-- 别抢键盘焦点：否则方向键会在芯片之间切换页面，跟播放快捷键打架 -->
+      <Setter Property="Focusable" Value="False" />
+
+      <!--
+        Material 的 ListBoxItem 模板不用控件的 CornerRadius（画出来是方角），
+        这里换成和 AppStyles 里 Button.toolbar 一样的极简模板，圆角/底色才吃得进去。
+      -->
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Name="PART_Chip"
+                  Background="{TemplateBinding Background}"
+                  BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}"
+                  CornerRadius="{TemplateBinding CornerRadius}"
+                  Padding="{TemplateBinding Padding}">
+            <ContentPresenter Content="{TemplateBinding Content}"
+                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                              HorizontalContentAlignment="Center"
+                              VerticalContentAlignment="Center" />
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+
+    <Style Selector="ListBox.ChoiceChips ListBoxItem:pointerover /template/ Border#PART_Chip">
       <Setter Property="Background" Value="#5E35B1" />
     </Style>
 
-    <Style Selector="Button#ProjectMTabButton">
-      <Setter Property="CornerRadius" Value="6,0,0,6" />
+    <Style Selector="ListBox.ChoiceChips ListBoxItem:selected:pointerover /template/ Border#PART_Chip">
+      <Setter Property="Background" Value="#9575CD" />
     </Style>
 
-    <Style Selector="Button#ScriptTabButton">
-      <Setter Property="CornerRadius" Value="0,6,6,0" />
-    </Style>
-
-    <!-- 选中态：亮一档 + 加粗 + 对勾盾牌亮出来（用 Opacity 切换，避免宽度跳动） -->
-    <Style Selector="Button.toolbar.pageTab.active">
+    <Style Selector="ListBox.ChoiceChips ListBoxItem:selected">
       <Setter Property="Background" Value="#7E57C2" />
+    </Style>
+
+    <!-- 图标里的"装饰细节"：细一档、淡一点，做主线条之外的点缀 -->
+    <Style Selector="Path.tabIcon.accent">
+      <Setter Property="StrokeThickness" Value="1.1" />
+      <Setter Property="Opacity" Value="0.7" />
+    </Style>
+
+    <Style Selector="ListBox.ChoiceChips ListBoxItem:selected TextBlock">
       <Setter Property="FontWeight" Value="Bold" />
-    </Style>
-
-    <Style Selector="Button.toolbar.pageTab Path.segCheck">
-      <Setter Property="Opacity" Value="0" />
-    </Style>
-
-    <Style Selector="Button.toolbar.pageTab.active Path.segCheck">
-      <Setter Property="Opacity" Value="1" />
     </Style>
   </Window.Styles>
 
@@ -153,56 +183,60 @@
       </StackPanel>
 
       <!--
-        页面切换：原来的 TabControl 已合并到这里（工具栏右侧）。
-        点哪个按钮就切哪页；再点当前页 = 强制重建（R2：整页销毁重建）。
+        页面切换：Material 的 ChoiceChips 单选列表（原来是一排按钮）。
+        点哪个芯片就切哪页；再点当前页 = 强制重建（R2：整页销毁重建，靠 PointerPressed 自己抓）。
         必须标 ElementRole="User"：这块在标题栏区域内，不标的话点击会被系统当"拖动窗口"吃掉。
       -->
-      <!-- 注意：这里**不能**加 BoxShadow —— Avalonia 12.1.5 下带阴影的 Border 会把子元素整个画没 -->
-      <Border Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center"
-              BorderBrush="#4527A0" BorderThickness="1" CornerRadius="7"
-              chrome:WindowDecorationProperties.ElementRole="User">
-      <StackPanel Orientation="Horizontal" Spacing="1" Background="#4527A0">
-        <Button Classes="toolbar pageTab" Name="ProjectMTabButton" Click="OnPageButtonClick"
-                ToolTip.Tip="projectM（再点一次重建当前页）">
+      <ListBox Grid.Column="2" Name="PageTabList" Classes="ChoiceChips"
+               SelectionMode="Single" Focusable="False"
+               HorizontalAlignment="Center" VerticalAlignment="Stretch"
+               chrome:WindowDecorationProperties.ElementRole="User"
+               SelectionChanged="OnPageTabSelectionChanged">
+        <ListBox.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Orientation="Horizontal" Spacing="2" />
+          </ItemsPanelTemplate>
+        </ListBox.ItemsPanel>
+
+        <ListBoxItem ToolTip.Tip="projectM（再点一次重建当前页）">
           <StackPanel Orientation="Horizontal" Spacing="6">
-            <!-- 选中标记：对勾盾牌（参考图里的那个，只有当前页显示） -->
-            <Path Classes="tabIcon segCheck"
-                  Data="M8,1.5 L13.6,3.6 V8.2 C13.6,11.1 11.2,13.6 8,14.6 C4.8,13.6 2.4,11.1 2.4,8.2 V3.6 Z M4.7,7.9 L7.1,10.3 L11.4,5.5"
-                  VerticalAlignment="Center" />
-            <!-- 音频柱（可视化） -->
-            <Path Classes="tabIcon" Data="M2,13 V9 M6,13 V3 M10,13 V7 M14,13 V11" VerticalAlignment="Center" />
+            <Canvas Width="16" Height="16" VerticalAlignment="Center">
+              <!-- 圆角框 + 三根音量柱 -->
+              <Path Classes="tabIcon"
+                    Data="M4.2,2.4 H11.8 A2.6,2.6 0 0 1 14.4,5 V11 A2.6,2.6 0 0 1 11.8,13.6 H4.2 A2.6,2.6 0 0 1 1.6,11 V5 A2.6,2.6 0 0 1 4.2,2.4 Z" />
+              <Path Classes="tabIcon" Data="M5.2,10.4 V8.2 M8,10.4 V5.6 M10.8,10.4 V7" />
+            </Canvas>
             <TextBlock Text="projectM" FontSize="12" VerticalAlignment="Center" />
           </StackPanel>
-        </Button>
+        </ListBoxItem>
 
-        <Button Classes="toolbar pageTab" Name="ShaderToyTabButton" Click="OnPageButtonClick"
-                ToolTip.Tip="ShaderToy（再点一次重建当前页）">
+        <!-- milkx（P12 / D1）：.milkx 脚本预设，播放链与 projectM 页共用 -->
+        <ListBoxItem ToolTip.Tip="milkx（.milkx 脚本预设，再点一次重建当前页）">
           <StackPanel Orientation="Horizontal" Spacing="6">
-            <Path Classes="tabIcon segCheck"
-                  Data="M8,1.5 L13.6,3.6 V8.2 C13.6,11.1 11.2,13.6 8,14.6 C4.8,13.6 2.4,11.1 2.4,8.2 V3.6 Z M4.7,7.9 L7.1,10.3 L11.4,5.5"
-                  VerticalAlignment="Center" />
-            <!-- 代码尖括号（shader 编辑） -->
-            <Path Classes="tabIcon" Data="M6,3 L1,8 L6,13 M10,3 L15,8 L10,13" VerticalAlignment="Center" />
-            <TextBlock Text="ShaderToy" FontSize="12" VerticalAlignment="Center" />
-          </StackPanel>
-        </Button>
-
-        <!-- 第三个页签（P12 / D1）：.milkx 脚本预设，播放链与 projectM 页共用 -->
-        <Button Classes="toolbar pageTab" Name="ScriptTabButton" Click="OnPageButtonClick"
-                ToolTip.Tip="milkx（.milkx 脚本预设，再点一次重建当前页）">
-          <StackPanel Orientation="Horizontal" Spacing="6">
-            <Path Classes="tabIcon segCheck"
-                  Data="M8,1.5 L13.6,3.6 V8.2 C13.6,11.1 11.2,13.6 8,14.6 C4.8,13.6 2.4,11.1 2.4,8.2 V3.6 Z M4.7,7.9 L7.1,10.3 L11.4,5.5"
-                  VerticalAlignment="Center" />
-            <!-- 一滴牛奶（与 projectM 的音频柱、ShaderToy 的尖括号区分开） -->
-            <Path Classes="tabIcon"
-                  Data="M8,2 C8,2 3.5,7 3.5,10 A4.5,4.5 0 0 0 12.5,10 C12.5,7 8,2 8,2 Z"
-                  VerticalAlignment="Center" />
+            <Canvas Width="16" Height="16" VerticalAlignment="Center">
+              <!-- 奶滴 + 内侧高光 + 右上小星芒 -->
+              <Path Classes="tabIcon"
+                    Data="M8,1.6 C8,1.6 3.4,6.7 3.4,9.9 A4.6,4.6 0 0 0 12.6,9.9 C12.6,6.7 8,1.6 8,1.6 Z" />
+              <Path Classes="tabIcon accent" Data="M6.1,9.8 A2,2 0 0 1 8,7.7" />
+              <Path Classes="tabIcon accent" Data="M12.9,2.1 V4.3 M11.8,3.2 H14" />
+            </Canvas>
             <TextBlock Text="milkx" FontSize="12" VerticalAlignment="Center" />
           </StackPanel>
-        </Button>
-      </StackPanel>
-      </Border>
+        </ListBoxItem>
+
+        <ListBoxItem ToolTip.Tip="ShaderToy（再点一次重建当前页）">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <Canvas Width="16" Height="16" VerticalAlignment="Center">
+              <!-- 尖括号 + 中间斜杠 + 右上小星芒 -->
+              <Path Classes="tabIcon" Data="M5.6,4.4 L2,8 L5.6,11.6" />
+              <Path Classes="tabIcon" Data="M10.4,4.4 L14,8 L10.4,11.6" />
+              <Path Classes="tabIcon accent" Data="M9.2,4 L6.8,12" />
+              <Path Classes="tabIcon accent" Data="M13.1,2 V4 M12.1,3 H14.1" />
+            </Canvas>
+            <TextBlock Text="ShaderToy" FontSize="12" VerticalAlignment="Center" />
+          </StackPanel>
+        </ListBoxItem>
+      </ListBox>
 
       <!--
         自绘窗口按钮。必须标 ElementRole="User"：标题栏区域默认是非客户区（点击会被系统吃掉），
