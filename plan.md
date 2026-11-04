@@ -475,13 +475,15 @@ MilkAvalon/
 | P10 | **编辑** | 2d | 🟨 2026-11-04 | `.milk` / `.milkx` 原文编辑：AvaloniaEdit（行号、XSHD 语法高亮、补全、光标下的名字说明、Ctrl+F、Ctrl+Space）+ 参数导航（点参数跳到行）、保存（写盘+重载）/应用（只重载）/还原/打开、Ctrl+S、编码与换行按原文件保持；仅剩 ShaderToy pass 的 HLSL/GLSL 代码编辑与错误列表 |
 | P11 | **抓取** | 1.5d | 🟨 2026-10-27 | 站点抓取已通（内嵌 WebView2 → `POST /shadertoy` → 只写 db + media，`--capture` 自检）；截图存 PNG 已通；剪贴板/录屏未做 |
 | P12 | `.milk` → `.milkx` 脚本预设（详见 `src/MilkDrop.PresetScript/plan.md`、坑点见 `misc.md`） | 5.5d | ✅ 2026-11-04 | M0–M6 全部完成：全量 4520 `.milk` → 4494 `.milkx`（失败 26 个都是原预设坏了）；第三个页签「milkx」可选/能播/能编辑；导入保留相对层级、按 `source_hash` 跳过；编辑器直接改 `.milkx`；坑点与自检命令落在 `misc.md` |
-| P13 | **ShaderToy 作品改用 `.shaderx` 文本**（与 `.milkx` 同族容器；抓取落地写文件、不写 db） | 4d | 🟨 2026-11-04 | M0–M2 已完成（格式见 `src/MilkDrop.ShaderToy/plan.md`；`--export-shaderx` 把 `dist/shadertoy/shadertoy.db` 的 11 个作品导成 `presets/<title> [<id>].shaderx`，二次导出全部跳过）；M3–M6 未开工 |
+| P13 | **ShaderToy 作品改用 `.shaderx` 文本**（与 `.milkx` 同族容器；抓取落地写文件、不写 db） | 4d | 🟨 2026-11-04 | M0–M4 已完成（格式见 `src/MilkDrop.ShaderToy/plan.md`；`--export-shaderx` 把 `dist/shadertoy/shadertoy.db` 的 11 个作品导成 `presets/<title> [<id>].shaderx`，二次导出全部跳过；第 2 页扫 `presets/**/*.shaderx`、空了回 db 并提示导出，拖放/`--drop` 认 `.shaderx`；抓取只写 `<title> [<id>].shaderx` + `media/`，不再写 db）；M5–M6 未开工 |
 | — | **本期合计（P0–P9）** | **约 12.3 人日** | — | 不含搬入（机械）与调试波动 |
 
 ### 变更记录
 
 | 日期 | 事件 |
 |---|---|
+| 2026-11-04 | **P13 M4 完成**：`ShaderToyCaptureStore` 不再写 `shadertoy.db`——抓取落地 = `ShaderPresetExporter.SaveProject` 写 `presets/<title> [<id>].shaderx` + `media/<站点路径>`；覆盖按文件里的 `[meta] id` 认人，站点改了标题会删掉旧名字的文件（`Replaced` 进结果，UI 文案改成"已保存/覆盖旧文件"）。实测 `--capture flGyWc`：产出 `lunchbreak [flGyWc].shaderx` + 1 张图，目录里**没有** db；随后从该目录直接列出并播放（含 sound pass 音频）。`--capture` 自检打印 `file=<路径>` |
+| 2026-11-04 | **P13 M3 完成**：第 2 页清单改为扫 `presets/**/*.shaderx`（`ShaderPresetLibrary` 只读每个文件的 `[meta]` 头几行，坏文件/无 id/重复 id 只警告），目录为空才回 `shadertoy.db` 并提示"建议导出"；列表项统一成 `ShaderToyEntry`（`PresetPath` / `DatabasePath` 二选一）；拖放与 `--drop` 认 `.shaderx`（读文件 → `ShaderPresetMapper.ToProject` → 直接播）。自检：`--tab shadertoy --shot` 从 11 个 `.shaderx` 播放 Rainforest（gl 截图有画面），`--drop "…/Seascape [Ms2SD1].shaderx"` 正常切页播放，`--shadertoy-data testdata` 回退 db 正常 |
 | 2026-11-04 | **P13 M1–M2 完成**：`ShaderPresetDocument/Reader/Writer/Mapper` 往返逐字节稳定（`code_hash` 按"角色 + 文件里那行代码"算，尾部换行不再让哈希漂移）；导出器 `ShaderPresetExporter` + `--export-shaderx [--force]`，文件名 **`<title> [<id>].shaderx`**，按 `[meta] id` 认人、`code_hash` 相同跳过、手改过的文件不覆盖（`--force` 才写）；`[meta]` 多行值（站点 description 常带空行/URL）写出时压成一行。已把 `dist/shadertoy/shadertoy.db` 的 11 个作品实际导出到 `dist/shadertoy/presets/`，二次导出 0 写 11 跳过 |
 | 2026-11-04 | **P13 定稿（ShaderToy 改用 `.shaderx`）**：后缀取 `.shaderx` 而不复用 `.milkx`——后缀是拖放路由/清单过滤/高亮三处的"引擎选择器"（**D12**）。段语法与 `.milkx` 同族，但代码段**保留空行**、段名按整行 `^\[[A-Za-z0-9_.\-]+\]$` 识别（新增 `ShaderPresetDocument`，不动 `.milkx` 既有行为）。`presets/**/*.shaderx` 成为唯一真相，`shadertoy.db` 降级为过渡期只读兜底；**抓取落地改为写 `.shaderx` + 下载 media，不再写 db**（用户要求）。M0 完成，M1–M6 预计 4 天，详见 `src/MilkDrop.ShaderToy/plan.md` |
 | 2026-11-04 | **编辑器升级（P10 收尾第一步 / D7）**：`EditorPanel` 的原文 `TextBox` 换成 **AvaloniaEdit 12.0.0**——行号、按后缀切 XSHD 高亮（`Editor/Milk.xshd` / `MilkX.xshd`，随程序集打包）、敲字母自动补全（函数/ABI 变量/`.milk` 参数/`.milkx` 段名 + 本文档已有的键，`Ctrl+Space` 全量）、光标停在某个名字上时底栏给一行说明、`Ctrl+F` 查找条。函数表直接取 `IntrinsicFunctions.CreateTable()`，不手抄。坑点：Material 主题缺 AvaloniaEdit Simple 主题要的 Fluent 资源键，需在 `App.axaml` 补齐（见 `misc.md` §7.9） |

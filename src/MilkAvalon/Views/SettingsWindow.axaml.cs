@@ -66,7 +66,7 @@ public partial class SettingsWindow : Window
         => await PickFolderAsync(ProjectMRootBox, "选择 projectM 数据根（含 presets/ 的目录）");
 
     private async void OnBrowseShaderToyClick(object? sender, RoutedEventArgs e)
-        => await PickFolderAsync(ShaderToyRootBox, "选择 ShaderToy 数据根（含 shadertoy.db 的目录）");
+        => await PickFolderAsync(ShaderToyRootBox, "选择 ShaderToy 数据根（含 presets/*.shaderx 或 shadertoy.db 的目录）");
 
     private async void OnBrowseMilkxClick(object? sender, RoutedEventArgs e)
         => await PickFolderAsync(MilkxRootBox, "选择脚本预设目录（放 .milkx 的目录）");

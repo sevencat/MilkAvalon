@@ -102,7 +102,7 @@ public partial class App : Application
                 Console.WriteLine(
                     $"[capture] 自检成功：{result.ShaderId}「{result.Name}」pass={result.PassCount} "
                     + $"media 新下载={result.MediaSaved} 失败={result.MediaFailed} 覆盖={result.Replaced}");
-                Console.WriteLine("[capture] db=" + Path.Combine(options.EffectiveShaderToyRoot, "shadertoy.db"));
+                Console.WriteLine("[capture] file=" + result.PresetPath);
                 Console.WriteLine($"[capture] 工程可播：{project.Passes.Count} 个 pass，原文 {project.RawJson.Length} 字节");
             }
             catch (Exception ex)

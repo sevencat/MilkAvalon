@@ -1,12 +1,12 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="using:MilkAvalon.Controls"
-             xmlns:st="using:MilkDrop.ShaderToy.Import"
+             xmlns:svc="using:MilkAvalon.Services"
              x:Class="MilkAvalon.Views.ShaderToyPage">
 
   <Grid Name="RootGrid" ColumnDefinitions="300,*">
 
-    <!-- 左栏：作品库（全部来自 shadertoy.db） -->
+    <!-- 左栏：作品库（presets/*.shaderx 优先，目录为空才回 shadertoy.db） -->
     <Border Grid.Column="0" Name="LibraryPanel" Background="{DynamicResource MaterialPaperBrush}" BorderBrush="{DynamicResource MaterialDividerBrush}" BorderThickness="0,0,1,0">
       <DockPanel>
         <TextBox Name="SearchBox"
@@ -32,13 +32,13 @@
                    FontSize="11"
                    Opacity="0.6"
                    TextWrapping="Wrap"
-                   Text="正在读取 shadertoy.db…" />
+                   Text="正在读取作品库…" />
 
         <ListBox Name="ShaderList"
                  Margin="4,0"
                  SelectionChanged="OnShaderSelected">
           <ListBox.ItemTemplate>
-            <DataTemplate x:DataType="st:ShaderLibraryEntry">
+            <DataTemplate x:DataType="svc:ShaderToyEntry">
               <StackPanel>
                 <TextBlock Text="{Binding DisplayName}"
                            ToolTip.Tip="{Binding Id}"

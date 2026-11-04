@@ -88,6 +88,53 @@ public sealed class ShaderPresetExporterTests : IDisposable
     }
 
     [Fact]
+    public void SaveProject_Writes_Preset_And_Replaces_On_Rename()
+    {
+        ShaderToyProject project = CreateProject("abc123", "Hello");
+
+        ShaderPresetSaveResult first = ShaderPresetExporter.SaveProject(_root, project);
+
+        Assert.False(first.Replaced);
+        Assert.Equal(Path.Combine(_root, "presets", "Hello [abc123].shaderx"), first.FilePath);
+        Assert.True(File.Exists(first.FilePath));
+
+        ShaderPresetSaveResult second = ShaderPresetExporter.SaveProject(_root, project);
+
+        Assert.True(second.Replaced);
+        Assert.Equal(first.FilePath, second.FilePath);
+
+        // 站点上改了标题：写新名字，旧文件删掉（按 [meta] id 认人）
+        project.Metadata.Name = "Hello Again";
+        ShaderPresetSaveResult renamed = ShaderPresetExporter.SaveProject(_root, project);
+
+        Assert.True(renamed.Replaced);
+        Assert.Equal(Path.Combine(_root, "presets", "Hello Again [abc123].shaderx"), renamed.FilePath);
+        Assert.False(File.Exists(first.FilePath));
+        Assert.True(File.Exists(renamed.FilePath));
+    }
+
+    [Fact]
+    public void SaveProject_Writes_Extra_Meta()
+    {
+        ShaderToyProject project = CreateProject("abc123", "Hello");
+
+        ShaderPresetSaveResult result = ShaderPresetExporter.SaveProject(
+            _root,
+            project,
+            new Dictionary<string, string>
+            {
+                ["captured"] = "2026-11-04T12:00:00+08:00",
+                ["source_url"] = ShaderPresetExporter.SourceUrlPrefix + "abc123",
+            });
+
+        ShaderPresetDocument document = ShaderPresetReader.ReadFile(result.FilePath);
+
+        Assert.Equal("2026-11-04T12:00:00+08:00", document.Find("captured"));
+        Assert.Equal("https://www.shadertoy.com/view/abc123", document.Find("source_url"));
+        Assert.NotNull(document.FindPass("image"));
+    }
+
+    [Fact]
     public void Missing_Database_Is_Reported_Not_Thrown()
     {
         ShaderPresetExportResult result = ShaderPresetExporter.Export(_root);
@@ -95,6 +142,23 @@ public sealed class ShaderPresetExporterTests : IDisposable
         Assert.Equal(0, result.Written);
         Assert.True(result.Failed > 0);
         Assert.NotEmpty(result.Failures);
+    }
+
+    /// <summary>造一个最小工程（1 个 image pass），用于测 <c>SaveProject</c>。</summary>
+    private static ShaderToyProject CreateProject(string id, string title)
+    {
+        var project = new ShaderToyProject();
+        project.Metadata.Id = id;
+        project.Metadata.Name = title;
+        project.Metadata.Author = "me";
+        project.Passes.Add(new ShaderPass
+        {
+            Type = ShaderPassType.Image,
+            Name = "Image",
+            Code = "void mainImage(out vec4 o, in vec2 f) { o = vec4(1.0); }",
+        });
+
+        return project;
     }
 
     /// <summary>造一个只有表数据、没有 <c>RawJson</c> 的库（走"按表重建"那条路径）。</summary>

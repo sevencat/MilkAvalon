@@ -4,29 +4,28 @@ using Avalonia.Threading;
 using MilkAvalon.Controls;
 using MilkAvalon.Rendering;
 using MilkAvalon.Services;
-using MilkDrop.ShaderToy.Import;
 using MilkDrop.ShaderToy.Pass;
 using MilkDrop.ShaderToy.Renderer;
 
 namespace MilkAvalon.Views;
 
 /// <summary>
-/// ShaderToy 页面：左边作品库（<c>shadertoy.db</c>）、右边 GL 画面。
+/// ShaderToy 页面：左边作品库（<c>presets/*.shaderx</c>，空了回 <c>shadertoy.db</c>）、右边 GL 画面。
 /// </summary>
 /// <remarks>
 /// <para>
-/// 数据源只有一条：数据根下的 <c>shadertoy.db</c>（列表）+ <c>media/</c>（图片）。
-/// **不扫描 <c>shaders/&lt;id&gt;/</c>** —— 用户明确要求（plan.md §6.2 / D8）。
+/// 数据源：数据根下的 <c>presets/**/*.shaderx</c> 优先，目录为空才回 <c>shadertoy.db</c>（P13 D13-3）；
+/// 图片统一在 <c>media/</c> 下找。**不扫描 <c>shaders/&lt;id&gt;/</c>**（plan.md §6.2 / D8）。
 /// </para>
 /// <para>
-/// 作品是"打开时才从库里读"（<see cref="ShaderToyLibrary.TryLoad"/>，几十 KB 的 JSON），
+/// 作品是"打开时才读"（<see cref="ShaderToyLibrary.TryLoad"/>，几十 KB 的文本或 JSON），
 /// 放在后台线程；拿到 <see cref="MilkDrop.ShaderToy.Pass.ShaderToyProject"/> 后再交给 GL 线程建管线。
 /// </para>
 /// </remarks>
 public partial class ShaderToyPage : UserControl
 {
     private ShaderToyLibrary? _library;
-    private List<ShaderLibraryEntry> _visible = [];
+    private List<ShaderToyEntry> _visible = [];
     private bool _suppressSelection;
     private bool _detached;
     private bool _scanned;
@@ -131,7 +130,8 @@ public partial class ShaderToyPage : UserControl
                     _library = task.Result;
                     ShaderToyView.TextureSearchPaths = _library.TextureSearchPaths;
 
-                    Console.WriteLine($"[shadertoy] 作品库扫描完成：{_library.Entries.Count} 个（{root}）");
+                    Console.WriteLine(
+                        $"[shadertoy] 作品库扫描完成：{_library.Entries.Count} 个（{_library.SourceDescription}，{root}）");
 
                     ApplyFilter(SearchBox.Text);
                     _scanned = true;
@@ -139,7 +139,7 @@ public partial class ShaderToyPage : UserControl
                     string warning = _library.Warnings.Count > 0
                         ? Environment.NewLine + string.Join(Environment.NewLine, _library.Warnings)
                         : string.Empty;
-                    LibraryText.Text = $"{_library.Entries.Count} 个作品（shadertoy.db）{warning}";
+                    LibraryText.Text = $"{_library.Entries.Count} 个作品（{_library.SourceDescription}）{warning}";
 
                     if (_pendingProject is { } dropped)
                     {
@@ -153,8 +153,8 @@ public partial class ShaderToyPage : UserControl
                     if (_visible.Count == 0)
                     {
                         InfoShader.Text = "作品库是空的。";
-                        InfoWarning.Text = $"数据根下没有 shadertoy.db（当前：{root}）。"
-                            + "把 db 与 media/ 放到 exe 旁的 shadertoy\\，或用 --shadertoy-data 指定目录。";
+                        InfoWarning.Text = $"数据根下既没有 presets/*.shaderx 也没有 shadertoy.db（当前：{root}）。"
+                            + "把 .shaderx（或 db + media/）放到 exe 旁的 shadertoy\\，或用 --shadertoy-data 指定目录。";
                         return;
                     }
 
@@ -274,7 +274,7 @@ public partial class ShaderToyPage : UserControl
             return;
         }
 
-        ShaderLibraryEntry entry = _visible[index];
+        ShaderToyEntry entry = _visible[index];
         InfoShader.Text = $"作品 : {entry.DisplayName}（读取中…）";
 
         // 切页现场带来的时间只对"第一件作品"生效，之后换作品一律从头播

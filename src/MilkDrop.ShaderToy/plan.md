@@ -100,8 +100,8 @@ code_hash = 3f7c1d2a9b6e4058      ; pass 代码拼接后的 sha256 前 16 位（
 | **M0** | 定稿：后缀、段结构、目录、与 db 的关系（本文 §0–§2） | 本文 | 0.5d | ✅ 2026-11-04 |
 | **M1** | `ShaderPresetDocument` 读写：`.shaderx` ⇄ `ShaderToyProject`（passes / inputs / outputs / buffer 策略 / meta） | 往返单测（写→读→写逐字节一致） | 0.5d | ✅ 2026-11-04 |
 | **M2** | 导出器：`shadertoy.db` → `presets/<title> [<id>].shaderx`（`ShaderPresetWriter.FileNameFor`），带 `code_hash` 跳过与 `--force` | `--export-shaderx` 自检参数 | 0.5d | ✅ 2026-11-04 |
-| **M3** | 播放接入：清单优先扫 `presets/*.shaderx`，没有才回 db；拖放/`--drop` 认 `.shaderx`；第 2 页左栏显示标题 | 能列、能播 | 1d | ⬜ |
-| **M4** | 抓取改文件落地：WebView2 → 作品 JSON → 写 `.shaderx` + 下载 media；**不写 db** | 「抓取站点作品…」产出 `.shaderx` | 1d | ⬜ |
+| **M3** | 播放接入：清单优先扫 `presets/*.shaderx`，没有才回 db；拖放/`--drop` 认 `.shaderx`；第 2 页左栏显示标题 | 能列、能播 | 1d | ✅ 2026-11-04 |
+| **M4** | 抓取改文件落地：WebView2 → 作品 JSON → 写 `.shaderx` + 下载 media；**不写 db** | 「抓取站点作品…」产出 `.shaderx` | 1d | ✅ 2026-11-04 |
 | **M5** | 编辑器：`ShaderToy.xshd`（段名 / GLSL 关键字 / 数字 / 注释）+ 词表（GLSL 内建函数、通道字段）+ 保存后重编译 | 右侧面板能改 `.shaderx` | 0.5d | ⬜ |
 | **M6** | 收尾：`misc.md` 记坑、上级 `plan.md` 更新进度 | 文档 | 0.5d | ⬜ |
 

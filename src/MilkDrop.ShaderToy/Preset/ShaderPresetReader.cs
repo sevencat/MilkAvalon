@@ -140,22 +140,40 @@ public static class ShaderPresetReader
 
     private static void TryAddMeta(ShaderPresetDocument document, string line)
     {
+        if (TryParseMetaLine(line, out string key, out string value))
+        {
+            document.Meta[key] = value;
+        }
+    }
+
+    /// <summary>
+    /// 解析 <c>[meta]</c> 里的一行 <c>key = value</c>（注释/空行返回 false）。
+    /// </summary>
+    /// <remarks>
+    /// 公开出来给"列表只读头几行"的扫描器复用（<see cref="ShaderPresetLibrary"/>），
+    /// 行尾注释与空行的规则只维护这一份。
+    /// </remarks>
+    public static bool TryParseMetaLine(string line, out string key, out string value)
+    {
+        key = string.Empty;
+        value = string.Empty;
+
         string trimmed = line.Trim();
 
         if (trimmed.Length == 0 || trimmed.StartsWith(';') || trimmed.StartsWith("//", StringComparison.Ordinal))
         {
-            return;
+            return false;
         }
 
         int equals = trimmed.IndexOf('=');
 
         if (equals <= 0)
         {
-            return;
+            return false;
         }
 
-        string key = trimmed[..equals].Trim();
-        string value = trimmed[(equals + 1)..].Trim();
+        key = trimmed[..equals].Trim();
+        value = trimmed[(equals + 1)..].Trim();
 
         // 行尾注释只在 " ; " 之后（避免吃掉 URL 里的分号/空格组合）
         int comment = value.IndexOf(" ;", StringComparison.Ordinal);
@@ -165,10 +183,7 @@ public static class ShaderPresetReader
             value = value[..comment].TrimEnd();
         }
 
-        if (key.Length > 0)
-        {
-            document.Meta[key] = value;
-        }
+        return key.Length > 0;
     }
 
     private static void TryAddInput(ShaderPresetPass pass, string line, ShaderPresetDocument document)

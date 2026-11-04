@@ -32,7 +32,7 @@
       <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="8">
         <TextBlock Text="ID / 链接" VerticalAlignment="Center" FontSize="12" Opacity="0.7" />
         <TextBox Grid.Column="1" Name="IdBox"
-                 Watermark="flGyWc 或 https://www.shadertoy.com/view/flGyWc"
+                 PlaceholderText="flGyWc 或 https://www.shadertoy.com/view/flGyWc"
                  KeyDown="OnIdKeyDown" />
         <Button Grid.Column="2" Classes="toolbar" Content="打开" Click="OnOpenClick" MinWidth="72" />
 
@@ -41,7 +41,7 @@
                 Click="OnGrabCurrentClick" IsEnabled="False" MinWidth="118"
                 ToolTip.Tip="当前页面是 shadertoy.com/view/&lt;id&gt; 时可用，ID 自动取自地址栏" />
 
-        <Button Grid.Column="4" Classes="toolbar" Name="GrabButton" Content="抓取并入库"
+        <Button Grid.Column="4" Classes="toolbar" Name="GrabButton" Content="抓取并保存"
                 Click="OnGrabClick" MinWidth="110" />
       </Grid>
     </Border>

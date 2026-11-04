@@ -16,8 +16,8 @@ namespace MilkAvalon.Controls;
 /// 由渲染线程在帧首执行（plan.md §6.4）。
 /// </para>
 /// <para>
-/// 作品数据来自 <c>shadertoy.db</c>（<see cref="ShaderToyLibrary"/>），**不扫 <c>shaders/</c> 目录**；
-/// 图片在 <c>&lt;数据根&gt;/media</c> 下找。
+/// 作品数据来自 <c>presets/*.shaderx</c>（空了回 <c>shadertoy.db</c>，见 <see cref="ShaderToyLibrary"/>），
+/// **不扫 <c>shaders/</c> 目录**；图片在 <c>&lt;数据根&gt;/media</c> 下找。
 /// </para>
 /// </remarks>
 public sealed class ShaderToyControl : GlControlBase

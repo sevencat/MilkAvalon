@@ -9,6 +9,8 @@ using MilkAvalon.Rendering;
 using MilkAvalon.Services;
 using MilkDrop.Rendering.Gles3;
 using MilkDrop.ShaderToy.Import;
+using MilkDrop.ShaderToy.Pass;
+using MilkDrop.ShaderToy.Preset;
 
 namespace MilkAvalon.Views;
 
@@ -432,7 +434,8 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// 按扩展名加载一个本地文件：<c>.milk</c> → projectM 页；<c>.milkx</c> → 脚本页；<c>.json</c> → 当作 ShaderToy 工程。
+    /// 按扩展名加载一个本地文件：<c>.milk</c> → projectM 页；<c>.milkx</c> → 脚本页；
+    /// <c>.shaderx</c> → ShaderToy 页（文本工程）；<c>.json</c> → 当作 ShaderToy 工程（旧格式）。
     /// </summary>
     /// <remarks>拖放和 <c>--drop</c> 自检共用这一条路径。</remarks>
     public bool TryLoadFile(string path)
@@ -454,6 +457,16 @@ public partial class MainWindow : Window
                 ShowPage(2, force: false);
                 _scriptPage?.PlayPreset(path);
                 StatusText.Text = "已加载脚本 " + Path.GetFileName(path);
+                return true;
+            }
+
+            if (extension == ".shaderx")
+            {
+                // P13：作品 = 文本。读文件 → 内存工程 → 直接播（左侧列表下次重建时也会带上它）
+                ShaderToyProject project = ShaderPresetMapper.ToProject(ShaderPresetReader.ReadFile(path));
+                ShowPage(1, force: false);
+                _shaderToyPage?.PlayProject(project);
+                StatusText.Text = "已加载 " + Path.GetFileName(path);
                 return true;
             }
 
@@ -489,7 +502,7 @@ public partial class MainWindow : Window
         {
             string extension = Path.GetExtension(item.TryGetLocalPath() ?? string.Empty).ToLowerInvariant();
 
-            if (extension is ".milk" or ".milkx" or ".json")
+            if (extension is ".milk" or ".milkx" or ".shaderx" or ".json")
             {
                 return true;
             }
@@ -605,7 +618,7 @@ public partial class MainWindow : Window
             folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
             {
                 Title = shaderToy
-                    ? "选择 ShaderToy 数据根（含 shadertoy.db 的目录）"
+                    ? "选择 ShaderToy 数据根（含 presets/*.shaderx 或 shadertoy.db 的目录）"
                     : script
                         ? "选择脚本预设目录（放 .milkx 的目录）"
                         : "选择 projectM 数据根（含 presets/ 的目录）",
@@ -799,15 +812,15 @@ public partial class MainWindow : Window
         return window;
     }
 
-    /// <summary>抓到并入库后：切到 ShaderToy 页，直接播这个工程（列表下次重建时会带上新条目）。</summary>
+    /// <summary>抓到并写盘后：切到 ShaderToy 页，直接播这个工程（列表重建时会带上新条目）。</summary>
     private void OnShaderCaptured(MilkAvalon.Services.Capture.ShaderToyCaptureResult result, MilkDrop.ShaderToy.Pass.ShaderToyProject project)
     {
-        StatusText.Text = $"已入库 {result.ShaderId}「{result.Name}」";
+        StatusText.Text = $"已保存 {result.ShaderId}「{result.Name}」";
 
         ShowPage(1, force: true);
         _shaderToyPage?.PlayProject(project);
 
-        Console.WriteLine($"[capture] 入库后直接播放：{result.ShaderId}");
+        Console.WriteLine($"[capture] 写盘后直接播放：{result.ShaderId}（{Path.GetFileName(result.PresetPath)}）");
     }
 
     /// <summary>数据根缺失/为空时，在画面中央显示提示（P7 兜底 UI）。</summary>
@@ -826,7 +839,7 @@ public partial class MainWindow : Window
 
         EmptyStateText.Text = IsShaderToyTab
             ? $"当前数据根：{_options.EffectiveShaderToyRoot}\n"
-              + "这里需要有 shadertoy.db 和 media/（media/media/a/<hash>.png）。\n"
+              + "这里需要有 presets/*.shaderx（或 shadertoy.db）和 media/（media/media/a/<hash>.png）。\n"
               + "用下面的按钮换个目录，或用 --shadertoy-data 指定。"
             : IsScriptTab
                 ? $"当前脚本目录：{_options.EffectiveMilkxDirectory}\n"

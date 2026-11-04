@@ -15,13 +15,13 @@ namespace MilkAvalon.Views;
 
 /// <summary>
 /// 抓取窗口：内嵌 WebView2 打开 shadertoy，注入一次 <c>POST /shadertoy</c> 拿工程 JSON，
-/// 然后**只写 <c>shadertoy.db</c> + <c>media/</c>**（不落 <c>shaders/</c> 目录）。
+/// 然后**只写 <c>presets/&lt;title&gt; [&lt;id&gt;].shaderx</c> + <c>media/</c>**（P13 D13-4，不碰数据库）。
 /// </summary>
 /// <remarks>
 /// <para>
 /// 参考 <c>F:\code\ShaderToySnap</c> 的做法，但换掉两处：
 /// ① 控件用官方的 <see cref="Avalonia.Controls.NativeWebView"/>（MIT / AOT 友好 / Avalonia 12 兼容）；
-/// ② 数据只进库与 media，不再把 pass 代码摊成文件（本仓库数据源只有 db + media，plan.md D8）。
+/// ② 数据落成一个文本文件 + media（作品 = 文本，plan.md P13），不再写 db、也不摊 <c>shaders/</c> 目录。
 /// </para>
 /// <para>
 /// 拿 JSON 的链路：页内 <c>fetch</c> → <c>window.chrome.webview.postMessage(前缀 + 正文)</c> →
@@ -98,11 +98,11 @@ public partial class CaptureWindow : Window
         Opened += (_, _) => _locationTimer.Start();
         Closed += (_, _) => _locationTimer.Stop();
 
-        SetStatus($"数据根：{_store.Root}（只写 shadertoy.db 与 media/）");
+        SetStatus($"数据根：{_store.Root}（只写 presets/*.shaderx 与 media/）");
         Web.Navigate(new Uri(HomeUrl));
     }
 
-    /// <summary>抓取成功（已入库）时触发：主窗口据此切到 ShaderToy 页并直接播放。</summary>
+    /// <summary>抓取成功（已落盘）时触发：主窗口据此切到 ShaderToy 页并直接播放。</summary>
     public event Action<ShaderToyCaptureResult, ShaderToyProject>? Captured;
 
     /// <summary>站点首页。</summary>
@@ -114,7 +114,7 @@ public partial class CaptureWindow : Window
         "WebView2");
 
     /// <summary>
-    /// 抓取一个作品并入库。可被工具栏按钮或 <c>--capture</c> 自检直接调用。
+    /// 抓取一个作品并写成 <c>.shaderx</c>。可被工具栏按钮或 <c>--capture</c> 自检直接调用。
     /// </summary>
     /// <param name="idOrUrl">作品短 ID 或 <c>https://www.shadertoy.com/view/&lt;id&gt;</c>。</param>
     /// <returns>抓取结果；失败抛异常（消息可直接显示给用户）。</returns>
@@ -137,7 +137,7 @@ public partial class CaptureWindow : Window
 
         if (title is null)
         {
-            throw new TimeoutException("站点一直停在人机验证页：请在这个窗口里手动完成验证后再点「抓取并入库」。");
+            throw new TimeoutException("站点一直停在人机验证页：请在这个窗口里手动完成验证后再点「抓取并保存」。");
         }
 
         SetStatus($"页面已就绪（{title}），正在请求工程 JSON…");
@@ -159,9 +159,10 @@ public partial class CaptureWindow : Window
         var progress = new Progress<string>(SetStatus);
         ShaderToyCaptureResult result = await _store.SaveAsync(project, media, cookieHeader, progress, cancellationToken);
 
-        string summary = $"已入库 {result.ShaderId}「{result.Name}」：{result.PassCount} 个 pass，"
+        string summary = $"已保存 {result.ShaderId}「{result.Name}」：{result.PassCount} 个 pass，"
             + $"图片 新下载 {result.MediaSaved} / 失败 {result.MediaFailed}"
-            + (result.Replaced ? "（覆盖旧记录）" : string.Empty);
+            + (result.Replaced ? "（覆盖旧文件）" : string.Empty)
+            + $" → {Path.GetFileName(result.PresetPath)}";
 
         Console.WriteLine("[capture] " + summary);
         SetStatus(summary);
@@ -321,7 +322,7 @@ public partial class CaptureWindow : Window
 
         if (!ReferenceEquals(completed, pending.Task))
         {
-            Console.WriteLine("[capture] 图片下载超时，按已收到的部分入库");
+            Console.WriteLine("[capture] 图片下载超时，按已收到的部分落盘");
         }
 
         foreach ((int index, string?[] parts) in _mediaChunks)
@@ -523,7 +524,7 @@ public partial class CaptureWindow : Window
             return;
         }
 
-        SetStatus(e.IsSuccess ? "页面已加载。粘贴 ID 后点「抓取并入库」。" : "页面加载失败，可重试或换网络。");
+        SetStatus(e.IsSuccess ? "页面已加载。粘贴 ID 后点「抓取并保存」。" : "页面加载失败，可重试或换网络。");
 
         // 导航一结束就刷新一次，不用等定时器那一拍
         _ = RefreshCurrentPageAsync();
@@ -557,7 +558,7 @@ public partial class CaptureWindow : Window
         SetStatus("正在打开 " + id + " …");
     }
 
-    /// <summary>「抓取并入库」：用输入框里的 ID / 链接。</summary>
+    /// <summary>「抓取并保存」：用输入框里的 ID / 链接。</summary>
     private async void OnGrabClick(object? sender, RoutedEventArgs e) =>
         await GrabAsync(IdBox.Text ?? string.Empty);
 
@@ -580,7 +581,7 @@ public partial class CaptureWindow : Window
         await GrabAsync(_currentPageId);
     }
 
-    /// <summary>抓取 + 入库 + 通知主窗口（统一处理 busy 状态，两个按钮共用）。</summary>
+    /// <summary>抓取 + 落盘 + 通知主窗口（统一处理 busy 状态，两个按钮共用）。</summary>
     private async Task GrabAsync(string idOrUrl)
     {
         if (_busy)
