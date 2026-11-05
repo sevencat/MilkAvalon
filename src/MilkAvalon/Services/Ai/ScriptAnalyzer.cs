@@ -24,7 +24,7 @@ namespace MilkAvalon.Services.Ai;
 internal static class ScriptAnalyzer
 {
     /// <summary>缺省用户提示词。</summary>
-    public const string DefaultUserPrompt = "帮我分析下这个脚本。";
+    public const string DefaultUserPrompt = "帮我逐行分析下这个脚本。";
 
     /// <summary>ShaderToy 作品的系统提示词。</summary>
     public const string ShaderToySystemPrompt = "这是一个 shadertoy 的脚本（GLSL，入口 mainImage）。";
