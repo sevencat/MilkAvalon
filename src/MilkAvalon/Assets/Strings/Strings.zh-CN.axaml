@@ -83,10 +83,6 @@
 
   <!-- 编辑面板：标题栏 / 工具条 -->
   <x:String x:Key="editor.title">预设编辑</x:String>
-  <x:String x:Key="editor.popOut">弹出</x:String>
-  <x:String x:Key="editor.dockBack">收回</x:String>
-  <x:String x:Key="editor.popOut.tip">放进独立窗口，可以随便拉大（再点一次收回右侧）</x:String>
-  <x:String x:Key="editor.popOut.tip.popped">贴回窗口右侧</x:String>
   <x:String x:Key="editor.close">关闭</x:String>
   <x:String x:Key="editor.save">保存</x:String>
   <x:String x:Key="editor.save.tip">写回 .milk 并重载引擎（Ctrl+S）</x:String>
@@ -96,9 +92,10 @@
   <x:String x:Key="editor.revert.tip">丢弃未保存的改动，重新从磁盘读取</x:String>
   <x:String x:Key="editor.open">打开…</x:String>
   <x:String x:Key="editor.open.tip">编辑另一个 .milk 文件</x:String>
-  <x:String x:Key="editor.ai">AI 分析</x:String>
-  <x:String x:Key="editor.ai.tip">把当前脚本交给 AI 分析（结果显示在独立窗口）</x:String>
-  <x:String x:Key="editor.filterParams">过滤参数</x:String>
+  <x:String x:Key="editor.outline">大纲</x:String>
+  <x:String x:Key="editor.filterOutline">过滤段 / 变量 / 函数</x:String>
+  <x:String x:Key="editor.outline.summary">{0} 段 · {1} 变量 · {2} 函数</x:String>
+  <x:String x:Key="editor.outline.params">{0} 个参数</x:String>
 
   <!-- 编辑面板：C# 侧状态与校验 -->
   <x:String x:Key="editor.target.empty">还没有可编辑的内容：先播一个预设（.milk / .milkx），或在 ShaderToy 页选一个作品</x:String>
@@ -123,9 +120,6 @@
   <x:String x:Key="editor.savedAppliedSuffix">，并已让引擎重载</x:String>
   <x:String x:Key="editor.appliedShaderx">已把当前文本重新编译（未写盘；Ctrl+S 才保存）</x:String>
   <x:String x:Key="editor.applied">已把当前文本应用到引擎（未写盘；Ctrl+S 才保存）</x:String>
-  <x:String x:Key="editor.paramCount">{0} 个参数</x:String>
-  <x:String x:Key="editor.noAnalysisTarget">还没有可分析的脚本：先打开一个 .milk / .milkx / .shaderx</x:String>
-  <x:String x:Key="editor.emptyScript">脚本是空的，没什么可分析的</x:String>
   <x:String x:Key="editor.discardWarning">注意：{0} 的未保存改动被丢弃</x:String>
   <x:String x:Key="editor.openFile.title">打开 .milk / .milkx / .shaderx</x:String>
   <x:String x:Key="editor.pick.all">全部支持的格式</x:String>
@@ -200,7 +194,6 @@
   <x:String x:Key="ui.status.loadFailed">加载失败：{0}</x:String>
   <x:String x:Key="ui.status.appliedEdit">已应用编辑：{0}</x:String>
   <x:String x:Key="ui.editor.noReloadable">当前页没有可重载的预设，改动没法应用</x:String>
-  <x:String x:Key="ui.status.aiAnalyzing">AI 分析：{0}</x:String>
   <x:String x:Key="ui.status.settingsNotSaved">设置没能写入磁盘（只对本次运行生效）</x:String>
   <x:String x:Key="ui.status.pickFolderFailed">选择目录失败：{0}</x:String>
   <x:String x:Key="ui.status.cliRootOverrides">注意：命令行给了数据根，设置里的值会被它盖住</x:String>

@@ -24,6 +24,9 @@ public partial class AiChatPanel : UserControl
     private static readonly IBrush NormalBrush = new SolidColorBrush(Color.Parse("#B4B4B4"));
     private static readonly IBrush ErrorBrush = new SolidColorBrush(Color.Parse("#FF8A65"));
 
+    /// <summary>接口设置（宿主塞进来的）：点「分析」时现取 Key / 模型，改完设置重开窗口就生效。</summary>
+    public AppSettings? Settings { get; set; }
+
     private string _scriptText = string.Empty;
     private string _language = "text";
     private string _systemPrompt = string.Empty;
@@ -69,7 +72,13 @@ public partial class AiChatPanel : UserControl
         => _sourcePath is null ? null : Path.ChangeExtension(_sourcePath, ".ai.md");
 
     /// <summary>
-    /// 换分析对象：编辑器切文件 / 点「AI 分析」时调用。
+    /// 脚本来源：由宿主（编辑器窗口）挂上，点「分析」时现取——这样分析的一定是编辑器里
+    /// <b>当前</b>的文本（含未保存的改动），不必再靠左侧那个「AI 分析」按钮推一次。
+    /// </summary>
+    public Func<(string? Path, string Text)>? ScriptProvider { get; set; }
+
+    /// <summary>
+    /// 换分析对象：编辑器切文件 / <c>--ai</c> 自检时调用。
     /// </summary>
     /// <param name="path">脚本文件路径（决定代码块语言与结果保存位置；可为 null）。</param>
     /// <param name="scriptText">要分析的脚本原文。</param>
@@ -81,13 +90,7 @@ public partial class AiChatPanel : UserControl
         // 正在跑就先把上一轮掐掉，免得两轮输出糊在一起
         Cancel();
 
-        _scriptText = scriptText ?? string.Empty;
-        _language = LanguageFor(path);
-        _systemPrompt = ScriptAnalyzer.SystemPromptFor(path);
-        _baseUrl = ScriptAnalyzer.ResolveBaseUrl(settings.AiBaseUrl);
-        _apiKey = ScriptAnalyzer.ResolveApiKey(settings.DeepSeekApiKey);
-        _model = ScriptAnalyzer.ResolveModel(settings.DeepSeekModel);
-        _sourcePath = string.IsNullOrWhiteSpace(path) ? null : SafeFullPath(path);
+        ApplyTarget(path, scriptText, settings);
 
         _markdown = string.Empty;
         _received = 0;
@@ -108,6 +111,49 @@ public partial class AiChatPanel : UserControl
 
         // 先显示上次的分析（同目录的 <文件名>.ai.md）
         LoadSavedAnalysis();
+    }
+
+    /// <summary>点「分析」时从 <see cref="ScriptProvider"/> 现取一次（换文件、改了没保存都能跟上）。</summary>
+    private void RefreshTargetFromProvider()
+    {
+        if (ScriptProvider is not { } provider)
+        {
+            return;
+        }
+
+        (string? path, string text) = provider();
+
+        // 切了文件才重置结果区（同一份脚本只是又改了几行，别把上次的分析清掉）
+        bool sameFile = string.Equals(
+            string.IsNullOrWhiteSpace(path) ? null : SafeFullPath(path),
+            _sourcePath,
+            StringComparison.OrdinalIgnoreCase);
+
+        ApplyTarget(path, text, Settings ?? new AppSettings());
+
+        Console.WriteLine(
+            $"[ai] 取当前脚本：{Path.GetFileName(_sourcePath ?? "—")}，{_scriptText.Length} 字符，"
+            + $"key {(_apiKey is null ? "缺失" : "已配置")}");
+
+        if (!sameFile)
+        {
+            _markdown = string.Empty;
+            Viewer.Markdown = string.Empty;
+            LoadSavedAnalysis();
+        }
+    }
+
+    /// <summary>把"分析谁 + 用哪个接口"这组状态落下来（不动界面上的结果区）。</summary>
+    private void ApplyTarget(string? path, string scriptText, AppSettings settings)
+    {
+        Settings = settings;
+        _scriptText = scriptText ?? string.Empty;
+        _language = LanguageFor(path);
+        _systemPrompt = ScriptAnalyzer.SystemPromptFor(path);
+        _baseUrl = ScriptAnalyzer.ResolveBaseUrl(settings.AiBaseUrl);
+        _apiKey = ScriptAnalyzer.ResolveApiKey(settings.DeepSeekApiKey);
+        _model = ScriptAnalyzer.ResolveModel(settings.DeepSeekModel);
+        _sourcePath = string.IsNullOrWhiteSpace(path) ? null : SafeFullPath(path);
     }
 
     /// <summary>这一轮是否还在跑（<c>--ai</c> 自检靠它判断什么时候收工）。</summary>
@@ -239,6 +285,9 @@ public partial class AiChatPanel : UserControl
         {
             return;
         }
+
+        // 分析对象以编辑器里的"此刻"为准（左侧没有「AI 分析」按钮了，全靠这里现取）
+        RefreshTargetFromProvider();
 
         if (_apiKey is null)
         {

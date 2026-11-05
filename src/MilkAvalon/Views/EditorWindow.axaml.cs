@@ -20,7 +20,11 @@ public partial class EditorWindow : Window
     }
 
     /// <summary>AI 面板要用的设置（接口地址 / Key / 模型），由主窗口在创建窗口时塞进来。</summary>
-    public AppSettings? Settings { get; set; }
+    public AppSettings? Settings
+    {
+        get => AiPanel.Settings;
+        set => AiPanel.Settings = value;
+    }
 
     /// <summary>右栏的 AI 面板（<c>--ai</c> 自检要读它的状态）。</summary>
     public AiChatPanel Ai => AiPanel;
@@ -29,7 +33,18 @@ public partial class EditorWindow : Window
     public object? Body
     {
         get => BodyHost.Content;
-        set => BodyHost.Content = value;
+        set
+        {
+            BodyHost.Content = value;
+
+            // 右栏「分析」直接向编辑面板要"此刻"的文本（含未保存改动），
+            // 这样编辑器那边不用再放一个「AI 分析」按钮
+            AiPanel.ScriptProvider = value is EditorPanel editor
+                ? () => editor.TryGetAnalysisTarget(out string path, out string text)
+                    ? ((string?)path, text)
+                    : (null, string.Empty)
+                : null;
+        }
     }
 
     /// <summary>

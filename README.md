@@ -63,7 +63,7 @@ Avalonia 12（ANGLE/EGL → D3D11）+ Silk.NET（OpenGL ES 3.0）
 
 - **切页即整页销毁重建**：GL 控件、引擎、音频一起拆掉再建，靠 `PageState` 快照续上时间与预设，重建后 GL 对象计数归零、不泄漏。
 - **音频**：projectM 输入走 WASAPI 环回采集（无声卡时自动退到合成信号）；ShaderToy sound pass 输出按 `WASAPI → waveOut → 静音` 三级降级。
-- **编辑器窗口**：独立窗口、左编辑右 AI，AvaloniaEdit 提供行号、语法高亮、补全、参数导航、查找，支持保存（写盘并重载）/ 应用 / 还原；`Ctrl+S` 保存。
+- **编辑器窗口**：独立窗口、左编辑右 AI；左侧大纲树按 `[段]` / 变量 / GLSL 函数分组（点节点跳行、可过滤），AvaloniaEdit 提供行号、语法高亮、补全、查找，支持保存（写盘并重载）/ 应用 / 还原；`Ctrl+S` 保存。
 - **AI 分析**：编辑器右栏直接看讲解——把当前脚本交给 DeepSeek（任意 OpenAI 兼容接口，地址/模型/Key 都在设置里）流式返回 Markdown，可存成 `.ai.md`；Key 也可用环境变量 `DEEPSEEK_API_KEY`。
 - **抓取**：内嵌 WebView2 打开 shadertoy 作品页，经 DevTools 协议截获 `/shadertoy` 与全部 `/media/*` 响应（**不往页面注入脚本**），落成 `.shaderx` + `media/`；也可一键把当前画面存成 PNG。
 - **桌面细节**：Material 暗色主题、自绘标题栏、F11 全屏、拖放文件即加载、DPI 自适应、设置持久化。

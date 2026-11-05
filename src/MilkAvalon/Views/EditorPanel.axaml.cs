@@ -7,6 +7,7 @@ using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using AvaloniaEdit;
+using AvaloniaEdit.Document;
 using AvaloniaEdit.Search;
 using MilkAvalon.Editor;
 using MilkAvalon.Services;
@@ -20,9 +21,9 @@ namespace MilkAvalon.Views;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 面板只有两个部件：左边是"参数导航"（把当前文本里所有 <c>key=value</c> 列出来，点一下跳到那一行），
-/// 右边是原文编辑器（AvaloniaEdit：行号 + 语法高亮 + 补全）。**文本是唯一真相**：不做"内存模型 ↔ 文本"双向同步，
-/// 避免丢注释/段名/重复键。
+/// 面板只有两个部件：左边是"大纲树"（<see cref="CodeOutline"/> 把文本扫成「段 / 变量 / GLSL 函数」，
+/// 点一下跳到那一行），右边是原文编辑器（AvaloniaEdit：行号 + 语法高亮 + 补全）。
+/// **文本是唯一真相**：不做"内存模型 ↔ 文本"双向同步，避免丢注释/段名/重复键。
 /// </para>
 /// <para>
 /// 提示分两层：敲字时的候选列表（<see cref="MilkCompletion"/>，函数/变量/参数/段名 + 本文档已有的键），
@@ -60,8 +61,15 @@ public partial class EditorPanel : UserControl, IEditorPanel
     /// <summary>是否有未保存的改动（两种模型合起来算）。</summary>
     private bool IsDirty => _document?.IsDirty ?? _shaderxDirty;
 
-    private IReadOnlyList<MilkPresetEntry> _filtered = [];
+    /// <summary>左侧大纲（全量，按当前文本扫描出来的）。</summary>
+    private IReadOnlyList<OutlineNode> _outline = [];
+
+    /// <summary>大纲过滤后的结果（绑给 TreeView）。</summary>
+    private IReadOnlyList<OutlineNode> _filtered = [];
+
     private bool _suppressTextChanged;
+
+    /// <summary>程序改 <c>SelectedItem</c> 时别触发跳转。</summary>
     private bool _suppressParamSelection;
 
     /// <summary>代码补全（AvaloniaEdit 的 CompletionWindow，见 <see cref="MilkCompletion"/>）。</summary>
@@ -74,7 +82,7 @@ public partial class EditorPanel : UserControl, IEditorPanel
         _refreshTimer.Tick += (_, _) =>
         {
             _refreshTimer.Stop();
-            RefreshParameters();
+            RefreshOutline();
         };
 
         SetUpEditor();
@@ -143,35 +151,10 @@ public partial class EditorPanel : UserControl, IEditorPanel
             .OfType<string>()
             .Distinct(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>宿主（主窗口）点"关闭"时触发，用来同步工具栏按钮的文字。</summary>
-    public event Action? CloseRequested;
-
     /// <summary>「保存」/「应用」时把 (文件路径, 当前文本) 交给宿主，由它转给 projectM 页重载。</summary>
     public event Action<string, string>? ApplyRequested;
 
-    /// <summary>点了「弹出 / 收回」：由宿主决定是放进独立窗口还是贴回右侧。</summary>
-    public event Action? PopOutRequested;
-
-    /// <summary>点了「AI 分析」：把 (文件路径, 当前文本) 交给宿主，由它开分析窗口（Key 在设置里）。</summary>
-    public event Action<string, string>? AnalyzeRequested;
-
     public bool IsOpen => IsVisible;
-
-    /// <summary>
-    /// 面板是否处在独立窗口里（P16 起只有这一种形态）。
-    /// </summary>
-    /// <remarks>
-    /// 独立窗口里"弹出/收回"没有意义，直接把按钮藏掉，标题行只留「关闭」。
-    /// </remarks>
-    public void SetPoppedOut(bool popped)
-    {
-        PopOutButton.IsVisible = !popped;
-        PopOutButton.Content = popped ? Localization.T("editor.dockBack") : Localization.T("editor.popOut");
-        ToolTip.SetTip(PopOutButton, Localization.T(popped ? "editor.popOut.tip.popped" : "editor.popOut.tip"));
-    }
-
-    private void OnPopOutClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) =>
-        PopOutRequested?.Invoke();
 
     /// <summary>当前正在编辑的文件路径（没在编辑时为 null）。</summary>
     public string? CurrentPath => _path;
@@ -279,7 +262,7 @@ public partial class EditorPanel : UserControl, IEditorPanel
             MilkHighlighting.Apply(CodeBox, _path);
 
             RefreshHeader();
-            RefreshParameters();
+            RefreshOutline();
             UpdateHint();
 
             ShowStatus(Localization.F(
@@ -306,7 +289,8 @@ public partial class EditorPanel : UserControl, IEditorPanel
             PathText.Text = path;
             ParamCountText.Text = "—";
             _filtered = [];
-            ParamList.ItemsSource = _filtered;
+            _outline = [];
+            OutlineTree.ItemsSource = _filtered;
 
             ShowStatus(Localization.F("editor.loadFailed", ex.Message), isError: true);
         }
@@ -360,7 +344,7 @@ public partial class EditorPanel : UserControl, IEditorPanel
             MilkHighlighting.Apply(CodeBox, path);
 
             RefreshHeader();
-            RefreshParameters();
+            RefreshOutline();
             UpdateHint();
 
             ShowStatus(Localization.F(
@@ -404,7 +388,7 @@ public partial class EditorPanel : UserControl, IEditorPanel
         _shaderxText = text;
         _shaderxDirty = false;
         RefreshHeader();
-        RefreshParameters();
+        RefreshOutline();
 
         if (applyToEngine)
         {
@@ -476,7 +460,7 @@ public partial class EditorPanel : UserControl, IEditorPanel
         }
 
         RefreshHeader();
-        RefreshParameters();
+        RefreshOutline();
 
         if (applyToEngine)
         {
@@ -593,71 +577,47 @@ public partial class EditorPanel : UserControl, IEditorPanel
         RevertButton.IsEnabled = IsDirty;
     }
 
-    private void RefreshParameters()
+    /// <summary>
+    /// 重建左侧大纲：<c>[段]</c> → 段，<c>key = value</c> → 变量，GLSL 返回类型 + 名字 → 函数。
+    /// </summary>
+    /// <remarks>
+    /// 三种文件都显示（<c>.shaderx</c> 没有参数但有段和 GLSL 函数，正是最需要大纲的地方）。
+    /// 直接扫当前文本，所以"改了还没保存"也能立刻反映出来；按 250ms 节流，见 <see cref="_refreshTimer"/>。
+    /// </remarks>
+    private void RefreshOutline()
     {
-        // .shaderx 是整段 GLSL，没有"参数"可导航：整列收起来（列宽也归 0），代码区吃满宽度
-        bool showPane = !_isShaderx;
+        ParamPane.IsVisible = true;
+        BodyGrid.ColumnDefinitions[0].Width = new GridLength(190);
 
-        ParamPane.IsVisible = showPane;
-        BodyGrid.ColumnDefinitions[0].Width = showPane ? new GridLength(140) : new GridLength(0);
-
-        if (!showPane)
-        {
-            _filtered = [];
-            ParamList.ItemsSource = _filtered;
-            ParamCountText.Text = string.Empty;
-            return;
-        }
-
-        if (_document is null)
+        if (CodeBox.Document is null)
         {
             return;
         }
 
-        IReadOnlyList<MilkPresetEntry> entries = _document.Entries;
+        string text = _isShaderx ? _shaderxText : CodeBox.Text ?? string.Empty;
 
-        // .milkx 里的代码段每行都能被切成 "key = rest"（比如 double x = ...），导航只该列键值段的参数
-        if (_isMilkx)
-        {
-            entries = entries.Where(entry => IsKeyValueSection(entry.Section)).ToArray();
-        }
+        _outline = CodeOutline.Build(text, allowFunctions: _isShaderx || _isMilkx);
 
         string filter = ParamFilter.Text?.Trim() ?? string.Empty;
-
-        _filtered = filter.Length == 0
-            ? entries
-            : entries.Where(entry => entry.Key.Contains(filter, StringComparison.OrdinalIgnoreCase)).ToArray();
+        _filtered = CodeOutline.Filter(_outline, filter);
 
         _suppressParamSelection = true;
-        ParamList.ItemsSource = _filtered;
-        ParamList.SelectedIndex = -1;
+        OutlineTree.ItemsSource = _filtered;
+        OutlineTree.SelectedItem = null;
         _suppressParamSelection = false;
 
-        ParamCountText.Text = filter.Length == 0
-            ? Localization.F("editor.paramCount", entries.Count)
-            : $"{_filtered.Count} / {entries.Count}";
+        (int sections, int variables, int functions) = CodeOutline.Summarize(_outline);
+
+        ParamCountText.Text = filter.Length > 0
+            ? $"{CountNodes(_filtered)} / {CountNodes(_outline)}"
+            : sections == 0
+                ? Localization.F("editor.outline.params", variables)
+                : Localization.F("editor.outline.summary", sections, variables, functions);
     }
 
-    private void SelectEntry(MilkPresetEntry entry)
-    {
-        if (_document is null)
-        {
-            return;
-        }
-
-        (int start, int length) = _document.GetLineRange(entry.LineNumber);
-
-        CodeBox.Focus();
-        CodeBox.Select(start, length);
-        CodeBox.CaretOffset = start;
-    }
-
-    /// <summary><c>.milkx</c> 的键值段（<c>[meta]</c> / <c>[params]</c> / <c>[wave_N.params]</c>）。</summary>
-    private static bool IsKeyValueSection(string? section) =>
-        section is not null
-        && (string.Equals(section, "meta", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(section, "params", StringComparison.OrdinalIgnoreCase)
-            || section.EndsWith(".params", StringComparison.OrdinalIgnoreCase));
+    /// <summary>大纲节点总数（过滤后/全量的 "n / m" 用）。</summary>
+    private static int CountNodes(IReadOnlyList<OutlineNode> nodes)
+        => nodes.Sum(node => 1 + CountNodes(node.Children));
 
     private void ShowUnsupported(string message)
     {
@@ -679,9 +639,10 @@ public partial class EditorPanel : UserControl, IEditorPanel
         PathText.Text = "—";
         ParamCountText.Text = "—";
         _filtered = [];
-        ParamList.ItemsSource = _filtered;
+        _outline = [];
+        OutlineTree.ItemsSource = _filtered;
         ParamPane.IsVisible = true;
-        BodyGrid.ColumnDefinitions[0].Width = new GridLength(140);
+        BodyGrid.ColumnDefinitions[0].Width = new GridLength(190);
 
         ShowStatus(message);
     }
@@ -763,41 +724,38 @@ public partial class EditorPanel : UserControl, IEditorPanel
 
     private static bool IsWordChar(char c) => char.IsLetterOrDigit(c) || c == '_' || c == '.';
 
-    private void OnParamFilterChanged(object? sender, TextChangedEventArgs e) => RefreshParameters();
+    private void OnParamFilterChanged(object? sender, TextChangedEventArgs e) => RefreshOutline();
 
-    private void OnParamSelected(object? sender, SelectionChangedEventArgs e)
+    private void OnOutlineSelected(object? sender, SelectionChangedEventArgs e)
     {
-        if (_suppressParamSelection || ParamList.SelectedItem is not MilkPresetEntry entry)
+        if (_suppressParamSelection || OutlineTree.SelectedItem is not OutlineNode node)
         {
             return;
         }
 
-        SelectEntry(entry);
+        JumpToLine(node.Line);
+    }
+
+    /// <summary>把光标移到指定行（1 基）并滚到可见处。</summary>
+    private void JumpToLine(int line)
+    {
+        if (CodeBox.Document is not { LineCount: > 0 } document)
+        {
+            return;
+        }
+
+        int target = Math.Clamp(line, 1, document.LineCount);
+        DocumentLine documentLine = document.GetLineByNumber(target);
+
+        CodeBox.Focus();
+        CodeBox.Select(documentLine.Offset, 0);
+        CodeBox.CaretOffset = documentLine.Offset;
+        CodeBox.ScrollToLine(target);
     }
 
     private void OnSaveClick(object? sender, RoutedEventArgs e) => Save(applyToEngine: true);
 
     private void OnApplyClick(object? sender, RoutedEventArgs e) => ApplyOnly();
-
-    /// <summary>「AI 分析」：拿编辑器里**当前**的文本（可能是未保存的改动），交给宿主开窗口。</summary>
-    private void OnAnalyzeClick(object? sender, RoutedEventArgs e)
-    {
-        if (_path is null || CodeBox.IsReadOnly)
-        {
-            ShowStatus(Localization.T("editor.noAnalysisTarget"), isError: true);
-            return;
-        }
-
-        string text = CodeBox.Text ?? string.Empty;
-
-        if (text.Length == 0)
-        {
-            ShowStatus(Localization.T("editor.emptyScript"), isError: true);
-            return;
-        }
-
-        AnalyzeRequested?.Invoke(_path, text);
-    }
 
     private void OnRevertClick(object? sender, RoutedEventArgs e)
     {
@@ -879,9 +837,4 @@ public partial class EditorPanel : UserControl, IEditorPanel
         }
     }
 
-    private void OnCloseClick(object? sender, RoutedEventArgs e)
-    {
-        Close();
-        CloseRequested?.Invoke();
-    }
 }

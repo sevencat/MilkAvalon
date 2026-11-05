@@ -884,6 +884,10 @@ MilkdropPreset.cs 初始化里也有一次（unbind 后没有 Draw，安全）
   别把它再挂回主窗口——`EditorWindow` 里是"同一个控件换个爹"，光标/滚动/未保存改动都跟着走。
 - **弹窗里开子窗口的时机**：`--editor` 这类"启动就弹窗"的自检要挂到 `Opened` 事件上，
   在构造函数里 `Show(this)` 会抛 `Cannot show window with non-visible owner`。
+- **编辑器大纲为什么是"扫文本"而不是"建模型"**：`Editor/CodeOutline.cs` 按行正则扫
+  `[段]` / `key = value` / `<GLSL 类型> name(...)`，只产出「标题 + 行号」。这样改到一半没保存也能刷、
+  重复键/注释/段名都不会丢；代价是拿不到语义（哪种值、函数体范围），够跳转用就行。
+  别改成解析成 `MilkPresetDocument` 再映射——`.shaderx` 根本没有那层模型。
 - **隐藏 Grid 里的一列**：光把子控件 `IsVisible=false` 不够，列宽还在（会留一条空白）；要把
   `ColumnDefinitions[i].Width` 一起归 0，恢复时再给回像素值（编辑面板的"参数导航列"就是这么收放的）。
 - **第二个窗口要跟主窗口同款标题栏**：`EditorWindow.axaml` 直接复制主窗口那四项

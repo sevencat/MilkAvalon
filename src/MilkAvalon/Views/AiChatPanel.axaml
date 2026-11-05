@@ -15,16 +15,17 @@
         <TextBox Name="PromptBox" Height="26" FontSize="12" VerticalContentAlignment="Center"
                  PlaceholderText="{DynamicResource ai.prompt.placeholder}"
                  KeyDown="OnPromptKeyDown" />
-        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
-          <Button Grid.Column="0" Name="AnalyzeButton" Classes="toolbar" Content="{DynamicResource ai.analyze}"
-                  Height="26" Click="OnAnalyzeClick" Padding="12,0" FontSize="12" />
-          <Button Grid.Column="1" Name="CancelButton" Classes="toolbar" Content="{DynamicResource ai.cancel}"
-                  Height="26" IsEnabled="False" Click="OnCancelClick" Padding="8,0" FontSize="12" MinWidth="52"
+        <!-- 靠左紧凑排，不铺满（和左边工具条一致） -->
+        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Left">
+          <Button Name="AnalyzeButton" Classes="toolbar" Content="{DynamicResource ai.analyze}"
+                  Height="26" Click="OnAnalyzeClick" Padding="14,0" FontSize="12" />
+          <Button Name="CancelButton" Classes="toolbar" Content="{DynamicResource ai.cancel}"
+                  Height="26" IsEnabled="False" Click="OnCancelClick" Padding="12,0" FontSize="12"
                   ToolTip.Tip="{DynamicResource ai.cancel.tip}" />
-          <Button Grid.Column="2" Name="SaveButton" Classes="toolbar" Content="{DynamicResource ai.save}"
-                  Height="26" Click="OnSaveClick" Padding="8,0" FontSize="12" MinWidth="52"
+          <Button Name="SaveButton" Classes="toolbar" Content="{DynamicResource ai.save}"
+                  Height="26" Click="OnSaveClick" Padding="12,0" FontSize="12"
                   ToolTip.Tip="{DynamicResource ai.save.tip}" />
-        </Grid>
+        </StackPanel>
         <TextBlock Name="StatusText" FontSize="10" Opacity="0.65" TextWrapping="Wrap"
                    Text="{DynamicResource ai.status.default}" />
       </StackPanel>

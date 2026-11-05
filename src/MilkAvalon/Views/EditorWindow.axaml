@@ -5,7 +5,7 @@
         x:Class="MilkAvalon.Views.EditorWindow"
         Title="{DynamicResource editorwindow.title}"
         Icon="/Assets/milkdropsharp.png"
-        Width="920" Height="820"
+        Width="1000" Height="780"
         MinWidth="520" MinHeight="360"
         Background="{DynamicResource MaterialBackgroundBrush}"
         WindowStartupLocation="CenterOwner"
@@ -48,7 +48,11 @@
       P16：左编辑 + 右 AI，两栏并列（原来是"编辑停右侧 + AI 单独开窗"，看代码和看分析要来回切）。
       左栏放的是同一个 EditorPanel 实例（见 MainWindow.OpenEditorWindow），光标/滚动/未保存改动都跟着走。
     -->
-    <Grid ColumnDefinitions="*,4,*">
+    <!--
+      列宽 4:3 是算出来的：左栏里还有 190px 的大纲，扣掉后代码区和右边 AI 正好一样宽
+      （1360 × 4/7 − 194 ≈ 1360 × 3/7）。拖分隔条仍可自己调。
+    -->
+    <Grid ColumnDefinitions="4*,4,3*">
       <ContentControl Name="BodyHost" Grid.Column="0" />
 
       <GridSplitter Grid.Column="1" Width="4" ResizeDirection="Columns"

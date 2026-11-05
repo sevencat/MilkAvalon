@@ -80,9 +80,7 @@ public partial class MainWindow : Window
         // 再点当前页芯片 = 重建：ListBox 点同一项不会触发 SelectionChanged，只能在隧道阶段自己抓
         PageTabList.AddHandler(PointerPressedEvent, OnPageTabPointerPressed, RoutingStrategies.Tunnel);
 
-        _editor.CloseRequested += OnEditorCloseRequested;
         _editor.ApplyRequested += OnEditorApplyRequested;
-        _editor.AnalyzeRequested += OnEditorAnalyzeRequested;
 
         // P8：F11 全屏 / Esc 退出；画面双击也能切
         AddHandler(KeyDownEvent, OnWindowKeyDown, RoutingStrategies.Tunnel);
@@ -596,8 +594,6 @@ public partial class MainWindow : Window
         OpenEditorWindow();
     }
 
-    private void OnEditorCloseRequested() => CloseEditor();
-
     /// <summary>
     /// 打开编辑器窗口：左编辑、右 AI（<see cref="EditorWindow"/>）。
     /// 面板实例只有这一个，所以关窗再开还是同一个光标/滚动位置。
@@ -610,8 +606,8 @@ public partial class MainWindow : Window
         // 外观跟主窗口一套（自绘标题栏 + logo + 窗口按钮），见 EditorWindow.axaml
         var window = new EditorWindow
         {
-            Width = 1400,
-            Height = 860,
+            Width = 1000,
+            Height = 780,
             Body = _editor,
             Settings = _options.Settings,
         };
@@ -621,7 +617,6 @@ public partial class MainWindow : Window
 
         _editorWindow = window;
         window.Show(this);
-        _editor.SetPoppedOut(true);
         EditButton.Content = CloseGlyph;
 
         Console.WriteLine($"[editor] 打开编辑器窗口：{window.Title}（目标 {target ?? "—"}）");
@@ -668,21 +663,6 @@ public partial class MainWindow : Window
 
         page.ApplyPresetText(path, text);
         StatusText.Text = Localization.F("ui.status.appliedEdit", Path.GetFileName(path));
-    }
-
-    /// <summary>
-    /// 编辑面板点了「AI 分析」：把当前文本交给右侧 AI 面板（标准 OpenAI 兼容接口，MarkView 流式渲染）。
-    /// Key / 模型都从设置里取，没有 Key 时面板自己提示去设置。
-    /// </summary>
-    private void OnEditorAnalyzeRequested(string path, string text)
-    {
-        if (_editorWindow is null)
-        {
-            return;
-        }
-
-        _editorWindow.Analyze(path, text);
-        StatusText.Text = Localization.F("ui.status.aiAnalyzing", Path.GetFileName(path));
     }
 
     private void CloseEditor()

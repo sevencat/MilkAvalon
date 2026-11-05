@@ -186,8 +186,8 @@ public partial class App : Application
                 // P16：AI 不再是独立窗口，是编辑器右栏那块
                 var editorWindow = new EditorWindow
                 {
-                    Width = 1400,
-                    Height = 860,
+                    Width = 1000,
+                    Height = 780,
                     Body = editor,
                     Settings = options.Settings,
                 };
@@ -197,9 +197,10 @@ public partial class App : Application
 
                 await Task.Delay(1200);
 
-                editorWindow.Analyze(full, text);
-
+                // 走真实路径：右栏「分析」自己向编辑面板要文本（ScriptProvider），
+                // 不再由左侧按钮推一次
                 AiChatPanel panel = editorWindow.Ai;
+                _ = panel.RunAsync();
                 var clock = Stopwatch.StartNew();
 
                 // 先等这一轮真的开跑（否则 IsBusy 一上来就是 false）

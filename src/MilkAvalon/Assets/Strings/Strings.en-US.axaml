@@ -83,11 +83,11 @@
 
   <!-- Editor panel: header / toolbar -->
   <x:String x:Key="editor.title">Preset editor</x:String>
-  <x:String x:Key="editor.popOut">Pop out</x:String>
-  <x:String x:Key="editor.dockBack">Dock back</x:String>
-  <x:String x:Key="editor.popOut.tip">Pop out into a standalone window that can be resized freely (click again to dock back)</x:String>
-  <x:String x:Key="editor.popOut.tip.popped">Dock back to the main window</x:String>
   <x:String x:Key="editor.close">Close</x:String>
+  <x:String x:Key="editor.outline">Outline</x:String>
+  <x:String x:Key="editor.filterOutline">Filter sections, variables, functions</x:String>
+  <x:String x:Key="editor.outline.summary">{0} sections · {1} variables · {2} functions</x:String>
+  <x:String x:Key="editor.outline.params">{0} parameters</x:String>
   <x:String x:Key="editor.save">Save</x:String>
   <x:String x:Key="editor.save.tip">Write back and reload the engine (Ctrl+S)</x:String>
   <x:String x:Key="editor.apply">Apply</x:String>
@@ -96,9 +96,6 @@
   <x:String x:Key="editor.revert.tip">Discard unsaved changes and re-read from disk</x:String>
   <x:String x:Key="editor.open">Open…</x:String>
   <x:String x:Key="editor.open.tip">Edit another preset file</x:String>
-  <x:String x:Key="editor.ai">AI analyze</x:String>
-  <x:String x:Key="editor.ai.tip">Send the current script to the AI for analysis (results appear in a separate window)</x:String>
-  <x:String x:Key="editor.filterParams">Filter parameters</x:String>
 
   <!-- Editor panel: C# side status & validation -->
   <x:String x:Key="editor.target.empty">Nothing editable yet: play a preset (.milk / .milkx) or pick a shader on the ShaderToy page first</x:String>
@@ -123,9 +120,6 @@
   <x:String x:Key="editor.savedAppliedSuffix">; the engine has reloaded</x:String>
   <x:String x:Key="editor.appliedShaderx">Current text recompiled (not written to disk; Ctrl+S to save)</x:String>
   <x:String x:Key="editor.applied">Current text applied to the engine (not written to disk; Ctrl+S to save)</x:String>
-  <x:String x:Key="editor.paramCount">{0} entries</x:String>
-  <x:String x:Key="editor.noAnalysisTarget">Nothing to analyze yet: open a .milk / .milkx / .shaderx first</x:String>
-  <x:String x:Key="editor.emptyScript">The script is empty; nothing to analyze</x:String>
   <x:String x:Key="editor.discardWarning">Note: unsaved changes in {0} were discarded</x:String>
   <x:String x:Key="editor.openFile.title">Open .milk / .milkx / .shaderx</x:String>
   <x:String x:Key="editor.pick.all">All supported formats</x:String>
@@ -200,7 +194,6 @@
   <x:String x:Key="ui.status.loadFailed">Failed to load: {0}</x:String>
   <x:String x:Key="ui.status.appliedEdit">Applied edit: {0}</x:String>
   <x:String x:Key="ui.editor.noReloadable">This page has nothing to reload; the change cannot be applied</x:String>
-  <x:String x:Key="ui.status.aiAnalyzing">AI analysis: {0}</x:String>
   <x:String x:Key="ui.status.settingsNotSaved">Settings could not be written to disk (applies to this run only)</x:String>
   <x:String x:Key="ui.status.pickFolderFailed">Failed to pick a folder: {0}</x:String>
   <x:String x:Key="ui.status.cliRootOverrides">Note: a data root was given on the command line and overrides the settings value</x:String>
