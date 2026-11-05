@@ -13,7 +13,7 @@ namespace MilkAvalon.Services.Ai;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 走 <c>POST {BaseUrl}/chat/completions</c>：系统提示词按脚本类型区分（<see cref="SystemPromptFor"/>），
+/// 走 <c>POST {baseUrl}/chat/completions</c>（地址/模型/Key 都可由用户在设置里配置，P14）：系统提示词按脚本类型区分（<see cref="SystemPromptFor"/>），
 /// 用户提示词由分析窗口的输入框给（缺省 <see cref="DefaultUserPrompt"/>）。
 /// 不引第三方 SDK，只用 <see cref="HttpClient"/> + 源生成的 System.Text.Json（AOT 友好）。
 /// </para>
@@ -44,8 +44,29 @@ internal static class ScriptAnalyzer
     /// <summary>缺省模型：DeepSeek 的对话模型（要推理链可改成 deepseek-reasoner）。</summary>
     public const string DefaultModel = "deepseek-chat";
 
-    /// <summary>DeepSeek 的 OpenAI 兼容接口根地址。</summary>
-    public const string BaseUrl = "https://api.deepseek.com/v1";
+    /// <summary>DeepSeek 的 OpenAI 兼容接口根地址（设置里没填就用它）。</summary>
+    public const string DefaultBaseUrl = "https://api.deepseek.com/v1";
+
+    /// <summary>
+    /// 接口根地址：设置里没填就用 <see cref="DefaultBaseUrl"/>；
+    /// 填了就规范化（补 <c>https://</c> 前缀、去尾斜杠）——请求统一拼 <c>{baseUrl}/chat/completions</c>。
+    /// </summary>
+    public static string ResolveBaseUrl(string? fromSettings)
+    {
+        string url = fromSettings?.Trim() ?? string.Empty;
+
+        if (url.Length == 0)
+        {
+            return DefaultBaseUrl;
+        }
+
+        if (!url.Contains("://", StringComparison.Ordinal))
+        {
+            url = "https://" + url;
+        }
+
+        return url.TrimEnd('/');
+    }
 
     /// <summary>
     /// 全进程共用的 HttpClient（handler 只建一次，连接池复用；调用方**不要** Dispose 它）。
@@ -92,7 +113,8 @@ internal static class ScriptAnalyzer
     /// <summary>
     /// 请求一次分析。失败抛异常（消息可直接显示给用户）。
     /// </summary>
-    /// <param name="apiKey">DeepSeek API Key。</param>
+    /// <param name="baseUrl">接口根地址（用 <see cref="ResolveBaseUrl"/> 解析好的）。</param>
+    /// <param name="apiKey">API Key。</param>
     /// <param name="model">模型名。</param>
     /// <param name="systemPrompt">系统提示词（用 <see cref="SystemPromptFor"/> 按文件类型取）。</param>
     /// <param name="userPrompt">用户提示词（空 = 用缺省的）。</param>
@@ -102,6 +124,7 @@ internal static class ScriptAnalyzer
     /// <param name="cancellationToken">取消（关窗 / 点「取消」时用）。</param>
     /// <returns>拼好的完整 Markdown。</returns>
     public static async Task<string> AnalyzeStreamAsync(
+        string baseUrl,
         string apiKey,
         string model,
         string systemPrompt,
@@ -135,11 +158,11 @@ internal static class ScriptAnalyzer
         string json = JsonSerializer.Serialize(payload, AiJsonContext.Default.ChatRequest);
 
         Console.WriteLine(
-            $"[ai] 请求 {BaseUrl}/chat/completions（stream）：model={payload.Model}，prompt {prompt.Length} 字符，"
+            $"[ai] 请求 {baseUrl}/chat/completions（stream）：model={payload.Model}，prompt {prompt.Length} 字符，"
             + $"脚本 {scriptText.Length} 字符，请求 {json.Length} 字节");
 
         HttpClient http = Http;
-        using var request = new HttpRequestMessage(HttpMethod.Post, BaseUrl + "/chat/completions")
+        using var request = new HttpRequestMessage(HttpMethod.Post, baseUrl + "/chat/completions")
         {
             Content = new StringContent(json, Encoding.UTF8, "application/json"),
         };

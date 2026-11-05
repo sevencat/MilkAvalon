@@ -1,0 +1,305 @@
+<!--
+  English resource dictionary (P15 / milestone A).
+  Key conventions: ui.* main window; settings.* settings window. Later windows continue with editor.* / ai.* / capture.*.
+  Both dictionaries (zh-CN / en-US) must contain exactly the same keys — Localization.Apply swaps the whole book.
+-->
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- Main window: toolbar -->
+  <x:String x:Key="ui.toolbar.library">Collapse / expand library</x:String>
+  <x:String x:Key="ui.toolbar.prev">Previous</x:String>
+  <x:String x:Key="ui.toolbar.pause">Pause / resume</x:String>
+  <x:String x:Key="ui.toolbar.next">Next</x:String>
+  <x:String x:Key="ui.toolbar.random">Random</x:String>
+  <x:String x:Key="ui.toolbar.reload">Reload current</x:String>
+  <x:String x:Key="ui.toolbar.edit">Edit current preset (.milk / .milkx / .shaderx)</x:String>
+  <x:String x:Key="ui.toolbar.ai">Analyze the current script with AI (streaming)</x:String>
+  <x:String x:Key="ui.toolbar.capture">Capture: save frame / grab shader from shadertoy</x:String>
+  <x:String x:Key="ui.toolbar.fullscreen">Fullscreen (F11, Esc to exit)</x:String>
+  <x:String x:Key="ui.toolbar.info">Show / hide the info bar (preset, progress, size, audio)</x:String>
+  <x:String x:Key="ui.toolbar.settings">Settings</x:String>
+
+  <!-- Main window: capture menu -->
+  <x:String x:Key="ui.menu.saveFrame">Save current frame…</x:String>
+  <x:String x:Key="ui.menu.grabSite">Grab shader from shadertoy…</x:String>
+
+  <!-- Main window: tabs -->
+  <x:String x:Key="ui.tab.projectm.tip">projectM (click again to rebuild this page)</x:String>
+  <x:String x:Key="ui.tab.milkx.tip">milkx (.milkx script presets, click again to rebuild this page)</x:String>
+  <x:String x:Key="ui.tab.shadertoy.tip">ShaderToy (click again to rebuild this page)</x:String>
+
+  <!-- Main window: caption buttons / status bar / empty state -->
+  <x:String x:Key="ui.caption.minimize">Minimize</x:String>
+  <x:String x:Key="ui.caption.maximize">Maximize / restore</x:String>
+  <x:String x:Key="ui.caption.close">Close</x:String>
+  <x:String x:Key="ui.status.ready">Ready</x:String>
+  <x:String x:Key="ui.empty.title">No data available</x:String>
+  <x:String x:Key="ui.empty.pickFolder">Choose folder…</x:String>
+  <x:String x:Key="ui.empty.openSettings">Open settings</x:String>
+
+  <!-- Settings window: title & bottom -->
+  <x:String x:Key="settings.title">Settings</x:String>
+  <x:String x:Key="settings.close.tip">Close (same as cancel)</x:String>
+  <x:String x:Key="settings.cancel">Cancel</x:String>
+  <x:String x:Key="settings.save">Save</x:String>
+  <x:String x:Key="settings.bottomHint">Takes effect immediately after saving: the current page is rebuilt (same as clicking its tab) without exiting playback. Config file: milkavalon.json next to the exe.</x:String>
+
+  <!-- Settings window: data roots -->
+  <x:String x:Key="settings.section.dataRoot">Data roots</x:String>
+  <x:String x:Key="settings.label.milkx">Scripts (.milkx)</x:String>
+  <x:String x:Key="settings.browse">Browse…</x:String>
+  <x:String x:Key="settings.rootHint">The projectM root holds presets/ and textures/; the ShaderToy root holds presets/*.shaderx and media/; the scripts folder holds imported *.milkx. Leave blank to use the default folder next to the exe. Command line --projectm-data/--shadertoy-data/--milkx-data takes priority.</x:String>
+
+  <!-- Settings window: rendering -->
+  <x:String x:Key="settings.section.render">Rendering</x:String>
+  <x:String x:Key="settings.mesh.hint">(the preset's nGridX/nGridY overrides it)</x:String>
+  <x:String x:Key="settings.buffer.viewport">Follow viewport</x:String>
+  <x:String x:Key="settings.buffer.fixed">Fixed 1024×256</x:String>
+  <x:String x:Key="settings.buffer.half">Viewport 0.5×</x:String>
+  <x:String x:Key="settings.vsync">VSync</x:String>
+  <x:String x:Key="settings.vsync.note">On (currently driven by the Avalonia compositor, recorded only)</x:String>
+  <x:String x:Key="settings.scale">UI scale</x:String>
+  <x:String x:Key="settings.scale.system">Follow system</x:String>
+  <x:String x:Key="settings.label.language">语言 / Language</x:String>
+  <x:String x:Key="lang.zh">中文</x:String>
+  <x:String x:Key="lang.en">English</x:String>
+
+  <!-- Settings window: AI -->
+  <x:String x:Key="settings.section.ai">AI analysis (OpenAI-compatible endpoint)</x:String>
+  <x:String x:Key="settings.ai.baseUrl">Base URL</x:String>
+  <x:String x:Key="settings.ai.baseUrlWatermark">https://api.deepseek.com/v1</x:String>
+  <x:String x:Key="settings.ai.apiKey">API Key</x:String>
+  <x:String x:Key="settings.ai.keyPlaceholder">Leave blank = read DEEPSEEK_API_KEY env var</x:String>
+  <x:String x:Key="settings.ai.model">Model</x:String>
+  <x:String x:Key="settings.ai.modelPlaceholder">deepseek-chat (or deepseek-reasoner)</x:String>
+  <x:String x:Key="settings.ai.hint">Any OpenAI-compatible endpoint works (DeepSeek / local vLLM / a proxy…); a blank base URL = https://api.deepseek.com/v1. The key is written in plain text to milkavalon.json next to the exe; you may keep it only in an environment variable instead.</x:String>
+
+  <!-- Settings window: C# side (via Localization.T / F) -->
+  <x:String x:Key="settings.pick.projectM">Choose the projectM data root (a folder with presets/)</x:String>
+  <x:String x:Key="settings.pick.shaderToy">Choose the ShaderToy data root (a folder with presets/*.shaderx)</x:String>
+  <x:String x:Key="settings.pick.milkx">Choose the script preset folder (containing .milkx files)</x:String>
+  <x:String x:Key="settings.error.mesh">Mesh size must be an integer between 8 and 256.</x:String>
+  <x:String x:Key="settings.error.pickFolder">Failed to pick a folder: {0}</x:String>
+
+  <!-- Editor panel: header / toolbar -->
+  <x:String x:Key="editor.title">Preset editor</x:String>
+  <x:String x:Key="editor.popOut">Pop out</x:String>
+  <x:String x:Key="editor.dockBack">Dock back</x:String>
+  <x:String x:Key="editor.popOut.tip">Pop out into a standalone window that can be resized freely (click again to dock back)</x:String>
+  <x:String x:Key="editor.popOut.tip.popped">Dock back to the main window</x:String>
+  <x:String x:Key="editor.close">Close</x:String>
+  <x:String x:Key="editor.save">Save</x:String>
+  <x:String x:Key="editor.save.tip">Write back and reload the engine (Ctrl+S)</x:String>
+  <x:String x:Key="editor.apply">Apply</x:String>
+  <x:String x:Key="editor.apply.tip">Reload the current text into the engine without writing to disk (handy for tweaking)</x:String>
+  <x:String x:Key="editor.revert">Revert</x:String>
+  <x:String x:Key="editor.revert.tip">Discard unsaved changes and re-read from disk</x:String>
+  <x:String x:Key="editor.open">Open…</x:String>
+  <x:String x:Key="editor.open.tip">Edit another preset file</x:String>
+  <x:String x:Key="editor.ai">AI analyze</x:String>
+  <x:String x:Key="editor.ai.tip">Send the current script to the AI for analysis (results appear in a separate window)</x:String>
+  <x:String x:Key="editor.filterParams">Filter parameters</x:String>
+
+  <!-- Editor panel: C# side status & validation -->
+  <x:String x:Key="editor.target.empty">Nothing editable yet: play a preset (.milk / .milkx) or pick a shader on the ShaderToy page first</x:String>
+  <x:String x:Key="editor.target.unsupported">Only .milk / .milkx / .shaderx can be edited: {0}</x:String>
+  <x:String x:Key="editor.dirtySwitch">Unsaved changes kept, still editing {0} (playback switched to {1})</x:String>
+  <x:String x:Key="editor.loaded">Loaded {0}: {1} entries, {2} lines, {3}</x:String>
+  <x:String x:Key="editor.loadFailed">Failed to open: {0}</x:String>
+  <x:String x:Key="editor.fileMissing">File not found: {0}</x:String>
+  <x:String x:Key="editor.loadedShaderx">Loaded {0}: {1} lines (.shaderx source; Ctrl+S saves and recompiles)</x:String>
+  <x:String x:Key="editor.noFile">No file open</x:String>
+  <x:String x:Key="editor.saveFailed">Failed to save: {0}</x:String>
+  <x:String x:Key="editor.savedShaderx">Saved {0} ({1} lines)</x:String>
+  <x:String x:Key="editor.savedShaderxApplied">, recompiled</x:String>
+  <x:String x:Key="editor.err.empty">Content is empty</x:String>
+  <x:String x:Key="editor.err.nul.shaderx">Content contains NUL characters; reading it back would be garbled</x:String>
+  <x:String x:Key="editor.err.nul.milk">Content contains NUL characters; the engine would reject it as binary</x:String>
+  <x:String x:Key="editor.err.noPass">No [shadertoy.&lt;role&gt;] section at all; this file cannot be played</x:String>
+  <x:String x:Key="editor.err.noSection">No [section] at all; not a valid .milkx</x:String>
+  <x:String x:Key="editor.err.noKeyValue">Not a single key=value line; the engine would reject this file</x:String>
+  <x:String x:Key="editor.err.tooBig">Larger than {0} KiB; the engine would refuse to load it</x:String>
+  <x:String x:Key="editor.saved">Saved {0} ({1} entries, {2})</x:String>
+  <x:String x:Key="editor.savedAppliedSuffix">; the engine has reloaded</x:String>
+  <x:String x:Key="editor.appliedShaderx">Current text recompiled (not written to disk; Ctrl+S to save)</x:String>
+  <x:String x:Key="editor.applied">Current text applied to the engine (not written to disk; Ctrl+S to save)</x:String>
+  <x:String x:Key="editor.paramCount">{0} entries</x:String>
+  <x:String x:Key="editor.noAnalysisTarget">Nothing to analyze yet: open a .milk / .milkx / .shaderx first</x:String>
+  <x:String x:Key="editor.emptyScript">The script is empty; nothing to analyze</x:String>
+  <x:String x:Key="editor.discardWarning">Note: unsaved changes in {0} were discarded</x:String>
+  <x:String x:Key="editor.openFile.title">Open .milk / .milkx / .shaderx</x:String>
+  <x:String x:Key="editor.pick.all">All supported formats</x:String>
+  <x:String x:Key="editor.pick.milk">MilkDrop presets</x:String>
+  <x:String x:Key="editor.pick.shaderx">ShaderToy shaders</x:String>
+  <x:String x:Key="editor.pickFailed">Failed to pick a file: {0}</x:String>
+
+  <!-- Editor pop-out window -->
+  <x:String x:Key="editorwindow.title">MilkAvalon editor</x:String>
+  <x:String x:Key="editorwindow.close.tip">Close (the panel docks back to the main window)</x:String>
+
+  <!-- AI analysis window -->
+  <x:String x:Key="ai.title">AI analysis</x:String>
+  <x:String x:Key="ai.prompt.placeholder">User prompt (editable)</x:String>
+  <x:String x:Key="ai.analyze">Analyze</x:String>
+  <x:String x:Key="ai.cancel">Cancel</x:String>
+  <x:String x:Key="ai.cancel.tip">Abort this request (closing the window aborts too)</x:String>
+  <x:String x:Key="ai.save">Save</x:String>
+  <x:String x:Key="ai.save.tip">Save the analysis next to the script (&lt;filename&gt;.ai.md)</x:String>
+  <x:String x:Key="ai.status.default">The system prompt is chosen by file type (shadertoy / milkdrop)</x:String>
+  <x:String x:Key="ai.missingKey">No API key yet: fill it in under "Settings → AI analysis", or set the DEEPSEEK_API_KEY environment variable.</x:String>
+  <x:String x:Key="ai.waiting">Requesting ({0})… waited {1:F0} s</x:String>
+  <x:String x:Key="ai.receiving">Receiving ({0}): {1} chars, waited {2:F0} s</x:String>
+  <x:String x:Key="ai.ready">Ready: {0} | {1} | script {2} chars. Press Enter or click "Analyze".</x:String>
+  <x:String x:Key="ai.loadedSaved">Loaded the previous analysis: {0} ({1} chars). Click "Analyze" to request again.</x:String>
+  <x:String x:Key="ai.cancelling">Cancelling…</x:String>
+  <x:String x:Key="ai.noSavePath">No source file path; nowhere to save.</x:String>
+  <x:String x:Key="ai.nothingToSave">No analysis result to save yet.</x:String>
+  <x:String x:Key="ai.saved">Saved {0} ({1} chars).</x:String>
+  <x:String x:Key="ai.saveFailed">Failed to save: {0}</x:String>
+  <x:String x:Key="ai.noScript">No script content to analyze.</x:String>
+  <x:String x:Key="ai.requesting">Requesting ({0}, streaming)… waited 0 s</x:String>
+  <x:String x:Key="ai.doneTitle"> ({0} chars done)</x:String>
+  <x:String x:Key="ai.done">Done: {0} chars. Click "Save" to write it next to the script.</x:String>
+  <x:String x:Key="ai.cancelled">Cancelled.</x:String>
+  <x:String x:Key="ai.timeout">Request timed out (waited {0:F0} s): the AI did not finish in time. Try a faster model (deepseek-chat) or a smaller script.</x:String>
+  <x:String x:Key="ai.failed">Analysis failed: {0}</x:String>
+
+  <!-- Capture window -->
+  <x:String x:Key="capture.title">Grab a Shadertoy shader</x:String>
+  <x:String x:Key="capture.back">Back</x:String>
+  <x:String x:Key="capture.forward">Forward</x:String>
+  <x:String x:Key="capture.open">Open</x:String>
+  <x:String x:Key="capture.grabCurrent">Grab this page</x:String>
+  <x:String x:Key="capture.grabCurrentWith">Grab this page ({0})</x:String>
+  <x:String x:Key="capture.grabCurrent.tip">Enabled when the page is shadertoy.com/view/&lt;id&gt;; the ID comes from the address bar</x:String>
+  <x:String x:Key="capture.status.loading">Loading shadertoy.com…</x:String>
+  <x:String x:Key="capture.status.root">Data root: {0} (only writes presets/*.shaderx and media/)</x:String>
+  <x:String x:Key="capture.invalidId">Invalid ID: enter a short ID like flGyWc or a full view link.</x:String>
+  <x:String x:Key="capture.opening">Opening {0}…</x:String>
+  <x:String x:Key="capture.challengeTimeout">The site stayed on the bot-check page: finish the check in this window, then click "Grab this page".</x:String>
+  <x:String x:Key="capture.pageReady">Page ready ({0}); requesting the project JSON…</x:String>
+  <x:String x:Key="capture.interceptTimeout">Didn't capture the shader data: the page may not have finished loading, or the site changed.</x:String>
+  <x:String x:Key="capture.waitingMedia">Waiting for the page to finish loading textures…</x:String>
+  <x:String x:Key="capture.parseFailed">The fetched content is not a usable ShaderToy project: {0}</x:String>
+  <x:String x:Key="capture.parsed">Parsed: {0} ({1} passes); fetching images…</x:String>
+  <x:String x:Key="capture.summary">Saved {0} "{1}": {2} passes, images downloaded {3} / failed {4}{5} → {6}</x:String>
+  <x:String x:Key="capture.summaryReplaced"> (old file replaced)</x:String>
+  <x:String x:Key="capture.waitingPage">Site loading / waiting for the bot check… (if stuck, complete it in this window)</x:String>
+  <x:String x:Key="capture.waitingChallenge">Still waiting for the bot check… (continues automatically once done)</x:String>
+  <x:String x:Key="capture.navigating">Opening {0}</x:String>
+  <x:String x:Key="capture.navDone">Page loaded. Click "Grab this page" on a shader page to save it.</x:String>
+  <x:String x:Key="capture.navFailed">Page failed to load; retry or try another network.</x:String>
+  <x:String x:Key="capture.invalidUrl">Invalid link: enter an address like https://www.shadertoy.com/view/&lt;id&gt;.</x:String>
+  <x:String x:Key="capture.notShaderPage">Not a shader page (need https://www.shadertoy.com/view/&lt;id&gt;); open a shader first.</x:String>
+  <x:String x:Key="capture.grabFailed">Grab failed: {0}</x:String>
+  <x:String x:Key="capture.canGrab">Current page is {0}; click "Grab this page" to save it.</x:String>
+
+  <!-- Main window: C# side status bar / messages -->
+  <x:String x:Key="ui.status.loaded">Loaded {0}</x:String>
+  <x:String x:Key="ui.status.loadedScript">Loaded script {0}</x:String>
+  <x:String x:Key="ui.status.loadFailed">Failed to load: {0}</x:String>
+  <x:String x:Key="ui.status.appliedEdit">Applied edit: {0}</x:String>
+  <x:String x:Key="ui.editor.noReloadable">This page has nothing to reload; the change cannot be applied</x:String>
+  <x:String x:Key="ui.status.aiAnalyzing">AI analysis: {0}</x:String>
+  <x:String x:Key="ui.status.noAnalysisTarget">Nothing to analyze: play a preset or open the editor first</x:String>
+  <x:String x:Key="ui.status.readFailed">Failed to read the script: {0}</x:String>
+  <x:String x:Key="ui.status.settingsNotSaved">Settings could not be written to disk (applies to this run only)</x:String>
+  <x:String x:Key="ui.status.pickFolderFailed">Failed to pick a folder: {0}</x:String>
+  <x:String x:Key="ui.status.cliRootOverrides">Note: a data root was given on the command line and overrides the settings value</x:String>
+  <x:String x:Key="ui.status.nothingToSave">Nothing to save yet</x:String>
+  <x:String x:Key="ui.saveFrame.title">Save current frame</x:String>
+  <x:String x:Key="ui.saveFrame.pngType">PNG image</x:String>
+  <x:String x:Key="ui.status.frameSaved">Saved {0}</x:String>
+  <x:String x:Key="ui.status.captureWindowFailed">Could not open the capture window: {0}</x:String>
+  <x:String x:Key="ui.status.captured">Saved {0} "{1}"</x:String>
+  <x:String x:Key="ui.empty.shaderToy">Current data root: {0}&#10;It needs presets/*.shaderx (shader sources) and media/ (media/media/a/&lt;hash&gt;.png).&#10;Pick another folder below, or use --shadertoy-data.</x:String>
+  <x:String x:Key="ui.empty.script">Current scripts folder: {0}&#10;It needs *.milkx; use "Import folder…" in the left panel to convert old .milk files.&#10;You can also specify it with --milkx-data.</x:String>
+  <x:String x:Key="ui.empty.projectM">Current data root: {0}&#10;It needs presets/*.milk (preset textures go in textures/).&#10;Pick another folder below, or use --projectm-data.</x:String>
+  <x:String x:Key="ui.status.notLoaded">(not loaded)</x:String>
+  <x:String x:Key="ui.status.audioNone">audio —</x:String>
+  <x:String x:Key="ui.status.audioSynth">synthetic audio</x:String>
+
+  <!-- Pages: projectM / milkx -->
+  <x:String x:Key="page.pm.filter">Filter presets (file name)</x:String>
+  <x:String x:Key="page.pm.rescan">Rescan</x:String>
+  <x:String x:Key="page.pm.rescan.tip">Ignore the index file, rescan .milk files on disk and update presets.index.json</x:String>
+  <x:String x:Key="page.pm.importFolder">Import folder…</x:String>
+  <x:String x:Key="page.pm.importFolder.tip">Recursively convert .milk → .milkx in a folder (keeps subfolders)</x:String>
+  <x:String x:Key="page.pm.importFiles">Import files…</x:String>
+  <x:String x:Key="page.pm.importFiles.tip">Pick several .milk files and convert them to .milkx (flat into the scripts folder)</x:String>
+  <x:String x:Key="page.pm.scanning">Scanning presets…</x:String>
+  <x:String x:Key="page.pm.initializing">Initializing the engine…</x:String>
+  <x:String x:Key="page.pm.loadingScripts">Loading script list… {0}</x:String>
+  <x:String x:Key="page.pm.loadingPresets">Loading preset list… {0}</x:String>
+  <x:String x:Key="page.pm.label.scripts">script list</x:String>
+  <x:String x:Key="page.pm.label.presets">preset list</x:String>
+  <x:String x:Key="page.pm.rescanning">Rescanning… {0}</x:String>
+  <x:String x:Key="page.pm.loading">Loading {0}… {1}</x:String>
+  <x:String x:Key="page.pm.loadFailed">Failed to load {0}: {1}</x:String>
+  <x:String x:Key="page.pm.loaded">{0} {1} · {2} · {3} ms&#10;{4}</x:String>
+  <x:String x:Key="page.pm.item.scripts">scripts</x:String>
+  <x:String x:Key="page.pm.item.presets">presets</x:String>
+  <x:String x:Key="page.pm.emptyScripts">No .milkx scripts found.</x:String>
+  <x:String x:Key="page.pm.emptyScriptsHint">Use "Import folder…" in the left panel to convert old .milk files, or point --milkx-data at a folder.</x:String>
+  <x:String x:Key="page.pm.emptyPresets">No .milk presets found.</x:String>
+  <x:String x:Key="page.pm.emptyPresetsHint">Put presets into projectm\presets\ next to the exe, or point --projectm-data at a folder.</x:String>
+  <x:String x:Key="page.pm.pickImportFolder">Choose a folder of .milk presets to import (recursive, keeps subfolders)</x:String>
+  <x:String x:Key="page.pm.pickImportFiles">Choose .milk presets to import</x:String>
+  <x:String x:Key="page.pm.pickFailedFolder">Failed to pick a folder: {0}</x:String>
+  <x:String x:Key="page.pm.pickFailedFiles">Failed to pick files: {0}</x:String>
+  <x:String x:Key="page.pm.converting">Converting… {0}</x:String>
+  <x:String x:Key="page.pm.importFailed">Import failed: {0}</x:String>
+  <x:String x:Key="page.pm.importFailures">⚠ {0} conversion(s) failed (usually broken EEL in the source preset):&#10;{1}</x:String>
+  <x:String x:Key="page.pm.imported">Imported: {0}</x:String>
+  <x:String x:Key="page.pm.source.cache">memory cache</x:String>
+  <x:String x:Key="page.pm.source.index">index file</x:String>
+  <x:String x:Key="page.pm.source.scan">fresh scan</x:String>
+  <x:String x:Key="page.pm.source.dir">folder {0}</x:String>
+  <x:String x:Key="page.pm.source.files">{0} files</x:String>
+  <x:String x:Key="page.pm.info.preset">Preset : {0}</x:String>
+  <x:String x:Key="page.pm.info.script">milkx : {0}</x:String>
+  <x:String x:Key="page.pm.info.progress">Progress : {0:F0}%  ({1}/{2})  {3}</x:String>
+  <x:String x:Key="page.pm.info.locked">locked</x:String>
+  <x:String x:Key="page.pm.info.auto">auto-switch</x:String>
+  <x:String x:Key="page.pm.info.size">Size : {0}×{1}  mesh {2}×{3}  {4} FPS</x:String>
+  <x:String x:Key="page.pm.info.engine">Engine : {0:F2} ms/frame (CPU side; FPS is paced by the compositor)</x:String>
+  <x:String x:Key="page.pm.info.audio">Audio : {0}</x:String>
+  <x:String x:Key="page.warning">⚠ {0}</x:String>
+
+  <!-- Page: ShaderToy -->
+  <x:String x:Key="page.st.filter">Filter shaders (title/author/ID)</x:String>
+  <x:String x:Key="page.st.buffer.tip">Anything but "follow viewport" changes the buffer resolution: shaders that address the buffer per pixel via iResolution (data-texture style) get misaligned and look dark.</x:String>
+  <x:String x:Key="page.st.buffer.viewport">buffer: follow viewport</x:String>
+  <x:String x:Key="page.st.buffer.fixed">buffer: fixed 1024×256</x:String>
+  <x:String x:Key="page.st.buffer.half">buffer: viewport 0.5×</x:String>
+  <x:String x:Key="page.st.scanning">Reading the shader library…</x:String>
+  <x:String x:Key="page.st.loading">Reading… {0}</x:String>
+  <x:String x:Key="page.st.loaded">{0} shaders ({1}){2}</x:String>
+  <x:String x:Key="page.st.empty">The shader library is empty.</x:String>
+  <x:String x:Key="page.st.emptyHint">The data root has neither presets/*.shaderx nor shadertoy.db (current: {0}). Put .shaderx (or db + media/) into shadertoy\ next to the exe, or point --shadertoy-data at a folder.</x:String>
+  <x:String x:Key="page.st.changeNoPass">⚠ The change has no playable pass; keeping the current frame</x:String>
+  <x:String x:Key="page.st.info.loading">Shader : {0} (reading…)</x:String>
+  <x:String x:Key="page.st.info.failed">Shader : {0} (failed to load)</x:String>
+  <x:String x:Key="page.st.info.none">Shader : (nothing loaded yet)</x:String>
+  <x:String x:Key="page.st.info.shader">Shader : {0}  [{1}]  {2}</x:String>
+  <x:String x:Key="page.st.info.time">Time : {0:F2} s  frame {1}</x:String>
+  <x:String x:Key="page.st.info.size">Size : {0}×{1}  {2} FPS</x:String>
+  <x:String x:Key="page.st.info.sizeBuffer">Size : {0}×{1}  {2} FPS  buffer {3}</x:String>
+  <x:String x:Key="page.st.info.passNone">pass : —</x:String>
+  <x:String x:Key="page.st.info.pass">pass : {0} (buffers {1})  {2}</x:String>
+  <x:String x:Key="page.st.info.audioNone">Audio : —</x:String>
+  <x:String x:Key="page.st.info.audio">Audio : {0}</x:String>
+  <x:String x:Key="page.st.info.underrun"> (underrun {0})</x:String>
+  <x:String x:Key="page.st.compileFailures">⚠ {0} pass(es) failed to compile:</x:String>
+  <x:String x:Key="page.st.err.line"> line {0}</x:String>
+  <x:String x:Key="page.st.err.unknown">unknown reason</x:String>
+
+  <!-- Audio backend descriptions (UI/logs) -->
+  <x:String x:Key="audio.wasapi.loopback">WASAPI loopback {0} Hz / {1} ch</x:String>
+  <x:String x:Key="audio.wasapi.loopbackOff">WASAPI loopback (not running)</x:String>
+  <x:String x:Key="audio.wasapi.shared">WASAPI shared {0} Hz / 2 ch / 16 bit</x:String>
+  <x:String x:Key="audio.waveout">waveOut {0} Hz / 2 ch / 16 bit</x:String>
+  <x:String x:Key="audio.synthetic">synthetic audio {0} Hz / {1} ch</x:String>
+  <x:String x:Key="audio.synthetic.fallback">synthetic audio {0} Hz / {1} ch (WASAPI unavailable: {2})</x:String>
+</ResourceDictionary>

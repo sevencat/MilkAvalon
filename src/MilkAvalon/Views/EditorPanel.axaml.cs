@@ -160,8 +160,8 @@ public partial class EditorPanel : UserControl, IEditorPanel
     /// <summary>宿主把面板塞进独立窗口（true）或贴回右侧（false）之后调，只切按钮文案。</summary>
     public void SetPoppedOut(bool popped)
     {
-        PopOutButton.Content = popped ? "收回" : "弹出";
-        ToolTip.SetTip(PopOutButton, popped ? "贴回窗口右侧" : "放进独立窗口，可以随便拉大");
+        PopOutButton.Content = popped ? Localization.T("editor.dockBack") : Localization.T("editor.popOut");
+        ToolTip.SetTip(PopOutButton, Localization.T(popped ? "editor.popOut.tip.popped" : "editor.popOut.tip"));
     }
 
     private void OnPopOutClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) =>
@@ -197,7 +197,7 @@ public partial class EditorPanel : UserControl, IEditorPanel
 
         if (target is not string path || path.Length == 0)
         {
-            ShowUnsupported("还没有可编辑的内容：先播一个预设（.milk / .milkx），或在 ShaderToy 页选一个作品");
+            ShowUnsupported(Localization.T("editor.target.empty"));
             return;
         }
 
@@ -210,7 +210,7 @@ public partial class EditorPanel : UserControl, IEditorPanel
         if (!path.EndsWith(".milk", StringComparison.OrdinalIgnoreCase)
             && !path.EndsWith(".milkx", StringComparison.OrdinalIgnoreCase))
         {
-            ShowUnsupported("只支持编辑 .milk / .milkx / .shaderx：" + path);
+            ShowUnsupported(Localization.F("editor.target.unsupported", path));
             return;
         }
 
@@ -225,7 +225,7 @@ public partial class EditorPanel : UserControl, IEditorPanel
         if (IsDirty)
         {
             RefreshHeader();
-            ShowStatus($"有未保存的改动，仍在编辑 {Path.GetFileName(_path)}（当前播放已换到 {Path.GetFileName(path)}）");
+            ShowStatus(Localization.F("editor.dirtySwitch", Path.GetFileName(_path), Path.GetFileName(path)));
             return;
         }
 
@@ -276,8 +276,12 @@ public partial class EditorPanel : UserControl, IEditorPanel
             RefreshParameters();
             UpdateHint();
 
-            ShowStatus($"已载入 {Path.GetFileName(_path)}：{document.Entries.Count} 个参数，"
-                + $"{document.LineCount} 行，{document.EncodingName}");
+            ShowStatus(Localization.F(
+                "editor.loaded",
+                Path.GetFileName(_path),
+                document.Entries.Count,
+                document.LineCount,
+                document.EncodingName));
         }
         catch (Exception ex)
         {
@@ -292,13 +296,13 @@ public partial class EditorPanel : UserControl, IEditorPanel
             MilkHighlighting.Apply(CodeBox, null);
             UpdateHint();
 
-            TitleText.Text = "预设编辑";
+            TitleText.Text = Localization.T("editor.title");
             PathText.Text = path;
             ParamCountText.Text = "—";
             _filtered = [];
             ParamList.ItemsSource = _filtered;
 
-            ShowStatus("打开失败：" + ex.Message, isError: true);
+            ShowStatus(Localization.F("editor.loadFailed", ex.Message), isError: true);
         }
     }
 
@@ -316,7 +320,7 @@ public partial class EditorPanel : UserControl, IEditorPanel
         if (IsDirty)
         {
             RefreshHeader();
-            ShowStatus($"有未保存的改动，仍在编辑 {Path.GetFileName(_path)}（当前播放已换到 {Path.GetFileName(full)}）");
+            ShowStatus(Localization.F("editor.dirtySwitch", Path.GetFileName(_path), Path.GetFileName(full)));
             return;
         }
 
@@ -329,7 +333,7 @@ public partial class EditorPanel : UserControl, IEditorPanel
         {
             if (!File.Exists(path))
             {
-                ShowUnsupported("文件不存在：" + path);
+                ShowUnsupported(Localization.F("editor.fileMissing", path));
                 return;
             }
 
@@ -353,11 +357,14 @@ public partial class EditorPanel : UserControl, IEditorPanel
             RefreshParameters();
             UpdateHint();
 
-            ShowStatus($"已载入 {Path.GetFileName(path)}：{CountLines(text)} 行（.shaderx 原文，Ctrl+S 保存并重新编译）");
+            ShowStatus(Localization.F(
+                "editor.loadedShaderx",
+                Path.GetFileName(path),
+                CountLines(text)));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            ShowUnsupported("打开失败：" + ex.Message);
+            ShowUnsupported(Localization.F("editor.loadFailed", ex.Message));
         }
     }
 
@@ -366,7 +373,7 @@ public partial class EditorPanel : UserControl, IEditorPanel
     {
         if (!_isShaderx || _path is null)
         {
-            ShowStatus("没有打开的文件", isError: true);
+            ShowStatus(Localization.T("editor.noFile"), isError: true);
             return;
         }
 
@@ -384,7 +391,7 @@ public partial class EditorPanel : UserControl, IEditorPanel
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            ShowStatus("保存失败：" + ex.Message, isError: true);
+            ShowStatus(Localization.F("editor.saveFailed", ex.Message), isError: true);
             return;
         }
 
@@ -398,8 +405,8 @@ public partial class EditorPanel : UserControl, IEditorPanel
             ApplyRequested?.Invoke(_path, text);
         }
 
-        ShowStatus($"已保存 {Path.GetFileName(_path)}（{CountLines(text)} 行）"
-            + (applyToEngine ? "，并已重新编译" : string.Empty));
+        ShowStatus(Localization.F("editor.savedShaderx", Path.GetFileName(_path), CountLines(text))
+            + (applyToEngine ? Localization.T("editor.savedShaderxApplied") : string.Empty));
     }
 
     /// <summary><c>.shaderx</c> 的粗校验：至少要能解析出一个 pass。</summary>
@@ -407,13 +414,13 @@ public partial class EditorPanel : UserControl, IEditorPanel
     {
         if (text.Length == 0)
         {
-            message = "内容为空";
+            message = Localization.T("editor.err.empty");
             return false;
         }
 
         if (text.Contains('\0'))
         {
-            message = "内容里有 NUL 字符，读回来会变成乱码";
+            message = Localization.T("editor.err.nul.shaderx");
             return false;
         }
 
@@ -421,7 +428,7 @@ public partial class EditorPanel : UserControl, IEditorPanel
 
         if (document.Passes.Count == 0)
         {
-            message = "没有任何 [shadertoy.<角色>] 段，这个文件播放不了";
+            message = Localization.T("editor.err.noPass");
             return false;
         }
 
@@ -446,7 +453,7 @@ public partial class EditorPanel : UserControl, IEditorPanel
 
         if (_document is null || _path is null)
         {
-            ShowStatus("没有打开的文件", isError: true);
+            ShowStatus(Localization.T("editor.noFile"), isError: true);
             return;
         }
 
@@ -458,7 +465,7 @@ public partial class EditorPanel : UserControl, IEditorPanel
 
         if (!_document.TrySave(out string error))
         {
-            ShowStatus("保存失败：" + error, isError: true);
+            ShowStatus(Localization.F("editor.saveFailed", error), isError: true);
             return;
         }
 
@@ -470,8 +477,12 @@ public partial class EditorPanel : UserControl, IEditorPanel
             ApplyRequested?.Invoke(_path, _document.Text);
         }
 
-        ShowStatus($"已保存 {Path.GetFileName(_path)}（{_document.Entries.Count} 个参数，"
-            + $"{_document.EncodingName}）" + (applyToEngine ? "，并已让引擎重载" : string.Empty));
+        ShowStatus(Localization.F(
+                "editor.saved",
+                Path.GetFileName(_path),
+                _document.Entries.Count,
+                _document.EncodingName)
+            + (applyToEngine ? Localization.T("editor.savedAppliedSuffix") : string.Empty));
     }
 
     private void ApplyOnly()
@@ -480,7 +491,7 @@ public partial class EditorPanel : UserControl, IEditorPanel
         {
             if (_path is null)
             {
-                ShowStatus("没有打开的文件", isError: true);
+                ShowStatus(Localization.T("editor.noFile"), isError: true);
                 return;
             }
 
@@ -494,13 +505,13 @@ public partial class EditorPanel : UserControl, IEditorPanel
 
             _shaderxText = text;
             ApplyRequested?.Invoke(_path, text);
-            ShowStatus("已把当前文本重新编译（未写盘；Ctrl+S 才保存）");
+            ShowStatus(Localization.T("editor.appliedShaderx"));
             return;
         }
 
         if (_document is null || _path is null)
         {
-            ShowStatus("没有打开的文件", isError: true);
+            ShowStatus(Localization.T("editor.noFile"), isError: true);
             return;
         }
 
@@ -511,7 +522,7 @@ public partial class EditorPanel : UserControl, IEditorPanel
         }
 
         ApplyRequested?.Invoke(_path, _document.Text);
-        ShowStatus("已把当前文本应用到引擎（未写盘；Ctrl+S 才保存）");
+        ShowStatus(Localization.T("editor.applied"));
     }
 
     /// <summary>引擎侧的粗校验：一行都解析不出来就没必要送去重载了。</summary>
@@ -519,19 +530,19 @@ public partial class EditorPanel : UserControl, IEditorPanel
     {
         if (text.Length == 0)
         {
-            message = "内容为空";
+            message = Localization.T("editor.err.empty");
             return false;
         }
 
         if (text.Contains('\0'))
         {
-            message = "内容里有 NUL 字符，引擎会当成二进制拒绝加载";
+            message = Localization.T("editor.err.nul.milk");
             return false;
         }
 
         if (Encoding.UTF8.GetByteCount(text) > MilkPresetDocument.MaxFileSize)
         {
-            message = $"超过 {MilkPresetDocument.MaxFileSize / 1024} KiB，引擎会拒绝加载";
+            message = Localization.F("editor.err.tooBig", MilkPresetDocument.MaxFileSize / 1024);
             return false;
         }
 
@@ -540,7 +551,7 @@ public partial class EditorPanel : UserControl, IEditorPanel
             // .milkx 的结构很简单：至少要有一个 [段]，否则还原不出参数/代码
             if (!text.Contains('['))
             {
-                message = "没有任何 [段名]，不是有效的 .milkx";
+                message = Localization.T("editor.err.noSection");
                 return false;
             }
 
@@ -551,7 +562,7 @@ public partial class EditorPanel : UserControl, IEditorPanel
         var parser = new PresetFileParser();
         if (!parser.ReadBytes(Encoding.Latin1.GetBytes(text)))
         {
-            message = "一行 key=value 都没有，引擎会拒绝这个文件";
+            message = Localization.T("editor.err.noKeyValue");
             return false;
         }
 
@@ -565,7 +576,7 @@ public partial class EditorPanel : UserControl, IEditorPanel
     {
         if (_path is null || (!_isShaderx && _document is null))
         {
-            TitleText.Text = "预设编辑";
+            TitleText.Text = Localization.T("editor.title");
             PathText.Text = "—";
             RevertButton.IsEnabled = false;
             return;
@@ -617,7 +628,7 @@ public partial class EditorPanel : UserControl, IEditorPanel
         _suppressParamSelection = false;
 
         ParamCountText.Text = filter.Length == 0
-            ? $"{entries.Count} 个参数"
+            ? Localization.F("editor.paramCount", entries.Count)
             : $"{_filtered.Count} / {entries.Count}";
     }
 
@@ -658,7 +669,7 @@ public partial class EditorPanel : UserControl, IEditorPanel
         MilkHighlighting.Apply(CodeBox, null);
         UpdateHint();
 
-        TitleText.Text = "预设编辑";
+        TitleText.Text = Localization.T("editor.title");
         PathText.Text = "—";
         ParamCountText.Text = "—";
         _filtered = [];
@@ -767,7 +778,7 @@ public partial class EditorPanel : UserControl, IEditorPanel
     {
         if (_path is null || CodeBox.IsReadOnly)
         {
-            ShowStatus("还没有可分析的脚本：先打开一个 .milk / .milkx / .shaderx", isError: true);
+            ShowStatus(Localization.T("editor.noAnalysisTarget"), isError: true);
             return;
         }
 
@@ -775,7 +786,7 @@ public partial class EditorPanel : UserControl, IEditorPanel
 
         if (text.Length == 0)
         {
-            ShowStatus("脚本是空的，没什么可分析的", isError: true);
+            ShowStatus(Localization.T("editor.emptyScript"), isError: true);
             return;
         }
 
@@ -812,13 +823,13 @@ public partial class EditorPanel : UserControl, IEditorPanel
             IReadOnlyList<IStorageFile> files = await top.StorageProvider.OpenFilePickerAsync(
                 new FilePickerOpenOptions
                 {
-                    Title = "打开 .milk / .milkx / .shaderx",
+                    Title = Localization.T("editor.openFile.title"),
                     AllowMultiple = false,
                     FileTypeFilter =
                     [
-                        new FilePickerFileType("全部支持的格式") { Patterns = ["*.milk", "*.milkx", "*.shaderx"] },
-                        new FilePickerFileType("MilkDrop 预设") { Patterns = ["*.milk", "*.milkx"] },
-                        new FilePickerFileType("ShaderToy 作品") { Patterns = ["*.shaderx"] },
+                        new FilePickerFileType(Localization.T("editor.pick.all")) { Patterns = ["*.milk", "*.milkx", "*.shaderx"] },
+                        new FilePickerFileType(Localization.T("editor.pick.milk")) { Patterns = ["*.milk", "*.milkx"] },
+                        new FilePickerFileType(Localization.T("editor.pick.shaderx")) { Patterns = ["*.shaderx"] },
                     ],
                 });
 
@@ -826,7 +837,7 @@ public partial class EditorPanel : UserControl, IEditorPanel
             {
                 if (IsDirty)
                 {
-                    ShowStatus($"注意：{Path.GetFileName(_path)} 的未保存改动被丢弃");
+                    ShowStatus(Localization.F("editor.discardWarning", Path.GetFileName(_path)));
                 }
 
                 if (path.EndsWith(".shaderx", StringComparison.OrdinalIgnoreCase))
@@ -841,7 +852,7 @@ public partial class EditorPanel : UserControl, IEditorPanel
         }
         catch (Exception ex)
         {
-            ShowStatus("选择文件失败：" + ex.Message, isError: true);
+            ShowStatus(Localization.F("editor.pickFailed", ex.Message), isError: true);
         }
     }
 

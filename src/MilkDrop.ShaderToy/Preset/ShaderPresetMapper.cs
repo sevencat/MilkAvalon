@@ -79,9 +79,22 @@ public static class ShaderPresetMapper
                 switch (channel.Type)
                 {
                     case ShaderInputType.Buffer:
-                    case ShaderInputType.Cubemap:
                     case ShaderInputType.Volume:
                         input.Id = channel.Target;
+                        break;
+
+                    case ShaderInputType.Cubemap:
+                        // 站点素材：文件里存的是第一面的路径（/media/a/<sha>.png），其余五面按 _1.._5 推导；
+                        // 老文件存的是素材 id（XsX3zn），只能靠本地命名约定兜底
+                        if (LooksLikeMediaPath(channel.Target))
+                        {
+                            input.Path = channel.Target;
+                        }
+                        else
+                        {
+                            input.Id = channel.Target;
+                        }
+
                         break;
 
                     case ShaderInputType.Texture:
@@ -363,13 +376,24 @@ public static class ShaderPresetMapper
         return "A";
     }
 
-    /// <summary>输入 → 文件里的"目标"字段（buffer 的 id / 纹理路径）。</summary>
+    /// <summary>输入 → 文件里的"目标"字段（buffer 的 id / 纹理与立方体贴图的路径）。</summary>
+    /// <remarks>
+    /// cubemap <b>优先写 <see cref="ShaderPassInput.Path"/></b>：站点素材的 <c>filepath</c> 是第一面，
+    /// 写进文件才定位得到六张图（P18 实测）。只有拿不到路径时才退回素材 id。
+    /// </remarks>
     private static string? TargetOf(ShaderPassInput input) => input.Type switch
     {
+        ShaderInputType.Cubemap when input.Path is { Length: > 0 } => input.Path,
         ShaderInputType.Buffer or ShaderInputType.Cubemap or ShaderInputType.Volume => input.Id,
         ShaderInputType.Texture => input.Path,
         _ => null,
     };
+
+    /// <summary>这个"目标"看着像不像站点资源路径（<c>/media/a/x.png</c> / <c>media\a\x.png</c>）。</summary>
+    private static bool LooksLikeMediaPath(string? target) =>
+        target is { Length: > 0 }
+        && (target.Contains('/', StringComparison.Ordinal) || target.Contains('\\', StringComparison.Ordinal))
+        && Path.HasExtension(target);
 
     private static void AddIfAny(ShaderPresetDocument document, string key, string? value)
     {

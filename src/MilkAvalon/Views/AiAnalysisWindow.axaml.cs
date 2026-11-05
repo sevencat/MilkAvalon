@@ -23,12 +23,10 @@ public partial class AiAnalysisWindow : Window
     private static readonly IBrush NormalBrush = new SolidColorBrush(Color.Parse("#B4B4B4"));
     private static readonly IBrush ErrorBrush = new SolidColorBrush(Color.Parse("#FF8A65"));
 
-    private const string MissingKeyMessage =
-        "还没有 DeepSeek API Key：到「设置 → AI 分析」里填，或设环境变量 DEEPSEEK_API_KEY。";
-
     private readonly string _scriptText;
     private readonly string _language;
     private readonly string _systemPrompt;
+    private readonly string _baseUrl;
     private readonly string? _apiKey;
     private readonly string _model;
     private readonly string? _sourcePath;
@@ -67,6 +65,7 @@ public partial class AiAnalysisWindow : Window
 
         // 系统提示词跟着脚本类型走：.shaderx → shadertoy，其余 → milkdrop
         _systemPrompt = ScriptAnalyzer.SystemPromptFor(path);
+        _baseUrl = ScriptAnalyzer.ResolveBaseUrl(settings.AiBaseUrl);
         _apiKey = ScriptAnalyzer.ResolveApiKey(settings.DeepSeekApiKey);
         _model = ScriptAnalyzer.ResolveModel(settings.DeepSeekModel);
         _sourcePath = string.IsNullOrWhiteSpace(path) ? null : SafeFullPath(path);
@@ -80,14 +79,14 @@ public partial class AiAnalysisWindow : Window
             if (_busy)
             {
                 StatusText.Text = _received == 0
-                    ? $"正在请求 DeepSeek（{_model}）… 已等待 {_clock.Elapsed.TotalSeconds:F0} 秒"
-                    : $"正在接收（{_model}）：{_received} 字符，已等待 {_clock.Elapsed.TotalSeconds:F0} 秒";
+                    ? Localization.F("ai.waiting", _model, _clock.Elapsed.TotalSeconds)
+                    : Localization.F("ai.receiving", _model, _received, _clock.Elapsed.TotalSeconds);
             }
         };
 
         _caption = _sourcePath is null
-            ? "AI 分析"
-            : "AI 分析 — " + Path.GetFileName(_sourcePath);
+            ? Localization.T("ai.title")
+            : Localization.T("ai.title") + " — " + Path.GetFileName(_sourcePath);
         Title = _caption;
         CaptionText.Text = _caption;
 
@@ -97,11 +96,11 @@ public partial class AiAnalysisWindow : Window
 
         if (_apiKey is null)
         {
-            SetStatus(MissingKeyMessage, isError: true);
+            SetStatus(Localization.T("ai.missingKey"), isError: true);
             return;
         }
 
-        SetStatus($"就绪：{_model}｜{_systemPrompt}｜脚本 {scriptText.Length} 字符。回车或点「分析」开始。");
+        SetStatus(Localization.F("ai.ready", _model, _systemPrompt, scriptText.Length));
 
         // 先显示上次的分析（同目录的 <文件名>.ai.md）
         LoadSavedAnalysis();
@@ -144,7 +143,7 @@ public partial class AiAnalysisWindow : Window
 
             _markdown = text;
             Viewer.Markdown = text;
-            SetStatus($"已载入上次的分析：{Path.GetFileName(saved)}（{text.Length} 字符）。点「分析」重新请求。");
+            SetStatus(Localization.F("ai.loadedSaved", Path.GetFileName(saved), text.Length));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -191,7 +190,7 @@ public partial class AiAnalysisWindow : Window
             return;
         }
 
-        SetStatus("正在取消…");
+        SetStatus(Localization.T("ai.cancelling"));
         _cts?.Cancel();
     }
 
@@ -202,25 +201,25 @@ public partial class AiAnalysisWindow : Window
 
         if (saved is null)
         {
-            SetStatus("没有源文件路径，无法确定保存位置。", isError: true);
+            SetStatus(Localization.T("ai.noSavePath"), isError: true);
             return;
         }
 
         if (_markdown.Length == 0)
         {
-            SetStatus("还没有分析结果可保存。", isError: true);
+            SetStatus(Localization.T("ai.nothingToSave"), isError: true);
             return;
         }
 
         try
         {
             File.WriteAllText(saved, _markdown, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-            SetStatus($"已保存 {saved}（{_markdown.Length} 字符）。");
+            SetStatus(Localization.F("ai.saved", saved, _markdown.Length));
             Console.WriteLine("[ai] 已保存：" + saved);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            SetStatus("保存失败：" + ex.Message, isError: true);
+            SetStatus(Localization.F("ai.saveFailed", ex.Message), isError: true);
         }
     }
 
@@ -233,13 +232,13 @@ public partial class AiAnalysisWindow : Window
 
         if (_apiKey is null)
         {
-            SetStatus(MissingKeyMessage, isError: true);
+            SetStatus(Localization.T("ai.missingKey"), isError: true);
             return;
         }
 
         if (_scriptText.Length == 0)
         {
-            SetStatus("没有可分析的脚本内容。", isError: true);
+            SetStatus(Localization.T("ai.noScript"), isError: true);
             return;
         }
 
@@ -257,7 +256,7 @@ public partial class AiAnalysisWindow : Window
         Viewer.Markdown = string.Empty;
         _clock.Restart();
         _ticker.Start();
-        SetStatus($"正在请求 DeepSeek（{_model}，流式）… 已等待 0 秒");
+        SetStatus(Localization.F("ai.requesting", _model));
 
         var builder = new StringBuilder();
 
@@ -268,6 +267,7 @@ public partial class AiAnalysisWindow : Window
             using var session = Viewer.BeginStreaming();
 
             string markdown = await ScriptAnalyzer.AnalyzeStreamAsync(
+                _baseUrl,
                 _apiKey,
                 _model,
                 _systemPrompt,
@@ -283,25 +283,24 @@ public partial class AiAnalysisWindow : Window
                 _cts.Token);
 
             _markdown = markdown;
-            Title = _caption + $"（完成 {markdown.Length} 字符）";
-            SetStatus($"完成：{markdown.Length} 字符。点「保存」写到脚本同目录。");
+            Title = _caption + Localization.F("ai.doneTitle", markdown.Length);
+            SetStatus(Localization.F("ai.done", markdown.Length));
             Console.WriteLine($"[ai] 分析完成：{markdown.Length} 字符（{_model}）");
         }
         catch (OperationCanceledException) when (_cts?.IsCancellationRequested == true)
         {
-            SetStatus("已取消。");
+            SetStatus(Localization.T("ai.cancelled"));
         }
         catch (OperationCanceledException)
         {
             // HttpClient.Timeout 到点也是 OperationCanceledException，但令牌没被取消
             SetStatus(
-                $"请求超时（已等 {_clock.Elapsed.TotalSeconds:F0} 秒）：DeepSeek 没在时限内回完。"
-                + "可以换更快的模型（deepseek-chat），或缩小脚本再试。",
+                Localization.F("ai.timeout", _clock.Elapsed.TotalSeconds),
                 isError: true);
         }
         catch (Exception ex)
         {
-            SetStatus("分析失败：" + ex.Message, isError: true);
+            SetStatus(Localization.F("ai.failed", ex.Message), isError: true);
             Console.WriteLine("[ai] 失败：" + ex);
         }
         finally

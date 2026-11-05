@@ -64,8 +64,8 @@ public sealed class AudioCapture : IPcmSource
 
     /// <summary>后端描述（UI/日志用）。</summary>
     public string Description => IsRunning
-        ? $"WASAPI 环回 {_sampleRate} Hz / {_channels} ch"
-        : "WASAPI 环回（未启动）";
+        ? Localization.F("audio.wasapi.loopback", _sampleRate, _channels)
+        : Localization.T("audio.wasapi.loopbackOff");
 
     /// <summary>设备采样率（采集没起来时为 0）。</summary>
     public int SampleRate => _sampleRate;

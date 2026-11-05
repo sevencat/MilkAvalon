@@ -12,31 +12,31 @@
       <Border DockPanel.Dock="Top" Background="{DynamicResource MaterialToolBarBackgroundBrush}" Padding="10,8">
         <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
           <StackPanel Spacing="2" VerticalAlignment="Center">
-            <TextBlock Name="TitleText" Text="预设编辑" FontWeight="SemiBold" FontSize="13"
+            <TextBlock Name="TitleText" Text="{DynamicResource editor.title}" FontWeight="SemiBold" FontSize="13"
                        TextTrimming="CharacterEllipsis" />
             <TextBlock Name="PathText" Text="—" FontSize="11" Opacity="0.55"
                        TextTrimming="CharacterEllipsis" />
           </StackPanel>
-          <Button Grid.Column="1" Name="PopOutButton" Classes="toolbar" Content="弹出" Click="OnPopOutClick"
+          <Button Grid.Column="1" Name="PopOutButton" Classes="toolbar" Content="{DynamicResource editor.popOut}" Click="OnPopOutClick"
                   Padding="12,3" MinWidth="64" FontSize="12" VerticalAlignment="Center"
-                  ToolTip.Tip="放进独立窗口，可以随便拉大（再点一次收回右侧）" />
-          <Button Grid.Column="2" Classes="toolbar" Content="关闭" Click="OnCloseClick"
+                  ToolTip.Tip="{DynamicResource editor.popOut.tip}" />
+          <Button Grid.Column="2" Classes="toolbar" Content="{DynamicResource editor.close}" Click="OnCloseClick"
                   Padding="12,3" MinWidth="64" FontSize="12" VerticalAlignment="Center" />
         </Grid>
       </Border>
 
       <!-- 工具条：保存（写盘+重载）/ 应用（只重载）/ 还原 / 打开 / AI 分析 -->
       <Grid DockPanel.Dock="Top" Margin="8,8,8,6" ColumnDefinitions="*,*,*,Auto,Auto" ColumnSpacing="6">
-        <Button Name="SaveButton" Classes="toolbar" Content="保存" Click="OnSaveClick"
-                FontSize="12" Padding="8,4" ToolTip.Tip="写回 .milk 并重载引擎（Ctrl+S）" />
-        <Button Grid.Column="1" Name="ApplyButton" Classes="toolbar" Content="应用" Click="OnApplyClick"
-                FontSize="12" Padding="8,4" ToolTip.Tip="不写盘，只把当前文本重载进引擎（试参数用）" />
-        <Button Grid.Column="2" Name="RevertButton" Classes="toolbar" Content="还原" Click="OnRevertClick"
-                FontSize="12" Padding="8,4" ToolTip.Tip="丢弃未保存的改动，重新从磁盘读取" />
-        <Button Grid.Column="3" Name="OpenFileButton" Classes="toolbar" Content="打开…" Click="OnOpenFileClick"
-                FontSize="12" Padding="8,4" ToolTip.Tip="编辑另一个 .milk 文件" />
-        <Button Grid.Column="4" Name="AiButton" Classes="toolbar" Content="AI 分析" Click="OnAnalyzeClick"
-                FontSize="12" Padding="8,4" ToolTip.Tip="把当前脚本交给 DeepSeek 分析（结果显示在独立窗口）" />
+        <Button Name="SaveButton" Classes="toolbar" Content="{DynamicResource editor.save}" Click="OnSaveClick"
+                FontSize="12" Padding="8,4" ToolTip.Tip="{DynamicResource editor.save.tip}" />
+        <Button Grid.Column="1" Name="ApplyButton" Classes="toolbar" Content="{DynamicResource editor.apply}" Click="OnApplyClick"
+                FontSize="12" Padding="8,4" ToolTip.Tip="{DynamicResource editor.apply.tip}" />
+        <Button Grid.Column="2" Name="RevertButton" Classes="toolbar" Content="{DynamicResource editor.revert}" Click="OnRevertClick"
+                FontSize="12" Padding="8,4" ToolTip.Tip="{DynamicResource editor.revert.tip}" />
+        <Button Grid.Column="3" Name="OpenFileButton" Classes="toolbar" Content="{DynamicResource editor.open}" Click="OnOpenFileClick"
+                FontSize="12" Padding="8,4" ToolTip.Tip="{DynamicResource editor.open.tip}" />
+        <Button Grid.Column="4" Name="AiButton" Classes="toolbar" Content="{DynamicResource editor.ai}" Click="OnAnalyzeClick"
+                FontSize="12" Padding="8,4" ToolTip.Tip="{DynamicResource editor.ai.tip}" />
       </Grid>
 
       <!-- 底部状态：光标下的名字提示（函数签名/参数含义）+ 保存结果 / 引擎告警 -->
@@ -56,7 +56,7 @@
                 BorderBrush="{DynamicResource MaterialDividerBrush}" BorderThickness="0,0,1,0">
           <DockPanel>
             <TextBox DockPanel.Dock="Top" Name="ParamFilter" Margin="6,0,6,4"
-                     PlaceholderText="过滤参数" FontSize="11"
+                     PlaceholderText="{DynamicResource editor.filterParams}" FontSize="11"
                      TextChanged="OnParamFilterChanged" />
             <TextBlock DockPanel.Dock="Bottom" Name="ParamCountText" Margin="8,4"
                        FontSize="10" Opacity="0.5" Text="—" />

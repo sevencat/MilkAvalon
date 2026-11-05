@@ -116,7 +116,9 @@ public partial class ProjectMPage : UserControl
         // 脚本目录通常只有几千个 .milkx，扫一遍很快；不写索引文件，省得再解释"这个 json 是谁写的"
         _indexPath = scriptMode ? string.Empty : PresetIndexCache.PathFor(options.EffectiveProjectMRoot);
 
-        LibraryText.Text = $"{(scriptMode ? "加载脚本清单" : "加载预设清单")}… {_presetsDirectory}";
+        LibraryText.Text = scriptMode
+            ? Localization.F("page.pm.loadingScripts", _presetsDirectory)
+            : Localization.F("page.pm.loadingPresets", _presetsDirectory);
 
         // 9795 个文件的枚举别放 UI 线程。顺序：内存缓存 → 索引文件 → 扫盘（扫完写索引）。
         _ = LoadLibraryAsync(options, state, forceRescan: false, keepSelection: null);
@@ -135,11 +137,13 @@ public partial class ProjectMPage : UserControl
         string directory = _presetsDirectory;
         string indexPath = _indexPath;
         string pattern = _pattern;
-        string label = _scriptMode ? "脚本清单" : "预设清单";
+        string label = _scriptMode ? Localization.T("page.pm.label.scripts") : Localization.T("page.pm.label.presets");
 
         _scanning = true;
         RescanButton.IsEnabled = false;
-        LibraryText.Text = (forceRescan ? "重新扫描中… " : $"加载{label}… ") + directory;
+        LibraryText.Text = forceRescan
+            ? Localization.F("page.pm.rescanning", directory)
+            : Localization.F("page.pm.loading", label, directory);
 
         (PresetLibrary Library, string Source, long ElapsedMs) result;
 
@@ -154,7 +158,7 @@ public partial class ProjectMPage : UserControl
 
                 if (!forceRescan && s_directoryCache.TryGetValue(key, out PresetLibrary? memory))
                 {
-                    return (memory, "内存缓存", clock.ElapsedMilliseconds);
+                    return (memory, Localization.T("page.pm.source.cache"), clock.ElapsedMilliseconds);
                 }
 
                 if (!forceRescan && indexPath.Length > 0)
@@ -163,7 +167,7 @@ public partial class ProjectMPage : UserControl
                     {
                         Console.WriteLine("[projectM] 预设清单来自索引：" + reason);
                         s_directoryCache[key] = indexed;
-                        return (indexed, "索引文件", clock.ElapsedMilliseconds);
+                        return (indexed, Localization.T("page.pm.source.index"), clock.ElapsedMilliseconds);
                     }
 
                     Console.WriteLine("[projectM] 没有可用索引（" + reason + "），改为扫描磁盘");
@@ -183,7 +187,7 @@ public partial class ProjectMPage : UserControl
                     }
                 }
 
-                return (scanned, "本次扫描", clock.ElapsedMilliseconds);
+                return (scanned, Localization.T("page.pm.source.scan"), clock.ElapsedMilliseconds);
             });
         }
         catch (Exception ex)
@@ -194,7 +198,7 @@ public partial class ProjectMPage : UserControl
             if (!_detached)
             {
                 RescanButton.IsEnabled = true;
-                LibraryText.Text = label + "装载失败：" + ex.Message;
+                LibraryText.Text = Localization.F("page.pm.loadFailed", label, ex.Message);
             }
 
             return;
@@ -215,8 +219,13 @@ public partial class ProjectMPage : UserControl
 
         ApplyFilter(SearchBox.Text);
         _scanned = true;
-        LibraryText.Text = $"{_library.All.Count} 个{(_scriptMode ? "脚本" : "预设")} · {result.Source} · "
-            + $"{result.ElapsedMs} ms\n{directory}";
+        LibraryText.Text = Localization.F(
+            "page.pm.loaded",
+            _library.All.Count,
+            _scriptMode ? Localization.T("page.pm.item.scripts") : Localization.T("page.pm.item.presets"),
+            result.Source,
+            result.ElapsedMs,
+            directory);
 
         // 重新扫描：尽量停在原来那个预设上，没有就保持引擎现状（别把正在播的换掉）
         if (keepSelection is { Length: > 0 })
@@ -238,13 +247,13 @@ public partial class ProjectMPage : UserControl
         }
         else if (_scriptMode)
         {
-            InfoPreset.Text = "没有找到任何 .milkx 脚本。";
-            InfoWarning.Text = "点左栏「导入 .milk…」把老预设转成 .milkx，或用 --milkx-data 指定目录。";
+            InfoPreset.Text = Localization.T("page.pm.emptyScripts");
+            InfoWarning.Text = Localization.T("page.pm.emptyScriptsHint");
         }
         else
         {
-            InfoPreset.Text = "没有找到任何 .milk 预设。";
-            InfoWarning.Text = "请把预设放到 exe 旁的 projectm\\presets\\，或用 --projectm-data 指定目录。";
+            InfoPreset.Text = Localization.T("page.pm.emptyPresets");
+            InfoWarning.Text = Localization.T("page.pm.emptyPresetsHint");
         }
     }
 
@@ -289,13 +298,13 @@ public partial class ProjectMPage : UserControl
         {
             folders = await top.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
             {
-                Title = "选择要导入的 .milk 预设目录（递归转换，保留子目录）",
+                Title = Localization.T("page.pm.pickImportFolder"),
                 AllowMultiple = false,
             });
         }
         catch (Exception ex)
         {
-            InfoWarning.Text = "选择目录失败：" + ex.Message;
+            InfoWarning.Text = Localization.F("page.pm.pickFailedFolder", ex.Message);
             return;
         }
 
@@ -307,7 +316,7 @@ public partial class ProjectMPage : UserControl
         string source = folders[0].TryGetLocalPath() ?? folders[0].Path.LocalPath;
         await ImportAsync(
             () => MilkxImporter.ImportDirectory(source, _presetsDirectory),
-            $"目录 {source}");
+            Localization.F("page.pm.source.dir", source));
     }
 
     /// <summary>「从文件导入…」：选若干 <c>.milk</c>，平铺转成 <c>.milkx</c>。</summary>
@@ -326,14 +335,14 @@ public partial class ProjectMPage : UserControl
         {
             picked = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
-                Title = "选择要导入的 .milk 预设",
+                Title = Localization.T("page.pm.pickImportFiles"),
                 AllowMultiple = true,
-                FileTypeFilter = [new FilePickerFileType("MilkDrop 预设") { Patterns = ["*.milk"] }],
+                FileTypeFilter = [new FilePickerFileType(Localization.T("editor.pick.milk")) { Patterns = ["*.milk"] }],
             });
         }
         catch (Exception ex)
         {
-            InfoWarning.Text = "选择文件失败：" + ex.Message;
+            InfoWarning.Text = Localization.F("page.pm.pickFailedFiles", ex.Message);
             return;
         }
 
@@ -351,7 +360,7 @@ public partial class ProjectMPage : UserControl
         // 选的是零散文件，没有共同的源根 → 平铺到 milkx 根目录（重名会被后一个覆盖）
         await ImportAsync(
             () => MilkxImporter.ImportFiles(files, sourceRoot: null, _presetsDirectory),
-            $"{files.Length} 个文件");
+            Localization.F("page.pm.source.files", files.Length));
     }
 
     /// <summary>后台跑转换，完了重新扫盘（定位回原来那个脚本）。</summary>
@@ -366,7 +375,7 @@ public partial class ProjectMPage : UserControl
 
         ImportFolderButton.IsEnabled = false;
         ImportFilesButton.IsEnabled = false;
-        LibraryText.Text = "正在转换… " + what;
+        LibraryText.Text = Localization.F("page.pm.converting", what);
 
         MilkxImportResult result;
 
@@ -377,7 +386,7 @@ public partial class ProjectMPage : UserControl
         catch (Exception ex)
         {
             Console.WriteLine("[milkx] 导入失败：" + ex);
-            InfoWarning.Text = "导入失败：" + ex.Message;
+            InfoWarning.Text = Localization.F("page.pm.importFailed", ex.Message);
             ImportFolderButton.IsEnabled = true;
             ImportFilesButton.IsEnabled = true;
             return;
@@ -396,8 +405,10 @@ public partial class ProjectMPage : UserControl
                 Console.WriteLine("[milkx] 失败：" + failure);
             }
 
-            InfoWarning.Text = "⚠ 转换失败 " + result.Failures.Count + " 个（多为原预设 EEL 本身有问题）：\n"
-                + string.Join("\n", result.Failures.Take(3));
+            InfoWarning.Text = Localization.F(
+                "page.pm.importFailures",
+                result.Failures.Count,
+                string.Join("\n", result.Failures.Take(3)));
         }
         else
         {
@@ -415,7 +426,7 @@ public partial class ProjectMPage : UserControl
 
         if (result.Failures.Count == 0)
         {
-            InfoWarning.Text = $"已导入：{result.Describe()}";
+            InfoWarning.Text = Localization.F("page.pm.imported", result.Describe());
         }
     }
 
@@ -671,12 +682,19 @@ public partial class ProjectMPage : UserControl
 
         string fps = control.Fps > 0 ? control.Fps.ToString("F1") : "—";
 
-        InfoPreset.Text = $"{(_scriptMode ? "milkx" : "预设")} : {control.CurrentPresetName}";
-        InfoProgress.Text = $"进度 : {control.PresetProgress * 100:F0}%  ({control.CurrentPresetIndex + 1}/{_visible.Count})"
-            + $"  {(control.IsLocked ? "已锁定" : "自动切换")}";
-        InfoSize.Text = $"尺寸 : {control.PixelWidth}×{control.PixelHeight}  网格 {meshX}×{meshY}  {fps} FPS";
-        InfoEngine.Text = $"引擎 : {control.EngineFrameMs:F2} ms/帧（CPU 侧，FPS 会被合成器节奏压住）";
-        InfoAudio.Text = $"音频 : {audio}";
-        InfoWarning.Text = control.LastWarning is { } warning ? "⚠ " + warning : string.Empty;
+        InfoPreset.Text = Localization.F(
+            _scriptMode ? "page.pm.info.script" : "page.pm.info.preset",
+            control.CurrentPresetName);
+        InfoProgress.Text = Localization.F(
+            "page.pm.info.progress",
+            control.PresetProgress * 100,
+            control.CurrentPresetIndex + 1,
+            _visible.Count,
+            control.IsLocked ? Localization.T("page.pm.info.locked") : Localization.T("page.pm.info.auto"));
+        InfoSize.Text = Localization.F(
+            "page.pm.info.size", control.PixelWidth, control.PixelHeight, meshX, meshY, fps);
+        InfoEngine.Text = Localization.F("page.pm.info.engine", control.EngineFrameMs);
+        InfoAudio.Text = Localization.F("page.pm.info.audio", audio);
+        InfoWarning.Text = control.LastWarning is { } warning ? Localization.F("page.warning", warning) : string.Empty;
     }
 }

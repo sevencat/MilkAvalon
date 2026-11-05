@@ -12,7 +12,7 @@
         <TextBox Name="SearchBox"
                  DockPanel.Dock="Top"
                  Margin="8,8,8,4"
-                 PlaceholderText="过滤作品（标题/作者/ID）"
+                 PlaceholderText="{DynamicResource page.st.filter}"
                  TextChanged="OnSearchChanged" />
 
         <!-- buffer 分辨率三模式（Shadertoy 网页端的 viewport / fixed / scale 那三档） -->
@@ -22,11 +22,11 @@
         <ComboBox Name="BufferModeBox"
                   DockPanel.Dock="Top"
                   Margin="8,0,8,6"
-                  ToolTip.Tip="非「跟随视口」会改变 buffer 分辨率：按 iResolution 逐像素寻址 buffer 的作品（数据纹理类）会错位、偏黑。"
+                  ToolTip.Tip="{DynamicResource page.st.buffer.tip}"
                   SelectionChanged="OnBufferModeChanged">
-          <ComboBoxItem Content="buffer：跟随视口" />
-          <ComboBoxItem Content="buffer：固定 1024×256" />
-          <ComboBoxItem Content="buffer：视口 0.5×" />
+          <ComboBoxItem Content="{DynamicResource page.st.buffer.viewport}" />
+          <ComboBoxItem Content="{DynamicResource page.st.buffer.fixed}" />
+          <ComboBoxItem Content="{DynamicResource page.st.buffer.half}" />
         </ComboBox>
 
         <TextBlock Name="LibraryText"
@@ -35,7 +35,7 @@
                    FontSize="11"
                    Opacity="0.6"
                    TextWrapping="Wrap"
-                   Text="正在读取作品库…" />
+                   Text="{DynamicResource page.st.scanning}" />
 
         <ListBox Name="ShaderList"
                  Margin="4,0"
@@ -62,7 +62,7 @@
       <Border Name="InfoBar" DockPanel.Dock="Bottom" Background="{DynamicResource MaterialPaperBrush}" BorderBrush="{DynamicResource MaterialDividerBrush}"
               BorderThickness="0,1,0,0" Padding="10,6">
         <StackPanel Classes="overlay" Spacing="1">
-          <TextBlock Name="InfoShader" Text="正在读取作品库…" />
+          <TextBlock Name="InfoShader" Text="{DynamicResource page.st.scanning}" />
           <TextBlock Name="InfoTime" />
           <TextBlock Name="InfoSize" />
           <TextBlock Name="InfoPass" />

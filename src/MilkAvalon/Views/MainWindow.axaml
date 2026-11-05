@@ -133,21 +133,21 @@
       <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
                   chrome:WindowDecorationProperties.ElementRole="User">
         <Button Classes="toolbar" Name="LibraryToggleButton" Content="☰"
-                Click="OnToggleLibraryClick" ToolTip.Tip="收起 / 展开左栏" MinWidth="36" />
+                Click="OnToggleLibraryClick" ToolTip.Tip="{DynamicResource ui.toolbar.library}" MinWidth="36" />
 
         <!-- 播放组：五个按钮拼成一段，只有两端有圆角，缝靠外层深紫底色透出来 -->
         <Border BorderBrush="#4527A0" BorderThickness="1" CornerRadius="7">
           <StackPanel Orientation="Horizontal" Spacing="1" Background="#4527A0">
             <Button Classes="toolbar segFirst" Name="PreviousButton" Content="◀◀"
-                    Click="OnPreviousClick" ToolTip.Tip="上一个" MinWidth="40" />
+                    Click="OnPreviousClick" ToolTip.Tip="{DynamicResource ui.toolbar.prev}" MinWidth="40" />
             <Button Classes="toolbar" Name="PauseButton" Content="▮▮"
-                    Click="OnPauseClick" ToolTip.Tip="暂停 / 继续" MinWidth="40" />
+                    Click="OnPauseClick" ToolTip.Tip="{DynamicResource ui.toolbar.pause}" MinWidth="40" />
             <Button Classes="toolbar" Name="NextButton" Content="▶▶"
-                    Click="OnNextClick" ToolTip.Tip="下一个" MinWidth="40" />
+                    Click="OnNextClick" ToolTip.Tip="{DynamicResource ui.toolbar.next}" MinWidth="40" />
             <Button Classes="toolbar" Name="RandomButton" Content="⇄"
-                    Click="OnRandomClick" ToolTip.Tip="随机" MinWidth="40" />
+                    Click="OnRandomClick" ToolTip.Tip="{DynamicResource ui.toolbar.random}" MinWidth="40" />
             <Button Classes="toolbar segLast" Name="ReloadButton" Content="⟳"
-                    Click="OnReloadClick" ToolTip.Tip="重载当前" MinWidth="40" />
+                    Click="OnReloadClick" ToolTip.Tip="{DynamicResource ui.toolbar.reload}" MinWidth="40" />
           </StackPanel>
         </Border>
 
@@ -155,29 +155,29 @@
         <Border BorderBrush="#4527A0" BorderThickness="1" CornerRadius="7">
           <StackPanel Orientation="Horizontal" Spacing="1" Background="#4527A0">
             <Button Classes="toolbar segFirst" Name="EditButton" Content="✎"
-                    Click="OnEditClick" ToolTip.Tip="编辑当前预设（.milk / .milkx）" MinWidth="40" />
+                    Click="OnEditClick" ToolTip.Tip="{DynamicResource ui.toolbar.edit}" MinWidth="40" />
 
             <Button Classes="toolbar" Name="AnalyzeButton" Content="AI"
-                    Click="OnAnalyzeToolbarClick" ToolTip.Tip="AI 分析当前脚本（DeepSeek，流式输出）" MinWidth="36" />
+                    Click="OnAnalyzeToolbarClick" ToolTip.Tip="{DynamicResource ui.toolbar.ai}" MinWidth="36" />
 
             <Button Classes="toolbar" Name="CaptureButton" Content="⧉"
-                    ToolTip.Tip="抓取：保存当前画面 / 抓取站点作品" MinWidth="40">
+                    ToolTip.Tip="{DynamicResource ui.toolbar.capture}" MinWidth="40">
               <Button.Flyout>
                 <MenuFlyout>
-                  <MenuItem Header="保存当前画面…" Click="OnSaveFrameClick" />
-                  <MenuItem Header="抓取站点作品…" Click="OnGrabShaderClick" />
+                  <MenuItem Header="{DynamicResource ui.menu.saveFrame}" Click="OnSaveFrameClick" />
+                  <MenuItem Header="{DynamicResource ui.menu.grabSite}" Click="OnGrabShaderClick" />
                 </MenuFlyout>
               </Button.Flyout>
             </Button>
 
             <Button Classes="toolbar" Name="FullScreenButton" Content="⛶"
-                    Click="OnFullScreenClick" ToolTip.Tip="全屏（F11，Esc 退出）" MinWidth="40" />
+                    Click="OnFullScreenClick" ToolTip.Tip="{DynamicResource ui.toolbar.fullscreen}" MinWidth="40" />
 
             <Button Classes="toolbar" Name="InfoToggleButton" Content="▤"
-                    Click="OnToggleInfoClick" ToolTip.Tip="显示 / 隐藏底部信息条（预设、进度、尺寸、音频）" MinWidth="40" />
+                    Click="OnToggleInfoClick" ToolTip.Tip="{DynamicResource ui.toolbar.info}" MinWidth="40" />
 
             <Button Classes="toolbar segLast" Name="SettingsButton" Content="⚙"
-                    Click="OnSettingsClick" ToolTip.Tip="设置" MinWidth="40" />
+                    Click="OnSettingsClick" ToolTip.Tip="{DynamicResource ui.toolbar.settings}" MinWidth="40" />
           </StackPanel>
         </Border>
       </StackPanel>
@@ -198,7 +198,7 @@
           </ItemsPanelTemplate>
         </ListBox.ItemsPanel>
 
-        <ListBoxItem ToolTip.Tip="projectM（再点一次重建当前页）">
+        <ListBoxItem ToolTip.Tip="{DynamicResource ui.tab.projectm.tip}">
           <StackPanel Orientation="Horizontal" Spacing="6">
             <Canvas Width="16" Height="16" VerticalAlignment="Center">
               <!-- 圆角框 + 三根音量柱 -->
@@ -211,7 +211,7 @@
         </ListBoxItem>
 
         <!-- milkx（P12 / D1）：.milkx 脚本预设，播放链与 projectM 页共用 -->
-        <ListBoxItem ToolTip.Tip="milkx（.milkx 脚本预设，再点一次重建当前页）">
+        <ListBoxItem ToolTip.Tip="{DynamicResource ui.tab.milkx.tip}">
           <StackPanel Orientation="Horizontal" Spacing="6">
             <Canvas Width="16" Height="16" VerticalAlignment="Center">
               <!-- 奶滴 + 内侧高光 + 右上小星芒 -->
@@ -224,7 +224,7 @@
           </StackPanel>
         </ListBoxItem>
 
-        <ListBoxItem ToolTip.Tip="ShaderToy（再点一次重建当前页）">
+        <ListBoxItem ToolTip.Tip="{DynamicResource ui.tab.shadertoy.tip}">
           <StackPanel Orientation="Horizontal" Spacing="6">
             <Canvas Width="16" Height="16" VerticalAlignment="Center">
               <!-- 尖括号 + 中间斜杠 + 右上小星芒 -->
@@ -244,16 +244,16 @@
       -->
       <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center"
                   chrome:WindowDecorationProperties.ElementRole="User">
-        <Button Classes="caption" Name="MinimizeButton" Content="_" Click="OnMinimizeClick" ToolTip.Tip="最小化" />
-        <Button Classes="caption" Name="MaximizeButton" Content="□" Click="OnMaximizeClick" ToolTip.Tip="最大化 / 还原" />
-        <Button Classes="caption" Name="CloseButton" Content="✕" Click="OnCloseClick" ToolTip.Tip="关闭" />
+        <Button Classes="caption" Name="MinimizeButton" Content="_" Click="OnMinimizeClick" ToolTip.Tip="{DynamicResource ui.caption.minimize}" />
+        <Button Classes="caption" Name="MaximizeButton" Content="□" Click="OnMaximizeClick" ToolTip.Tip="{DynamicResource ui.caption.maximize}" />
+        <Button Classes="caption" Name="CloseButton" Content="✕" Click="OnCloseClick" ToolTip.Tip="{DynamicResource ui.caption.close}" />
       </StackPanel>
       </Grid>
     </Border>
 
     <!-- 状态栏 -->
     <Border DockPanel.Dock="Bottom" Name="StatusBar" Background="{DynamicResource MaterialToolBarBackgroundBrush}" Padding="12,6">
-      <TextBlock Name="StatusText" Text="就绪" Opacity="0.6" FontSize="12" />
+      <TextBlock Name="StatusText" Text="{DynamicResource ui.status.ready}" Opacity="0.6" FontSize="12" />
     </Border>
 
     <!--
@@ -281,11 +281,11 @@
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center">
           <StackPanel Spacing="12" MaxWidth="520">
-            <TextBlock Text="没有可用的数据" FontSize="16" FontWeight="SemiBold" />
+            <TextBlock Text="{DynamicResource ui.empty.title}" FontSize="16" FontWeight="SemiBold" />
             <TextBlock Name="EmptyStateText" TextWrapping="Wrap" FontSize="12" Opacity="0.8" />
             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-              <Button Classes="toolbar" Content="选择目录…" Click="OnPickDataRootClick" Padding="16,4" />
-              <Button Classes="toolbar" Content="打开设置" Click="OnSettingsClick" Padding="16,4" />
+              <Button Classes="toolbar" Content="{DynamicResource ui.empty.pickFolder}" Click="OnPickDataRootClick" Padding="16,4" />
+              <Button Classes="toolbar" Content="{DynamicResource ui.empty.openSettings}" Click="OnSettingsClick" Padding="16,4" />
             </StackPanel>
           </StackPanel>
         </Border>

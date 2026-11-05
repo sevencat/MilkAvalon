@@ -1,7 +1,8 @@
 # MilkAvalon 移植计划与进度
 
 > 目标：把同目录 `../MilkDropSharp` 里的 **projectM** 与 **ShaderToy** 两条播放线，
-> 合并进一个 **Avalonia 12（ANGLE/GPU 渲染）+ Silk.NET（GLES3）** 的桌面应用，最终支持 **Native AOT**。
+> 合并进一个 **Avalonia 12（ANGLE/GPU 渲染）+ Silk.NET（GLES3）** 的桌面应用
+>（Native AOT 目标已于 2026-11-05 取消，见 R6 / §7 P9）。
 > 杂项（环境事实、API 备忘、待确认问题、踩坑）见 `misc.md`。
 
 当前状态：**P0 未开始**（计划已定稿，等待开工）。
@@ -19,7 +20,7 @@
 | R3 | 顶部工具栏：**编辑**、**抓取**（**本期只放按钮，功能后续再说**），以及播放/切换/设置/全屏等 | `Views/MainToolBar.axaml` |
 | R4 | Avalonia 用 **ANGLE 渲染**（EGL→D3D11），画面由 **Silk.NET / GLES3** 画 | `Program.cs` + `GlControlBase` |
 | R5 | UI 用 **Material Design 暗色主题** | `App.axaml`（Material.Avalonia） |
-| R6 | 发布支持 **Native AOT**（`win-x64`，单文件可 run） | `PublishAot` + §9 |
+| ~~R6~~ | ~~发布支持 **Native AOT**（`win-x64`，单文件可 run）~~ **⛔ 已取消（2026-11-05）**：AOT 变量太多（AvaloniaEdit / Material 等），改走普通 JIT 发布 | — |
 | R7 | **尽量复用** `MilkDrop.Eval`、`HlslParser` 及两条线的引擎代码，不重写 | §4 / §5 |
 
 ### 1.2 明确不做
@@ -440,13 +441,15 @@ MilkAvalon/
       （拖入的预设被选中并在播）、`artifacts/p9-drop-json.png` + `p9-drop-json-gl-resized.png`
       （拖入的 JSON 工程出图）。
 
-### P9 AOT 与发布（2 天）
+### P9 AOT 与发布（2 天）→ ⛔ 已取消（2026-11-05）
 
-- [ ] `PublishAot=true` + `win-x64` + `IlcOptimizationPreference=Speed` + `StripSymbols`。
-- [ ] 编译绑定（`AvaloniaUseCompiledBindingsByDefault=true`）、`System.Text.Json` 源生成、裁剪根（Avalonia/Angle/Skia 原生库）。
-- [ ] 回归：搬入的测试项目 + 一条离屏自检命令（`EglContext.CreateOffscreen` + 出 PNG）在 AOT/JIT 两边都跑。
-- [ ] 记录体积/启动时间/帧率，写进 `misc.md`。
-- **验收**：AOT exe 双击即起、两个 Tab 都能播、音频出声、中文正常、设置持久化可用；`tests` 全绿（JIT）。
+> 用户决定**不做 Native AOT**：`PublishAot` 在仓库里从未开启过（全部 csproj 均无 AOT 配置），
+> 取消只是关闭计划项。编译绑定与 STJ 源生成本身有益（性能 + 稳定），保留不动。
+
+- ~~`PublishAot=true` + `win-x64` + `IlcOptimizationPreference=Speed` + `StripSymbols`。~~
+- ~~编译绑定、`System.Text.Json` 源生成、裁剪根。~~（编译绑定 / 源生成保留）
+- ~~回归：AOT/JIT 两边都跑。~~
+- ~~记录体积/启动时间/帧率。~~
 
 ### P10 / P11 后续（本期不做，仅登记）
 
@@ -454,6 +457,18 @@ MilkAvalon/
 |---|---|---|
 | P10 | **编辑**：`AvaloniaEdit` 面板、ShaderToy pass 代码 / projectM preset 文本与内联 shader、「应用并重编译」、错误列表带行号 | P6 的接口 |
 | P11 | **抓取**：截图（读宿主 FBO → PNG → 剪贴板）、ShaderToy 站点抓作品（已知 403）、录屏（可选） | P7 的接口 |
+
+### 本期迭代计划（P14–P18，2026-11-05 定稿）
+
+里程碑顺序：**A** = P14 + P15（P9 取消只动文档）；**B** = P17 + P18（先截获改造，再逆向六面贴图）；**C** = P16。
+
+| 阶段 | 内容 | 预估 | 落点 |
+|---|---|---|---|
+| P14 | **AI 接口可配置**：用户自定义接口地址 / API Key / 模型名（OpenAI 兼容协议，默认 DeepSeek）。`AppSettings` 加 `AiBaseUrl`（null = `https://api.deepseek.com/v1`），`ScriptAnalyzer` 从设置解析 BaseUrl（去尾 `/`），设置页加「接口地址」输入框 | 0.5d | `Services/Ai/ScriptAnalyzer.cs`、`Services/AppSettings.cs`、`Views/SettingsWindow` |
+| P15 | **多语言（中/英）**：i18n 框架（`Assets/Strings/Strings.zh-CN.axaml` / `Strings.en.axaml` 资源字典 + `Services/Localization` 服务（切语言 → 替换合并字典）+ `L()` C# 侧辅助函数 + 设置页语言下拉 + `AppSettings.Language`），覆盖主窗口 / 设置窗口 / 编辑面板 / AI 窗口 / 抓取窗口文案 | 2.5d | `Assets/Strings/`、`Services/Localization.cs`、各 View |
+| P16 | **编辑弹出改版**：主工具栏 AI 按钮去掉；编辑面板**弹出版**为左右两栏——左编辑、右 AI（`AiAnalysisWindow` 内容抽成 `AiChatPanel` 用户控件嵌入），停靠态维持现状（AI 入口仍可达） | 2d | `Views/MainWindow`、`EditorPanel`、`AiAnalysisWindow` |
+| P17 | **抓取截获改造**：去掉页内注入 fetch（`BuildFetchScript` / base64 分块回传），改为 **DevTools 协议观察**——WebView2 起 `--remote-debugging-port`，`Network.enable` 后对命中的 `/media/*` 与 `/shadertoy` 调 `Network.getResponseBody` 取正文落盘。**Avalonia 的 `WebResourceRequested` 不可用于截获**（参数 init-only，只能看请求、无响应体入口），裸 `HttpClient` 会被站点按 TLS/bot 指纹 403，故走 CDP | 1.5d | `Services/Capture/WebViewCdpCapture.cs`、`Views/CaptureWindow.axaml.cs` |
+| P18 | **六面贴图关联逆向**：实测含 cubemap 作品（`Campfire at night` / `Wtc3W2`，素材 `XsX3zn`）。**站点规则：通道的 `filepath` 是第一面，其余五面是 `<stem>_1` … `<stem>_5`**（不是 `_px/_nx/...`，第一面也没有 `_0` 后缀）；老代码把素材 id 当路径存进 `.shaderx`，导致六面全丢。改法：映射层保留 `filepath`、加载层按上述规则取六面（保留 `_px` 与竖条带两种本地回退）、抓取层补齐缺面 | 1d | `Preset/ShaderPresetMapper.cs`、`Renderer/ShaderToyPipeline.cs`、`Services/Capture/ShaderToyCaptureStore.cs` |
 
 ---
 
@@ -472,17 +487,27 @@ MilkAvalon/
 | P6 | 编辑按钮（占位）+ 接口 | 0.3d | ✅ 2026-10-27 | `IEditorPanel` + 右侧占位面板；不占 GL、切页自动收起；功能推迟到 P10 |
 | P7 | 数据根/设置 + 抓取占位 | 1d | ✅ 2026-10-27 | 设置窗口 + `milkavalon.json`（STJ 源生成）；空数据浮层 + 目录选择；改根即时重建；抓取占位接口 |
 | P8 | 主题/DPI/拖放 | 1d | ✅ 2026-10-27 | 暗色主题 + 左栏折叠 + F11/双击全屏（chrome 全隐藏）；拖放 `.milk`/`.json` 即加载，`--drop` 复用同一路径自检通过 |
-| P9 | Native AOT | 2d | ⬜ | |
+| P9 | Native AOT | 2d | ⛔ 已取消 | 2026-11-05 用户决定不做（AOT 从未实装，见 §7 P9） |
 | P10 | **编辑** | 2d | 🟨 2026-11-04 | `.milk` / `.milkx` 原文编辑：AvaloniaEdit（行号、XSHD 语法高亮、补全、光标下的名字说明、Ctrl+F、Ctrl+Space）+ 参数导航（点参数跳到行）、保存（写盘+重载）/应用（只重载）/还原/打开、Ctrl+S、编码与换行按原文件保持；仅剩 ShaderToy pass 的 HLSL/GLSL 代码编辑与错误列表 |
 | P11 | **抓取** | 1.5d | 🟨 2026-10-27 | 站点抓取已通（内嵌 WebView2 → `POST /shadertoy` → 只写 db + media，`--capture` 自检）；截图存 PNG 已通；剪贴板/录屏未做 |
 | P12 | `.milk` → `.milkx` 脚本预设（详见 `src/MilkDrop.PresetScript/plan.md`、坑点见 `misc.md`） | 5.5d | ✅ 2026-11-04 | M0–M6 全部完成：全量 4520 `.milk` → 4494 `.milkx`（失败 26 个都是原预设坏了）；第三个页签「milkx」可选/能播/能编辑；导入保留相对层级、按 `source_hash` 跳过；编辑器直接改 `.milkx`；坑点与自检命令落在 `misc.md` |
 | P13 | **ShaderToy 作品改用 `.shaderx` 文本**（与 `.milkx` 同族容器；抓取落地写文件、不写 db） | 4d | ✅ 2026-11-04 | M0–M7 全部完成（格式见 `src/MilkDrop.ShaderToy/plan.md`）：迁移期用 `--export-shaderx` 把 db 的 11 个作品导成 `presets/<title> [<id>].shaderx`（参数随后删除）；第 2 页扫 `presets/**/*.shaderx`，拖放/`--drop` 认 `.shaderx`；抓取只写 `.shaderx` + `media/`；编辑器支持 `.shaderx`（`ShaderToy.xshd` + GLSL 词表 + 保存即重编译）。**收尾：sqlite 与所有数据库操作已删除**（`SqliteDatabase`/`ShaderDatabase`/`ShaderLibrary`/db 导出器/`--export-shaderx`），早前的 `LocalJsonImporter`/`ShaderMeta` 也一并清掉 |
+| P14 | AI 接口可配置（URL/SK/模型） | 0.5d | ✅ 2026-11-05 | `AppSettings.AiBaseUrl`（null = DeepSeek 官方）、`ScriptAnalyzer.ResolveBaseUrl`（补协议头/去尾 `/`）、`AnalyzeStreamAsync` 加 `baseUrl` 参数、设置页「接口地址」输入框 |
+| P15 | 多语言（中/英） | 2.5d | ✅ 2026-11-05 | `Assets/Strings/Strings.zh-CN\|en-US.axaml`（263 键，两份完全对齐）+ `Services/Localization`（`Apply` 整本换字典、`T`/`F` 取词、`LanguageChanged`）+ `AppSettings.Language` + 设置页语言下拉（立即生效）。覆盖：主窗口（工具栏/页签/窗口按钮/状态栏/空态）、设置窗口、编辑面板、编辑弹出窗口、AI 分析窗口、抓取窗口、projectM/milkx 页、ShaderToy 页、音频后端描述（WASAPI 环回/共享、waveOut、合成音频）。日志与代码注释仍保持中文（有意） |
+| P16 | 编辑弹出改版（左编辑右 AI） | 2d | ⬜ | 里程碑 C |
+| P17 | 抓取截获改造（去注入，全局截获 /media 与 /shadertoy） | 1.5d | ✅ 2026-11-05 | `WebViewCdpCapture`（CDP `Network.getResponseBody`）：图片按站点原路径落 `media/`，工程 JSON 存起来给抓取流程；页面注入脚本与 base64 分块回传全部删除。`--capture flGyWc` / `4dXGRN` 自检通过（2 个 pass、图片 1.3MB 纹理都截到），抓下来的作品 `--shot` 出图正常 |
+| P18 | 六面贴图关联逆向 | 1d | ✅ 2026-11-05 | 规则实测确认：cubemap 通道 `filepath` = 第一面，其余 `_1`…`_5`（`/media/a/<sha>.png` + `/media/a/<sha>_1..5.png`）。`.shaderx` 改存第一面路径（老文件仍兼容 id）、加载端按规则取六面并保留 `_px` 定位 / 竖条带两种回退、抓取端补齐缺面。删掉 P5 遗留的硬编码映射。验证：`Campfire at night` 重新抓取后天空与地面贴图正常（`artifacts/p18-cube-play-gl-resized.png`）；故意删 `_3.png` 会提示"缺第 3 面"；238 测试全绿 |
 | — | **本期合计（P0–P9）** | **约 12.3 人日** | — | 不含搬入（机械）与调试波动 |
 
 ### 变更记录
 
 | 日期 | 事件 |
 |---|---|
+| 2026-11-05 | **P18 六面贴图关联逆向完成**：① 实测作品 `Campfire at night`（`Wtc3W2`，素材 id `XsX3zn`）拿到站点真实规则——作品 JSON 的 cubemap 通道对象是 `{"id":"XsX3zn","filepath":"/media/a/<sha>.png","type":"cubemap","channel":3,…}`，**`filepath` 是第一面**，其余五面固定为 `<stem>_1` … `<stem>_5`（第一面无 `_0` 后缀，也不是 `_px/_nx/…`）；② 根因：`ShaderPresetMapper` 对 cubemap 一律写 `input.Id`，把 `filepath` 丢了，加载端只能拿素材 id 去找 `XsX3zn_px.png`，永远找不到 → 黑立方体；③ 改法：`TargetOf` 对 cubemap 优先写 `Path`、`ToProject` 按"像不像媒体路径"决定塞回 `Path` 还是 `Id`（老文件兼容）；`LoadCubemap` 新增 `TryLoadSiteCubemap`（第一面 + `_1.._5`），并保留 `_px` 定位与竖条带两种本地回退；`ShaderToyCaptureStore` 对 cubemap 通道补齐六个面（页面没采样到的面也补）。删掉 P5 遗留的 `s_cubeResourceOverrides` 硬编码映射。验证：重新抓取后通道行变成 `3 = cubemap /media/a/94284d43….png mipmap clamp 0`，播放出图正常（`artifacts/p18-cube-play-gl-resized.png`）；删掉 `_3.png` 会提示"缺第 3 面"；新增 2 个往返单测，合计 238 个全绿，0 警告 0 错误 |
+| 2026-11-05 | **P17 抓取截获改造落地（去掉页面注入）**：① 删掉页内注入的 `BuildFetchScript` / `BuildMediaScript` / base64 分块回传与 `WebMessageReceived` 链路；② 新方案走 **DevTools 协议**：`CaptureWindow` 起 WebView2 时带 `--remote-debugging-port=<随机空闲端口>`，`WebViewCdpCapture` 连 `/json/list` 拿 page target，`Network.enable` 后监听 `responseReceived` + `loadingFinished`，对 `/media/*` 与 `/shadertoy` 调 `Network.getResponseBody` 取正文——图片按站点原路径写 `media/`，工程 JSON（实测是数组 `[{"ver":"0.1","info":{"id":…}}]`）交给 `ShaderToyJsonImporter`；③ 走过的弯路记在这里：Avalonia 的 `WebResourceRequested` 参数 `Request`/`Uri` 都是 **init-only**，既不能改写也没有响应体入口，`NativeWebView` 也没有 `AddWebResourceRequestedFilter` / `WebResourceResponseReceived`；裸 `HttpClient` 即使带齐 cookie/UA/Origin/Referer 仍被站点判 403 `Bad request`（TLS/bot 指纹），所以只能让浏览器自己取、从调试协议里读。验证：`--capture flGyWc` → 2 个 pass、图片新下载 1 失败 0（含 1.3MB 纹理），`--capture 4dXGRN` 正常；抓下来的 `.shaderx` 用 `--tab shadertoy --shot` 出图正常（主窗口 PNG 里 GL 区域永远是黑的，要看 `-gl.png` 变体，属既有现象）。0 警告 0 错误、236 测试全绿 |
+| 2026-11-05 | **P15 多语言收尾（中/英全覆盖）**：编辑面板（标题/弹出收回/保存/应用/还原/打开/AI 分析/参数过滤 + 全部状态与校验消息）、编辑弹出窗口、AI 分析窗口（提示词/分析/取消/保存/状态/超时/错误，文案里的 "DeepSeek" 改为泛化）、抓取窗口（工具栏/状态/等待人机验证/下载汇总/按钮随页面 ID 变化）、projectM 与 milkx 页（过滤/重新扫描/导入/清单状态/底部信息条）、ShaderToy 页（过滤/buffer 三档/清单/信息条/编译错误面板）、音频后端描述（WASAPI 环回/共享、waveOut、合成音频）全部走资源字典。字典共 263 键，zh/en 键集合与 XAML/`Localization.T()` 引用已用脚本校验零缺失。验证：0 警告 0 错误、236 个测试全绿、中英两版 `--shot` 截图核对（含数字格式 `{0:F0}`/`{0:F2}` 修正）。日志与注释保持中文 |
+| 2026-11-05 | **里程碑 A 落地（P14 完成 / P15 框架+主窗口+设置页完成 / P9 取消登记）**：① P14——`AppSettings.AiBaseUrl` + `ScriptAnalyzer.ResolveBaseUrl`（补协议头、去尾斜杠，空 = `https://api.deepseek.com/v1`）+ `AnalyzeStreamAsync(baseUrl, …)` + 设置页「接口地址」输入框，任何 OpenAI 兼容端点可用；② P15——新增 `Assets/Strings/Strings.zh-CN|en-US.axaml` 双字典与 `Services/Localization`（`Apply` 整本替换合并字典、`T`/`F` C# 取词、`LanguageChanged`），`AppSettings.Language`（null = 中文），设置页加「语言 / Language」下拉（保存即生效，DynamicResource 自动跟随，主窗口不用重建）；主窗口工具栏/页签/窗口按钮/状态栏/空态与设置窗口全部文案改 `DynamicResource`。注意 Avalonia 12 的 `ResourceDictionary` 已无 `Source` 属性，代码加载字典要用 `AvaloniaXamlLoader.Load(uri)`。P15 余量：编辑面板/AI 窗口/抓取窗口的文案与各窗口 C# 侧动态消息。验证：主工程 0 警告 0 错误、`--shot` 自检通过、三个测试工程 236 个全绿 |
+| 2026-11-05 | **本期迭代计划定稿（P14–P18）+ 取消 Native AOT（P9 / R6）**：① AI 接口可配置（用户自定义 URL/SK/模型）；② 全程序多语言（先中/英）；③ 工具栏 AI 按钮去掉，编辑面板弹出版为左编辑右 AI 合并布局；④ milkx/shaderx 编辑器左侧结构大纲（变量/函数…）；⑤ 抓取去掉页内注入，改为全局截获 `/media/*` 与 `/shadertoy` 响应并保存；⑥ 逆向 Shadertoy 六面贴图名与图片名的关联。AOT 只是计划项从未实装（仓库里没有 `PublishAot` 配置），取消仅动文档（R6 / P9 / 风险 R-5、R-6），编译绑定与 STJ 源生成保留 |
 | 2026-11-04 | **清掉 sqlite 与所有数据库操作（P13 M7）**：删 `SqliteDatabase`（P/Invoke `winsqlite3.dll`）、`ShaderDatabase`、`ShaderLibrary`、`ShaderFiles`（常量并入 `ShaderPresetLibrary`：`PresetsFolderName` / `MediaFolderName`）；删 db 导出器 `ShaderPresetExporter` 与 `--export-shaderx` / `--force`（写入路径收敛到 `ShaderPresetStore.SaveProject`，抓取与编辑器都用它）；`ShaderToyLibrary` / `ShaderToyEntry` 去掉 `DatabasePath`，作品只来自 `presets/**/*.shaderx`，`--shadertoy-data testdata` 仍能列出 11 个作品并播放；测试删掉 db 相关用例，落盘测试改名 `ShaderPresetStoreTests`。`grep -i sqlite` 只剩注释里"没有 sqlite"的说明 |
 | 2026-11-04 | **`.shaderx` 编辑时隐藏参数导航列**：GLSL 没有"参数"可导航，左侧 140px 的「过滤参数 + 参数列表」对 `.shaderx` 纯属占地方——现在按文档类型收放（`EditorPanel.RefreshParameters` 里 `ParamPane.IsVisible` + `BodyGrid` 第 0 列宽 0/140），`.milkx` / `.milk` 照旧显示。截图确认 `.shaderx` 代码区吃满宽度、`.milkx` 的参数导航无回归 |
 | 2026-11-04 | **弹出窗口标题栏与主窗口统一**：新增 `Views/EditorWindow.axaml(.cs)`，照抄主窗口的自绘标题栏（`ExtendClientAreaToDecorationsHint` + `WindowDecorations=BorderOnly` + `ElementRole=TitleBar/User`、缩小版 logo、右上角同一套 `Button.caption` 最小化/最大化/关闭、标题带当前文件名），`MainWindow.PopOutEditor` 改用它（`Body = Editor`），标题刷新走 `EditorWindow.SetCaption`。截屏确认外观与主窗口一致 |
@@ -527,8 +552,8 @@ MilkAvalon/
 | ~~R-2~~ | ~~`OpenGlControlBase` + AngleEgl 组合未实测~~ | — | **已排除（P1 实测）**：出图、resize、截图都正常，锁方案 A |
 | R-3 | 每帧 `RequestNextFrameRendering()` 的节奏受 Avalonia 合成器/DWM 控制 | 帧率不稳、画面抖动 | 自建时间基准（`Stopwatch` 算 delta）+ 允许"降级为定时器驱动"；P1 实测 ≈70 FPS 未见抖动 |
 | ~~R-4~~ | ~~切 Tab 重建时 GL 对象漏删 / 在错误上下文 Dispose~~ | — | **已排除（P5 实测）**：Dispose 走 `OnOpenGlDeinit`（渲染线程、上下文 current）；28 次整页重建后 `GlObjectStats` 每次都归 0，句柄/私有内存不增长 |
-| R-5 | 上游 36.6k 行搬入后被裁警告淹没 | 构建噪音、AOT 失败 | 库项目保留 `IsAotCompatible`，逐条消化；App 层先关 `TrimMode=partial` 定位 |
-| R-6 | Material.Avalonia / **AvaloniaEdit 12.0.0（已进主链路）** 的 AOT 兼容性未验证 | AOT 下主题或编辑器崩 | P9 前先用 `PublishAot` 试跑一次空白页；失败则编辑器退回 `TextBox`（高亮/补全丢失，但编辑功能不受影响），核心播放链不依赖它 |
+| ~~R-5~~ | ~~上游 36.6k 行搬入后被裁警告淹没~~ | — | **已关闭（2026-11-05）**：P9（AOT）取消，裁剪不再相关 |
+| ~~R-6~~ | ~~Material.Avalonia / AvaloniaEdit 的 AOT 兼容性未验证~~ | — | **已关闭（2026-11-05）**：P9（AOT）取消；AvaloniaEdit 已进主链路，JIT 下无问题 |
 | R-7 | `InvariantGlobalization=true` 与中文文本整形 | 中文显示异常 | 先开着测；异常就关掉（体积换正确性） |
 | R-8 | 9795 个预设的列表扫描阻塞 UI | 首次打开卡 | 后台线程扫描 + 虚拟化列表 + 增量加载 |
 | R-9 | ShaderToy 站点 403（Cloudflare） | 「抓取作品」不可用 | 明确提示 + 以本地数据为可靠来源：作品就在 `presets/*.shaderx`（文本，可手工添加） |

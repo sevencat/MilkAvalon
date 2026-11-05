@@ -41,8 +41,10 @@ public partial class SettingsWindow : Window
         BufferModeBox.SelectedIndex = Math.Clamp(_draft.ShaderToyBufferMode, 0, 2);
         VSyncBox.IsChecked = _draft.VSync;
         UiScaleBox.SelectedIndex = _draft.UiScale >= 1.5 ? 2 : _draft.UiScale >= 1.25 ? 1 : 0;
+        AiBaseUrlBox.Text = _draft.AiBaseUrl ?? string.Empty;
         DeepSeekKeyBox.Text = _draft.DeepSeekApiKey ?? string.Empty;
         DeepSeekModelBox.Text = _draft.DeepSeekModel ?? string.Empty;
+        LanguageBox.SelectedIndex = Array.IndexOf(Localization.SupportedLanguages, Localization.Current);
     }
 
     /// <summary>点「保存」后的结果（取消时为 null）。</summary>
@@ -65,13 +67,13 @@ public partial class SettingsWindow : Window
     private void OnCaptionCloseClick(object? sender, RoutedEventArgs e) => Close(null);
 
     private async void OnBrowseProjectMClick(object? sender, RoutedEventArgs e)
-        => await PickFolderAsync(ProjectMRootBox, "选择 projectM 数据根（含 presets/ 的目录）");
+        => await PickFolderAsync(ProjectMRootBox, Localization.T("settings.pick.projectM"));
 
     private async void OnBrowseShaderToyClick(object? sender, RoutedEventArgs e)
-        => await PickFolderAsync(ShaderToyRootBox, "选择 ShaderToy 数据根（含 presets/*.shaderx 的目录）");
+        => await PickFolderAsync(ShaderToyRootBox, Localization.T("settings.pick.shaderToy"));
 
     private async void OnBrowseMilkxClick(object? sender, RoutedEventArgs e)
-        => await PickFolderAsync(MilkxRootBox, "选择脚本预设目录（放 .milkx 的目录）");
+        => await PickFolderAsync(MilkxRootBox, Localization.T("settings.pick.milkx"));
 
     private async Task PickFolderAsync(TextBox target, string title)
     {
@@ -91,7 +93,7 @@ public partial class SettingsWindow : Window
         }
         catch (Exception ex)
         {
-            StatusText.Text = "选择目录失败：" + ex.Message;
+            StatusText.Text = Localization.F("settings.error.pickFolder", ex.Message);
         }
     }
 
@@ -99,7 +101,7 @@ public partial class SettingsWindow : Window
     {
         if (!TryReadMesh(MeshWidthBox.Text, out uint width) || !TryReadMesh(MeshHeightBox.Text, out uint height))
         {
-            StatusText.Text = "网格尺寸要是 8–256 之间的整数。";
+            StatusText.Text = Localization.T("settings.error.mesh");
             return;
         }
 
@@ -114,6 +116,16 @@ public partial class SettingsWindow : Window
         _draft.ShaderToyBufferMode = Math.Clamp(BufferModeBox.SelectedIndex, 0, 2);
         _draft.VSync = VSyncBox.IsChecked ?? true;
         _draft.UiScale = UiScaleBox.SelectedIndex switch { 2 => 1.5, 1 => 1.25, _ => 1.0 };
+
+        // 语言跟着下拉走并立即生效（DynamicResource 自动跟随；C# 侧动态文案要等重开窗口才换）
+        int languageIndex = Math.Clamp(LanguageBox.SelectedIndex, 0, Localization.SupportedLanguages.Length - 1);
+        _draft.Language = Localization.SupportedLanguages[languageIndex];
+        if (Localization.Current != _draft.Language)
+        {
+            Localization.Apply(_draft.Language);
+        }
+
+        _draft.AiBaseUrl = NullIfEmpty(AiBaseUrlBox.Text);
         _draft.DeepSeekApiKey = NullIfEmpty(DeepSeekKeyBox.Text);
         _draft.DeepSeekModel = NullIfEmpty(DeepSeekModelBox.Text);
 

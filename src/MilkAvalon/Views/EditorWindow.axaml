@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:chrome="using:Avalonia.Controls.Chrome"
         x:Class="MilkAvalon.Views.EditorWindow"
-        Title="MilkAvalon 编辑"
+        Title="{DynamicResource editorwindow.title}"
         Icon="/Assets/milkdropsharp.png"
         Width="920" Height="820"
         MinWidth="520" MinHeight="360"
@@ -30,20 +30,30 @@
                Height="18" Margin="2,0,10,0"
                VerticalAlignment="Center" Stretch="Uniform" />
 
-        <TextBlock Grid.Column="1" Name="CaptionText" Text="MilkAvalon 编辑"
+        <TextBlock Grid.Column="1" Name="CaptionText" Text="{DynamicResource editorwindow.title}"
                    FontSize="12" VerticalAlignment="Center"
                    TextTrimming="CharacterEllipsis" />
 
         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center"
                     chrome:WindowDecorationProperties.ElementRole="User">
-          <Button Classes="caption" Name="MinimizeButton" Content="_" Click="OnMinimizeClick" ToolTip.Tip="最小化" />
-          <Button Classes="caption" Name="MaximizeButton" Content="□" Click="OnMaximizeClick" ToolTip.Tip="最大化 / 还原" />
-          <Button Classes="caption" Name="CloseButton" Content="✕" Click="OnCloseClick" ToolTip.Tip="关闭（面板收回右侧）" />
+          <Button Classes="caption" Name="MinimizeButton" Content="_" Click="OnMinimizeClick" ToolTip.Tip="{DynamicResource ui.caption.minimize}" />
+          <Button Classes="caption" Name="MaximizeButton" Content="□" Click="OnMaximizeClick" ToolTip.Tip="{DynamicResource ui.caption.maximize}" />
+          <Button Classes="caption" Name="CloseButton" Content="✕" Click="OnCloseClick" ToolTip.Tip="{DynamicResource editorwindow.close.tip}" />
         </StackPanel>
       </Grid>
     </Border>
 
-    <!-- 编辑面板本体（同一个实例从主窗口摘过来，见 MainWindow.PopOutEditor） -->
-    <ContentControl Name="BodyHost" />
+    <!--
+      P16：左编辑 + 右 AI，两栏并列（原来是"编辑停右侧 + AI 单独开窗"，看代码和看分析要来回切）。
+      左栏放的是同一个 EditorPanel 实例（见 MainWindow.OpenEditorWindow），光标/滚动/未保存改动都跟着走。
+    -->
+    <Grid ColumnDefinitions="*,4,360">
+      <ContentControl Name="BodyHost" Grid.Column="0" />
+
+      <GridSplitter Grid.Column="1" Width="4" ResizeDirection="Columns"
+                    Background="Transparent" />
+
+      <views:AiChatPanel Name="AiPanel" Grid.Column="2" />
+    </Grid>
   </DockPanel>
 </Window>

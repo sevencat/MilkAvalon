@@ -248,4 +248,56 @@ public sealed class PresetFormatTests
         project.Passes[1].Code = "void mainImage(out vec4 o, in vec2 f) { o = vec4(0.5); }";
         Assert.NotEqual(hash, ShaderPresetMapper.ComputeCodeHash(project));
     }
+
+    /// <summary>
+    /// 站点 cubemap 素材：JSON 里 <c>filepath</c> 是第一面，必须原样写进通道行
+    /// （只写素材 id 就定位不到六张图，P18 实测）。
+    /// </summary>
+    [Fact]
+    public void Cubemap_Channel_Keeps_First_Face_Path()
+    {
+        const string FirstFace = "/media/a/94284d43be78f00eb6b298e6d78656a1b34e2b91b34940d02f1ca8b22310e8a0.png";
+
+        ShaderToyProject project = CreateProject();
+        project.Passes[1].Inputs.Add(new ShaderPassInput
+        {
+            Channel = 3,
+            Type = ShaderInputType.Cubemap,
+            Id = "XsX3zn",
+            Path = FirstFace,
+            Sampler = new ShaderInputSampler { Filter = SamplerFilter.Mipmap, Wrap = SamplerWrap.Clamp },
+        });
+
+        string text = ShaderPresetWriter.Write(ShaderPresetMapper.FromProject(project));
+        Assert.Contains($"3 = cubemap {FirstFace}", text, StringComparison.Ordinal);
+
+        ShaderToyProject roundTrip = ShaderPresetMapper.ToProject(ShaderPresetReader.ReadText(text));
+        ShaderPassInput cube = roundTrip.Passes[1].Inputs.Single(input => input.Type == ShaderInputType.Cubemap);
+
+        Assert.Equal(FirstFace, cube.Path);
+        Assert.Null(cube.Id);
+    }
+
+    /// <summary>老文件（P18 之前抓的）通道行里只有素材 id：读回来不能当成路径。</summary>
+    [Fact]
+    public void Cubemap_Channel_With_Id_Only_Stays_An_Id()
+    {
+        ShaderToyProject project = CreateProject();
+        project.Passes[1].Inputs.Add(new ShaderPassInput
+        {
+            Channel = 3,
+            Type = ShaderInputType.Cubemap,
+            Id = "XsX3zn",
+            Sampler = new ShaderInputSampler { Filter = SamplerFilter.Mipmap, Wrap = SamplerWrap.Clamp },
+        });
+
+        string text = ShaderPresetWriter.Write(ShaderPresetMapper.FromProject(project));
+        Assert.Contains("3 = cubemap XsX3zn", text, StringComparison.Ordinal);
+
+        ShaderToyProject roundTrip = ShaderPresetMapper.ToProject(ShaderPresetReader.ReadText(text));
+        ShaderPassInput cube = roundTrip.Passes[1].Inputs.Single(input => input.Type == ShaderInputType.Cubemap);
+
+        Assert.Equal("XsX3zn", cube.Id);
+        Assert.Null(cube.Path);
+    }
 }

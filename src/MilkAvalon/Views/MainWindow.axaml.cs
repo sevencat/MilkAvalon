@@ -508,7 +508,7 @@ public partial class MainWindow : Window
             {
                 ShowPage(0, force: false);
                 _projectMPage?.PlayPreset(path);
-                StatusText.Text = "已加载 " + Path.GetFileName(path);
+                StatusText.Text = Localization.F("ui.status.loaded", Path.GetFileName(path));
                 return true;
             }
 
@@ -516,7 +516,7 @@ public partial class MainWindow : Window
             {
                 ShowPage(2, force: false);
                 _scriptPage?.PlayPreset(path);
-                StatusText.Text = "已加载脚本 " + Path.GetFileName(path);
+                StatusText.Text = Localization.F("ui.status.loadedScript", Path.GetFileName(path));
                 return true;
             }
 
@@ -526,7 +526,7 @@ public partial class MainWindow : Window
                 ShaderToyProject project = ShaderPresetMapper.ToProject(ShaderPresetReader.ReadFile(path));
                 ShowPage(1, force: false);
                 _shaderToyPage?.PlayProject(project);
-                StatusText.Text = "已加载 " + Path.GetFileName(path);
+                StatusText.Text = Localization.F("ui.status.loaded", Path.GetFileName(path));
                 return true;
             }
 
@@ -536,13 +536,13 @@ public partial class MainWindow : Window
                 var project = ShaderToyJsonImporter.Parse(File.ReadAllText(path));
                 ShowPage(1, force: false);
                 _shaderToyPage?.PlayProject(project);
-                StatusText.Text = "已加载 " + Path.GetFileName(path);
+                StatusText.Text = Localization.F("ui.status.loaded", Path.GetFileName(path));
                 return true;
             }
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"加载失败：{ex.Message}";
+            StatusText.Text = Localization.F("ui.status.loadFailed", ex.Message);
             Console.WriteLine($"[drop] 加载 {path} 失败：{ex}");
             return false;
         }
@@ -703,18 +703,18 @@ public partial class MainWindow : Window
         {
             // .shaderx：按文本重建工程 → GL 线程重新编译（P13 M5）
             _shaderToyPage?.ApplyPresetText(path, text);
-            StatusText.Text = "已应用编辑：" + Path.GetFileName(path);
+            StatusText.Text = Localization.F("ui.status.appliedEdit", Path.GetFileName(path));
             return;
         }
 
         if (ActivePresetPage is not { } page)
         {
-            Editor.ReportEngineWarning("当前页没有可重载的预设，改动没法应用");
+            Editor.ReportEngineWarning(Localization.T("ui.editor.noReloadable"));
             return;
         }
 
         page.ApplyPresetText(path, text);
-        StatusText.Text = "已应用编辑：" + Path.GetFileName(path);
+        StatusText.Text = Localization.F("ui.status.appliedEdit", Path.GetFileName(path));
     }
 
     /// <summary>
@@ -737,7 +737,7 @@ public partial class MainWindow : Window
         window.Show(this);
         window.Activate();
 
-        StatusText.Text = "AI 分析：" + Path.GetFileName(path);
+        StatusText.Text = Localization.F("ui.status.aiAnalyzing", Path.GetFileName(path));
     }
 
     /// <summary>
@@ -756,7 +756,7 @@ public partial class MainWindow : Window
 
         if (target is null || !File.Exists(target))
         {
-            StatusText.Text = "没有可分析的脚本：先播一个预设，或打开编辑器";
+            StatusText.Text = Localization.T("ui.status.noAnalysisTarget");
             return;
         }
 
@@ -766,7 +766,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            StatusText.Text = "读取脚本失败：" + ex.Message;
+            StatusText.Text = Localization.F("ui.status.readFailed", ex.Message);
         }
     }
 
@@ -818,7 +818,7 @@ public partial class MainWindow : Window
 
         if (!_options.Settings.Save())
         {
-            StatusText.Text = "设置没能写入磁盘（只对本次运行生效）";
+            StatusText.Text = Localization.T("ui.status.settingsNotSaved");
         }
 
         Console.WriteLine(
@@ -843,17 +843,15 @@ public partial class MainWindow : Window
         {
             folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
             {
-                Title = shaderToy
-                    ? "选择 ShaderToy 数据根（含 presets/*.shaderx 的目录）"
-                    : script
-                        ? "选择脚本预设目录（放 .milkx 的目录）"
-                        : "选择 projectM 数据根（含 presets/ 的目录）",
+                Title = Localization.T(shaderToy
+                    ? "settings.pick.shaderToy"
+                    : script ? "settings.pick.milkx" : "settings.pick.projectM"),
                 AllowMultiple = false,
             });
         }
         catch (Exception ex)
         {
-            StatusText.Text = "选择目录失败：" + ex.Message;
+            StatusText.Text = Localization.F("ui.status.pickFolderFailed", ex.Message);
             return;
         }
 
@@ -889,7 +887,7 @@ public partial class MainWindow : Window
 
         if (fromCommandLine)
         {
-            StatusText.Text = "注意：命令行给了数据根，设置里的值会被它盖住";
+            StatusText.Text = Localization.T("ui.status.cliRootOverrides");
         }
 
         ShowPage(_pageIndex, force: true);
@@ -964,16 +962,16 @@ public partial class MainWindow : Window
     {
         if (CurrentGlView is not { } view)
         {
-            StatusText.Text = "还没有可保存的画面";
+            StatusText.Text = Localization.T("ui.status.nothingToSave");
             return;
         }
 
         IStorageFile? file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
-            Title = "保存当前画面",
+            Title = Localization.T("ui.saveFrame.title"),
             SuggestedFileName = "milkavalon-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".png",
             DefaultExtension = "png",
-            FileTypeChoices = [new FilePickerFileType("PNG 图片") { Patterns = ["*.png"] }],
+            FileTypeChoices = [new FilePickerFileType(Localization.T("ui.saveFrame.pngType")) { Patterns = ["*.png"] }],
         });
 
         if (file is null)
@@ -983,7 +981,7 @@ public partial class MainWindow : Window
 
         string path = file.Path.LocalPath;
         view.RequestCapture(path);
-        StatusText.Text = "已保存 " + Path.GetFileName(path);
+        StatusText.Text = Localization.F("ui.status.frameSaved", Path.GetFileName(path));
         Console.WriteLine("[capture] 画面已保存：" + path);
     }
 
@@ -1011,7 +1009,7 @@ public partial class MainWindow : Window
 
             // 这个实例已经不能用了，丢掉下次重建
             _captureWindow = null;
-            StatusText.Text = "抓取窗口打不开：" + ex.Message;
+            StatusText.Text = Localization.F("ui.status.captureWindowFailed", ex.Message);
         }
     }
 
@@ -1043,7 +1041,7 @@ public partial class MainWindow : Window
     /// <summary>抓到并写盘后：切到 ShaderToy 页，直接播这个工程（列表重建时会带上新条目）。</summary>
     private void OnShaderCaptured(MilkAvalon.Services.Capture.ShaderToyCaptureResult result, MilkDrop.ShaderToy.Pass.ShaderToyProject project)
     {
-        StatusText.Text = $"已保存 {result.ShaderId}「{result.Name}」";
+        StatusText.Text = Localization.F("ui.status.captured", result.ShaderId, result.Name);
 
         ShowPage(1, force: true);
         _shaderToyPage?.PlayProject(project);
@@ -1066,16 +1064,10 @@ public partial class MainWindow : Window
         }
 
         EmptyStateText.Text = IsShaderToyTab
-            ? $"当前数据根：{_options.EffectiveShaderToyRoot}\n"
-              + "这里需要有 presets/*.shaderx（作品文本）和 media/（media/media/a/<hash>.png）。\n"
-              + "用下面的按钮换个目录，或用 --shadertoy-data 指定。"
+            ? Localization.F("ui.empty.shaderToy", _options.EffectiveShaderToyRoot)
             : IsScriptTab
-                ? $"当前脚本目录：{_options.EffectiveMilkxDirectory}\n"
-                  + "这里需要有 *.milkx；用左栏「导入目录…」把老 .milk 转过来。\n"
-                  + "也可以用 --milkx-data 指定目录。"
-                : $"当前数据根：{_options.EffectiveProjectMRoot}\n"
-                  + "这里需要有 presets/*.milk（预设贴图放 textures/）。\n"
-                  + "用下面的按钮换个目录，或用 --projectm-data 指定。";
+                ? Localization.F("ui.empty.script", _options.EffectiveMilkxDirectory)
+                : Localization.F("ui.empty.projectM", _options.EffectiveProjectMRoot);
     }
 
     private void UpdateStatus()
@@ -1098,12 +1090,12 @@ public partial class MainWindow : Window
             }
 
             string what = player is null || player.CurrentId.Length == 0
-                ? "（未加载）"
+                ? Localization.T("ui.status.notLoaded")
                 : $"{player.CurrentTitle} [{player.CurrentId}]";
 
             StatusText.Text = $"{what} │ {control.Fps:F1} FPS │ "
                 + $"{control.PixelWidth}×{control.PixelHeight} │ "
-                + $"{player?.AudioDescription ?? "音频 —"}";
+                + $"{player?.AudioDescription ?? Localization.T("ui.status.audioNone")}";
             return;
         }
 
@@ -1116,6 +1108,6 @@ public partial class MainWindow : Window
         ProjectMControl presets = page.View;
         StatusText.Text = $"{presets.CurrentPresetName} │ {presets.Fps:F1} FPS │ "
             + $"{presets.PixelWidth}×{presets.PixelHeight} │ "
-            + $"{(presets.IsAudioRunning ? "WASAPI" : "合成音频")}";
+            + $"{(presets.IsAudioRunning ? "WASAPI" : Localization.T("ui.status.audioSynth"))}";
     }
 }

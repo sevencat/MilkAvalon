@@ -125,7 +125,7 @@ public partial class ShaderToyPage : UserControl
 
         if (project.Passes.Count == 0)
         {
-            InfoWarning.Text = "⚠ 改动里没有可播放的 pass，已保留当前画面";
+            InfoWarning.Text = Localization.T("page.st.changeNoPass");
             Console.WriteLine($"[shadertoy] 应用 {Path.GetFileName(path)} 失败：没有可播放的 pass");
             return;
         }
@@ -164,7 +164,7 @@ public partial class ShaderToyPage : UserControl
             BufferModeBox.SelectedIndex = Math.Clamp(options.Settings.ShaderToyBufferMode, 0, 2);
         }
 
-        LibraryText.Text = $"读取中… {root}";
+        LibraryText.Text = Localization.F("page.st.loading", root);
 
         _ = Task.Run(() => ShaderToyLibrary.Scan(root))
             .ContinueWith(
@@ -187,7 +187,8 @@ public partial class ShaderToyPage : UserControl
                     string warning = _library.Warnings.Count > 0
                         ? Environment.NewLine + string.Join(Environment.NewLine, _library.Warnings)
                         : string.Empty;
-                    LibraryText.Text = $"{_library.Entries.Count} 个作品（{_library.SourceDescription}）{warning}";
+                    LibraryText.Text = Localization.F(
+                        "page.st.loaded", _library.Entries.Count, _library.SourceDescription, warning);
 
                     if (_pendingProject is { } dropped)
                     {
@@ -200,9 +201,8 @@ public partial class ShaderToyPage : UserControl
 
                     if (_visible.Count == 0)
                     {
-                        InfoShader.Text = "作品库是空的。";
-                        InfoWarning.Text = $"数据根下既没有 presets/*.shaderx 也没有 shadertoy.db（当前：{root}）。"
-                            + "把 .shaderx（或 db + media/）放到 exe 旁的 shadertoy\\，或用 --shadertoy-data 指定目录。";
+                        InfoShader.Text = Localization.T("page.st.empty");
+                        InfoWarning.Text = Localization.F("page.st.emptyHint", root);
                         return;
                     }
 
@@ -323,7 +323,7 @@ public partial class ShaderToyPage : UserControl
         }
 
         ShaderToyEntry entry = _visible[index];
-        InfoShader.Text = $"作品 : {entry.DisplayName}（读取中…）";
+        InfoShader.Text = Localization.F("page.st.info.loading", entry.DisplayName);
 
         // 切页现场带来的时间只对"第一件作品"生效，之后换作品一律从头播
         float seek = _pendingSeek;
@@ -352,8 +352,8 @@ public partial class ShaderToyPage : UserControl
 
                     if (project is null)
                     {
-                        InfoShader.Text = $"作品 : {entry.DisplayName}（加载失败）";
-                        InfoWarning.Text = "⚠ " + (error ?? "未知原因");
+                        InfoShader.Text = Localization.F("page.st.info.failed", entry.DisplayName);
+                        InfoWarning.Text = Localization.F("page.warning", error ?? Localization.T("page.st.err.unknown"));
                         return;
                     }
 
@@ -395,25 +395,29 @@ public partial class ShaderToyPage : UserControl
 
         if (player is null || player.CurrentId.Length == 0)
         {
-            InfoShader.Text = "作品 : （还没有加载）";
-            InfoTime.Text = $"时间 : 0.00 s  帧 0";
-            InfoSize.Text = $"尺寸 : {view.PixelWidth}×{view.PixelHeight}  {fps} FPS";
-            InfoPass.Text = "pass : —";
-            InfoAudio.Text = "音频 : —";
+            InfoShader.Text = Localization.T("page.st.info.none");
+            InfoTime.Text = Localization.F("page.st.info.time", 0.0, 0);
+            InfoSize.Text = Localization.F("page.st.info.size", view.PixelWidth, view.PixelHeight, fps);
+            InfoPass.Text = Localization.T("page.st.info.passNone");
+            InfoAudio.Text = Localization.T("page.st.info.audioNone");
             return;
         }
 
-        InfoShader.Text = $"作品 : {player.CurrentTitle}  [{player.CurrentId}]  {player.CurrentAuthor}";
-        InfoTime.Text = $"时间 : {player.Time:F2} s  帧 {player.Frame}";
-        InfoSize.Text = $"尺寸 : {view.PixelWidth}×{view.PixelHeight}  {fps} FPS  buffer {player.BufferDescription}";
-        InfoPass.Text = $"pass : {player.PassCount} 个（buffer {player.BufferCount}）  {player.PassSummary}";
-        InfoAudio.Text = $"音频 : {player.AudioDescription}"
-            + (player.IsAudioPlaying && player.UnderrunFrames > 0 ? $"（欠载 {player.UnderrunFrames}）" : string.Empty);
+        InfoShader.Text = Localization.F("page.st.info.shader", player.CurrentTitle, player.CurrentId, player.CurrentAuthor);
+        InfoTime.Text = Localization.F("page.st.info.time", player.Time, player.Frame);
+        InfoSize.Text = Localization.F(
+            "page.st.info.sizeBuffer", view.PixelWidth, view.PixelHeight, fps, player.BufferDescription);
+        InfoPass.Text = Localization.F(
+            "page.st.info.pass", player.PassCount, player.BufferCount, player.PassSummary);
+        InfoAudio.Text = Localization.F("page.st.info.audio", player.AudioDescription)
+            + (player.IsAudioPlaying && player.UnderrunFrames > 0
+                ? Localization.F("page.st.info.underrun", player.UnderrunFrames)
+                : string.Empty);
 
         string? error = player.LastError;
         if (error is { Length: > 0 })
         {
-            InfoWarning.Text = "⚠ " + error;
+            InfoWarning.Text = Localization.F("page.warning", error);
             return;
         }
 
@@ -421,12 +425,14 @@ public partial class ShaderToyPage : UserControl
         if (failures.Count > 0)
         {
             // 错误面板：最多列 3 条，每条都带"pass 名 + 转译后行号 + 那一行代码"
-            InfoWarning.Text = $"⚠ {failures.Count} 个 pass 编译失败：" + Environment.NewLine
+            InfoWarning.Text = Localization.F("page.st.compileFailures", failures.Count) + Environment.NewLine
                 + string.Join(
                     Environment.NewLine,
                     failures.Take(3).Select(failure =>
                     {
-                        string line = failure.Line is { } number ? $" 第 {number} 行" : string.Empty;
+                        string line = failure.Line is { } number
+                            ? Localization.F("page.st.err.line", number)
+                            : string.Empty;
                         string text = failure.LineText is { Length: > 0 } source ? $"  {source}" : string.Empty;
                         return $"  {failure.PassName}{line} — {failure.Message}{text}";
                     }));
@@ -434,6 +440,6 @@ public partial class ShaderToyPage : UserControl
         }
 
         string? note = player.Notes.FirstOrDefault();
-        InfoWarning.Text = note is { Length: > 0 } ? "⚠ " + note : string.Empty;
+        InfoWarning.Text = note is { Length: > 0 } ? Localization.F("page.warning", note) : string.Empty;
     }
 }

@@ -2,8 +2,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:chrome="using:Avalonia.Controls.Chrome"
         x:Class="MilkAvalon.Views.SettingsWindow"
-        Title="设置"
-        Width="720" Height="480"
+        Title="{DynamicResource settings.title}"
+        Width="720" Height="520"
         MinWidth="560" MinHeight="360"
         Icon="/Assets/milkdropsharp.png"
         Background="{DynamicResource MaterialPaperBrush}"
@@ -18,16 +18,17 @@
       系统标题栏由 DWM 绘制，浅色系统下是白条，和 Material 暗色主题完全对不上；
       DWM 的 DWMWA_USE_IMMERSIVE_DARK_MODE 在关掉 DWM 合成的机器上不生效，所以干脆自己画。
       ElementRole 的约定见 misc.md §A7-3：TitleBar 可拖动，子树里的按钮要标 User 才收得到点击。
+      文案走 DynamicResource（P15）：设置窗口每次打开都重建，切语言后重开即是新语言。
     -->
     <Border DockPanel.Dock="Top" Name="CaptionBar"
             Background="{DynamicResource MaterialToolBarBackgroundBrush}"
             Padding="14,0,4,0"
             chrome:WindowDecorationProperties.ElementRole="TitleBar">
       <Grid ColumnDefinitions="*,Auto" Height="36">
-        <TextBlock Text="设置" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+        <TextBlock Text="{DynamicResource settings.title}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
         <Button Grid.Column="1" Classes="caption" Name="CloseButton" Content="✕"
                 Click="OnCaptionCloseClick"
-                ToolTip.Tip="关闭（等同取消）"
+                ToolTip.Tip="{DynamicResource settings.close.tip}"
                 chrome:WindowDecorationProperties.ElementRole="User" />
       </Grid>
     </Border>
@@ -36,8 +37,8 @@
     <Border DockPanel.Dock="Bottom" Padding="0,12,0,0">
       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
         <TextBlock Name="StatusText" VerticalAlignment="Center" FontSize="12" Opacity="0.65" />
-        <Button Classes="toolbar" Content="取消" Click="OnCancelClick" Padding="16,4" />
-        <Button Classes="toolbar" Content="保存" Click="OnSaveClick" Padding="16,4" />
+        <Button Classes="toolbar" Content="{DynamicResource settings.cancel}" Click="OnCancelClick" Padding="16,4" />
+        <Button Classes="toolbar" Content="{DynamicResource settings.save}" Click="OnSaveClick" Padding="16,4" />
       </StackPanel>
     </Border>
 
@@ -46,72 +47,83 @@
     <ScrollViewer HorizontalScrollBarVisibility="Disabled">
       <StackPanel Spacing="14" Margin="0,0,12,0">
 
-        <TextBlock Text="数据根" FontWeight="SemiBold" />
+        <TextBlock Text="{DynamicResource settings.section.dataRoot}" FontWeight="SemiBold" />
         <Grid ColumnDefinitions="140,*,Auto" RowDefinitions="Auto,Auto,Auto" RowSpacing="8" ColumnSpacing="8">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="projectM" VerticalAlignment="Center" />
           <TextBox Grid.Row="0" Grid.Column="1" Name="ProjectMRootBox" />
-          <Button Grid.Row="0" Grid.Column="2" Classes="toolbar" Content="浏览…" Click="OnBrowseProjectMClick" Padding="12,4" />
+          <Button Grid.Row="0" Grid.Column="2" Classes="toolbar" Content="{DynamicResource settings.browse}" Click="OnBrowseProjectMClick" Padding="12,4" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="ShaderToy" VerticalAlignment="Center" />
           <TextBox Grid.Row="1" Grid.Column="1" Name="ShaderToyRootBox" />
-          <Button Grid.Row="1" Grid.Column="2" Classes="toolbar" Content="浏览…" Click="OnBrowseShaderToyClick" Padding="12,4" />
+          <Button Grid.Row="1" Grid.Column="2" Classes="toolbar" Content="{DynamicResource settings.browse}" Click="OnBrowseShaderToyClick" Padding="12,4" />
 
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="脚本（.milkx）" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="{DynamicResource settings.label.milkx}" VerticalAlignment="Center" />
           <TextBox Grid.Row="2" Grid.Column="1" Name="MilkxRootBox" />
-          <Button Grid.Row="2" Grid.Column="2" Classes="toolbar" Content="浏览…" Click="OnBrowseMilkxClick" Padding="12,4" />
+          <Button Grid.Row="2" Grid.Column="2" Classes="toolbar" Content="{DynamicResource settings.browse}" Click="OnBrowseMilkxClick" Padding="12,4" />
         </Grid>
         <TextBlock Name="RootHint" FontSize="11" Opacity="0.55" TextWrapping="Wrap"
-                   Text="projectM 根目录下放 presets/ 与 textures/；ShaderToy 根目录下放 presets/*.shaderx 与 media/；脚本目录放导入生成的 *.milkx。留空 = 用 exe 旁的默认目录。命令行 --projectm-data/--shadertoy-data/--milkx-data 优先级更高。" />
+                   Text="{DynamicResource settings.rootHint}" />
 
         <Separator Background="{DynamicResource MaterialDividerBrush}" />
 
-        <TextBlock Text="渲染" FontWeight="SemiBold" />
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="8">
+        <TextBlock Text="{DynamicResource settings.section.render}" FontWeight="SemiBold" />
+        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="8">
           <TextBlock Grid.Row="0" Text="projectM 网格" VerticalAlignment="Center" />
           <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="8">
             <TextBox Name="MeshWidthBox" Width="80" />
             <TextBlock Text="×" VerticalAlignment="Center" />
             <TextBox Name="MeshHeightBox" Width="80" />
-            <TextBlock Text="（预设里的 nGridX/nGridY 会覆盖它）" FontSize="11" Opacity="0.55" VerticalAlignment="Center" />
+            <TextBlock Text="{DynamicResource settings.mesh.hint}" FontSize="11" Opacity="0.55" VerticalAlignment="Center" />
           </StackPanel>
 
           <TextBlock Grid.Row="1" Text="ShaderToy buffer" VerticalAlignment="Center" />
           <ComboBox Grid.Row="1" Grid.Column="1" Name="BufferModeBox" Width="260"
                     ToolTip.Tip="只有「跟随视口」与网页端默认一致。另两档会改 buffer 分辨率，按 iResolution 逐像素寻址 buffer 的作品（数据纹理类）会行列错位、偏黑。">
-            <ComboBoxItem Content="跟随视口" />
-            <ComboBoxItem Content="固定 1024×256" />
-            <ComboBoxItem Content="视口 0.5×" />
+            <ComboBoxItem Content="{DynamicResource settings.buffer.viewport}" />
+            <ComboBoxItem Content="{DynamicResource settings.buffer.fixed}" />
+            <ComboBoxItem Content="{DynamicResource settings.buffer.half}" />
           </ComboBox>
 
-          <TextBlock Grid.Row="2" Text="垂直同步" VerticalAlignment="Center" />
-          <CheckBox Grid.Row="2" Grid.Column="1" Name="VSyncBox" Content="开启（当前由 Avalonia 合成器决定，仅记录）" />
+          <TextBlock Grid.Row="2" Text="{DynamicResource settings.vsync}" VerticalAlignment="Center" />
+          <CheckBox Grid.Row="2" Grid.Column="1" Name="VSyncBox" Content="{DynamicResource settings.vsync.note}" />
 
-          <TextBlock Grid.Row="3" Text="界面缩放" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="3" Text="{DynamicResource settings.scale}" VerticalAlignment="Center" />
           <ComboBox Grid.Row="3" Grid.Column="1" Name="UiScaleBox" Width="260">
-            <ComboBoxItem Content="跟随系统" />
+            <ComboBoxItem Content="{DynamicResource settings.scale.system}" />
             <ComboBoxItem Content="125%" />
             <ComboBoxItem Content="150%" />
           </ComboBox>
+
+          <TextBlock Grid.Row="4" Text="{DynamicResource settings.label.language}" VerticalAlignment="Center" />
+          <ComboBox Grid.Row="4" Grid.Column="1" Name="LanguageBox" Width="260"
+                    ToolTip.Tip="立即生效（语言本身不用重建页面）">
+            <ComboBoxItem Content="{DynamicResource lang.zh}" />
+            <ComboBoxItem Content="{DynamicResource lang.en}" />
+          </ComboBox>
         </Grid>
 
         <Separator Background="{DynamicResource MaterialDividerBrush}" />
 
-        <TextBlock Text="AI 分析（DeepSeek / OpenAI 兼容接口）" FontWeight="SemiBold" />
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto" RowSpacing="8">
-          <TextBlock Grid.Row="0" Text="API Key" VerticalAlignment="Center" />
-          <TextBox Grid.Row="0" Grid.Column="1" Name="DeepSeekKeyBox" PasswordChar="●"
-                   PlaceholderText="留空 = 读环境变量 DEEPSEEK_API_KEY" />
+        <TextBlock Text="{DynamicResource settings.section.ai}" FontWeight="SemiBold" />
+        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="8">
+          <TextBlock Grid.Row="0" Text="{DynamicResource settings.ai.baseUrl}" VerticalAlignment="Center" />
+          <TextBox Grid.Row="0" Grid.Column="1" Name="AiBaseUrlBox"
+                   PlaceholderText="{DynamicResource settings.ai.baseUrlWatermark}" />
 
-          <TextBlock Grid.Row="1" Text="模型" VerticalAlignment="Center" />
-          <TextBox Grid.Row="1" Grid.Column="1" Name="DeepSeekModelBox"
-                   PlaceholderText="deepseek-chat（可选 deepseek-reasoner）" />
+          <TextBlock Grid.Row="1" Text="{DynamicResource settings.ai.apiKey}" VerticalAlignment="Center" />
+          <TextBox Grid.Row="1" Grid.Column="1" Name="DeepSeekKeyBox" PasswordChar="●"
+                   PlaceholderText="{DynamicResource settings.ai.keyPlaceholder}" />
+
+          <TextBlock Grid.Row="2" Text="{DynamicResource settings.ai.model}" VerticalAlignment="Center" />
+          <TextBox Grid.Row="2" Grid.Column="1" Name="DeepSeekModelBox"
+                   PlaceholderText="{DynamicResource settings.ai.modelPlaceholder}" />
         </Grid>
         <TextBlock FontSize="11" Opacity="0.55" TextWrapping="Wrap"
-                   Text="Key 会明文写进 exe 旁的 milkavalon.json；也可以只放在环境变量里。接口地址固定为 https://api.deepseek.com/v1。" />
+                   Text="{DynamicResource settings.ai.hint}" />
 
         <Separator Background="{DynamicResource MaterialDividerBrush}" />
         <TextBlock FontSize="11" Opacity="0.5" TextWrapping="Wrap"
-                   Text="保存后立即生效：当前页面会被重建（切页逻辑同点 Tab），不会退出播放。配置文件：exe 旁的 milkavalon.json。" />
+                   Text="{DynamicResource settings.bottomHint}" />
       </StackPanel>
     </ScrollViewer>
     </DockPanel>

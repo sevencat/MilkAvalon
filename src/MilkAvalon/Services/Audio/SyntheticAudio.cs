@@ -45,8 +45,8 @@ public sealed class SyntheticAudio : IPcmSource
     public int SampleRate => Rate;
 
     public string Description => FallbackReason is { Length: > 0 } reason
-        ? $"合成音频 {Rate} Hz / {Channels} ch（WASAPI 不可用：{reason}）"
-        : $"合成音频 {Rate} Hz / {Channels} ch";
+        ? Localization.F("audio.synthetic.fallback", Rate, Channels, reason)
+        : Localization.F("audio.synthetic", Rate, Channels);
 
     /// <summary>按当前时间推进一帧的量。</summary>
     public void Pump()

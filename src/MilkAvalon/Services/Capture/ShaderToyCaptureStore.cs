@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Net.Http;
+using System.Text;
 using MilkDrop.ShaderToy.Pass;
 using MilkDrop.ShaderToy.Preset;
 
@@ -96,31 +97,29 @@ public sealed class ShaderToyCaptureStore
                     continue;
                 }
 
-                if (string.IsNullOrWhiteSpace(input.Path))
+                foreach (string path in MediaPathsOf(input))
                 {
-                    continue;
-                }
+                    progress?.Report($"保存图片 {path}");
 
-                progress?.Report($"保存图片 {input.Path}");
+                    if (TryWriteMedia(path, fetchedMedia, out bool existed))
+                    {
+                        if (!existed)
+                        {
+                            saved++;
+                        }
 
-                if (TryWriteMedia(input.Path, fetchedMedia, out bool existed))
-                {
-                    if (!existed)
+                        continue;
+                    }
+
+                    // 页面里没抓到（跨域/超时）：退回 HttpClient 再试一次
+                    if (await DownloadMediaAsync(path, cookieHeader, cancellationToken).ConfigureAwait(false))
                     {
                         saved++;
                     }
-
-                    continue;
-                }
-
-                // 页面里没抓到（跨域/超时）：退回 HttpClient 再试一次
-                if (await DownloadMediaAsync(input.Path, cookieHeader, cancellationToken).ConfigureAwait(false))
-                {
-                    saved++;
-                }
-                else
-                {
-                    failed++;
+                    else
+                    {
+                        failed++;
+                    }
                 }
             }
         }
@@ -139,6 +138,44 @@ public sealed class ShaderToyCaptureStore
             failed,
             write.Replaced,
             write.FilePath);
+    }
+
+    /// <summary>
+    /// 一个通道需要落盘的站点路径：立方体贴图是六张（第一面 + <c>_1</c>…<c>_5</c>），其余就一张。
+    /// </summary>
+    /// <remarks>
+    /// 站点 cubemap 的 <c>filepath</c> 只给第一面，后面五面靠 <c>&lt;stem&gt;_N&lt;ext&gt;</c> 推导（P18 实测）。
+    /// 页面正常会自己把六张都取一遍，这里补齐是为了"某些面没被采样到"时也保证落全。
+    /// </remarks>
+    private static IEnumerable<string> MediaPathsOf(ShaderPassInput input)
+    {
+        if (input.Path is not { Length: > 0 } path)
+        {
+            yield break;
+        }
+
+        yield return path;
+
+        if (input.Type != ShaderInputType.Cubemap)
+        {
+            yield break;
+        }
+
+        int dot = path.LastIndexOf('.');
+        int slash = path.LastIndexOfAny(['/', '\\']);
+
+        if (dot <= slash || dot < 0)
+        {
+            yield break;
+        }
+
+        string stem = path[..dot];
+        string extension = path[dot..];
+
+        for (var face = 1; face < 6; face++)
+        {
+            yield return $"{stem}_{face}{extension}";
+        }
     }
 
     /// <summary>这个站点资源是不是已经落在 <c>media/</c> 下了（同图多作品共享，不必重下）。</summary>

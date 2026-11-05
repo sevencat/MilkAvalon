@@ -37,7 +37,7 @@ public sealed class WaveOutSink : IAudioSink
 
     public int SampleRate => _provider.WaveFormat.SampleRate;
 
-    public string Description => $"waveOut {SampleRate} Hz / 2 ch / 16 bit";
+    public string Description => Localization.F("audio.waveout", SampleRate);
 
     /// <summary>开始播放：waveOut 从此反复从 <paramref name="buffer"/> 取数据。</summary>
     /// <exception cref="Exception">打不开音频设备（调用方自己降级成静音）。</exception>

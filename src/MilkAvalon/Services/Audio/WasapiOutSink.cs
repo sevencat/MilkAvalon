@@ -42,7 +42,7 @@ public sealed class WasapiOutSink : IAudioSink
 
     public int SampleRate => _provider?.WaveFormat.SampleRate ?? ShaderAudioBuffer.SampleRate;
 
-    public string Description => $"WASAPI 共享 {SampleRate} Hz / 2 ch / 16 bit";
+    public string Description => Localization.F("audio.wasapi.shared", SampleRate);
 
     /// <summary>开始播放：WASAPI 的渲染线程反复从 <paramref name="buffer"/> 取数据。</summary>
     /// <exception cref="Exception">打不开输出设备或格式不被接受（调用方退到下一梯队）。</exception>

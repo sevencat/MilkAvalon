@@ -12,23 +12,23 @@
         <!-- 过滤框 + 重新扫描：清单平时来自 projectm\presets.index.json，只有点这个按钮才会重新扫盘 -->
         <Grid DockPanel.Dock="Top" Margin="8,8,8,4" ColumnDefinitions="*,Auto" ColumnSpacing="6">
           <TextBox Name="SearchBox"
-                   PlaceholderText="过滤预设（文件名）"
+                   PlaceholderText="{DynamicResource page.pm.filter}"
                    TextChanged="OnSearchChanged" />
-          <Button Grid.Column="1" Classes="toolbar" Name="RescanButton" Content="重新扫描"
+          <Button Grid.Column="1" Classes="toolbar" Name="RescanButton" Content="{DynamicResource page.pm.rescan}"
                   Click="OnRescanClick" FontSize="12" Padding="12,4" MinWidth="84" Height="36"
                   VerticalAlignment="Center"
-                  ToolTip.Tip="忽略索引文件，重新扫描磁盘上的 .milk，并更新 presets.index.json" />
+                  ToolTip.Tip="{DynamicResource page.pm.rescan.tip}" />
         </Grid>
 
         <!-- 脚本页（.milkx）才显示：把老 .milk 转成 .milkx 导入本目录（D6/D7） -->
         <Grid Name="ImportPanel" DockPanel.Dock="Top" Margin="8,0,8,4"
               ColumnDefinitions="*,*" ColumnSpacing="6" IsVisible="False">
-          <Button Classes="toolbar" Name="ImportFolderButton" Content="导入目录…"
+          <Button Classes="toolbar" Name="ImportFolderButton" Content="{DynamicResource page.pm.importFolder}"
                   Click="OnImportFolderClick" FontSize="12" Padding="8,4" Height="32"
-                  ToolTip.Tip="递归转换目录里的 .milk → .milkx（保留子目录层级）" />
-          <Button Grid.Column="1" Classes="toolbar" Name="ImportFilesButton" Content="导入文件…"
+                  ToolTip.Tip="{DynamicResource page.pm.importFolder.tip}" />
+          <Button Grid.Column="1" Classes="toolbar" Name="ImportFilesButton" Content="{DynamicResource page.pm.importFiles}"
                   Click="OnImportFilesClick" FontSize="12" Padding="8,4" Height="32"
-                  ToolTip.Tip="选择若干 .milk 转成 .milkx（平铺到脚本目录）" />
+                  ToolTip.Tip="{DynamicResource page.pm.importFiles.tip}" />
         </Grid>
 
         <TextBlock Name="LibraryText"
@@ -37,7 +37,7 @@
                    FontSize="11"
                    Opacity="0.6"
                    TextWrapping="Wrap"
-                   Text="正在扫描预设…" />
+                   Text="{DynamicResource page.pm.scanning}" />
 
         <ListBox Name="PresetList"
                  Margin="4,0"
@@ -63,7 +63,7 @@
       <Border Name="InfoBar" DockPanel.Dock="Bottom" Background="{DynamicResource MaterialPaperBrush}" BorderBrush="{DynamicResource MaterialDividerBrush}"
               BorderThickness="0,1,0,0" Padding="10,6">
         <StackPanel Classes="overlay" Spacing="1">
-          <TextBlock Name="InfoPreset" Text="正在初始化引擎…" />
+          <TextBlock Name="InfoPreset" Text="{DynamicResource page.pm.initializing}" />
           <TextBlock Name="InfoProgress" />
           <TextBlock Name="InfoSize" />
           <TextBlock Name="InfoEngine" />

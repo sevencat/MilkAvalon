@@ -466,7 +466,7 @@ $r = $button.Current.BoundingRectangle
   等于把扫描的一半成本又加回来。
 - 索引写失败（只读目录/磁盘满）只记日志，不影响播放，下次启动继续扫盘。
 
-#### A7-5 站点抓取：只写 `shadertoy.db` + `media/`
+#### A7-5 站点抓取：只写 `presets/*.shaderx` + `media/`（历史上曾写 `shadertoy.db`）
 
 **控件选型结论**（2026-10-27 实测）：
 
@@ -476,18 +476,40 @@ $r = $button.Current.BoundingRectangle
 | `WebView.Avalonia` 11.0.0.1 | ❌ 依赖 Avalonia 11.0.0（netstandard2.0），会把 Avalonia 拉回 11 |
 | `WebViewControl-Avalonia` 3.120.13 | ❌ 依赖 Avalonia 11.0.10 + CefGlue（自带 Chromium），同样与 12 冲突且体积大 |
 
-**抓取链路**（`Views/CaptureWindow.axaml.cs`）：
+**抓取链路（P17 起：DevTools 协议截获，不注入页面脚本）**：
 
 ```
 内嵌 WebView2（持久化 profile：%LOCALAPPDATA%\MilkAvalon\WebView2）
+  启动参数额外带 --remote-debugging-port=<随机空闲端口>（49200–49899）
   → 打开 https://www.shadertoy.com/view/<id>
   → 轮询 document.title，等 Cloudflare 放行（不绕过；卡住就让用户在窗口里点一下）
-  → 注入 fetch(POST https://www.shadertoy.com/shadertoy, body: s={"shaders":["<id>"]}&nt=1&nl=1&np=1)
-  → 正文经 window.chrome.webview.postMessage 回传（**不要**用 InvokeScript 返回值扛大 JSON）
-  → ShaderToyJsonImporter.TryParse 校验
-  → 页内 fetch 取图片字节 → base64 分块（256 KB/条）postMessage 回来
-  → ShaderToyCaptureStore.SaveAsync：一个事务写 4 张表 + 图片落 media/
+  → Services/Capture/WebViewCdpCapture 连 /json/list 取 page target 的 webSocketDebuggerUrl
+  → Network.enable；页面自己 POST /shadertoy 时收 responseReceived + loadingFinished
+  → Network.getResponseBody 取正文（base64Encoded 的按 base64 解）
+      /media/*  → 按站点原路径写 <数据根>/media/...
+      /shadertoy → 存进字典，交给 ShaderToyJsonImporter.TryParse
+  → ShaderToyCaptureStore.SaveAsync：写 presets/<title> [<id>].shaderx + 补缺的图
 ```
+
+**为什么不能用控件自己的 `WebResourceRequested`**（P17 实测，别再试一遍）：
+
+- `Avalonia.Controls.WebResourceRequestedEventArgs.Request` 与 `WebViewWebResourceRequest.Uri` 都是
+  **init-only**，赋值直接 `CS8852`；事件参数里也没有 `Response`，拿不到响应体。
+- `NativeWebView` 上没有 `AddWebResourceRequestedFilter`，也没有 `WebResourceResponseReceived`；
+  适配器内部的 COM 互操作（`Avalonia.Controls.Win.WebView2.Interop`）也只封到 `ICoreWebView2_*` 的常用成员，
+  **没有** `ICoreWebView2WebResourceResponseReceivedEventArgs` / `WebResourceResponseView`。
+- 该事件**确实会触发**（能看到页面请求的每一条 `/media/...`），但只能当"观察器"用；
+  抓取窗口仍用它把"页面实际请求了哪些图"记进日志，给 P18 的六面贴图名逆向留线索。
+
+**为什么不能用 `HttpClient` 直连站点**：即使带齐 WebView2 的 cookie（含 `cf_clearance`）、UA、`Origin`、
+`Referer`，`POST /shadertoy` 依旧 `403 Bad request`（body 就 11 字节）——站点按 TLS/bot 指纹判，
+托管 HttpClient 改不了。所以只能"让浏览器自己取、我们从调试协议里读"。
+
+**抓到的 JSON 是数组**：真实响应形如 `[{"ver":"0.1","info":{"id":"…","name":"…"},"renderpass":[…]}]`，
+不是 `{"Shader":{…}}` 那种包装（解析已兼容两种）。
+
+**抓取会顺带存页面的装饰图**：`/media/users/*`（作者头像）、`/media/shaders/*.jpg`（侧栏缩略图）
+也会被落盘——"所有 `/media` 都保存"是刻意行为，重复抓同一批图会自动跳过（已存在即复用）。
 
 **两种抓取入口**（`CaptureWindow` 地址栏右侧）：
 
@@ -524,8 +546,42 @@ $r = $button.Current.BoundingRectangle
   `[capture] WebView2 用户数据目录` 日志。
 
 **自检**：`MilkAvalon.exe --capture flGyWc --shadertoy-data <空目录>` → 期望
-`页内取图完成：1/1 张`、`已入库 … 图片 新下载 1 / 失败 0`；目录里**只有** `shadertoy.db` 与 `media/`。
-随后 `--tab shadertoy --shadertoy-data <同一目录> --shot ...` 能直接出图（见 `artifacts/p11-capture-play.png`）。
+`截获工程 JSON：flGyWc`、`已写入 flGyWc「…」：N 个 pass，图片 新下载 x / 失败 0`；
+目录里只有 `presets/<title> [<id>].shaderx` 与 `media/`。
+随后 `--tab shadertoy --shadertoy-data <同一目录> --shot ...` 能直接出图
+（见 `artifacts/p17-captured-play.png`；**主窗口 PNG 里 GL 区域永远是黑的，真画面在同名 `-gl.png`**）。
+
+#### A7-6 站点 cubemap 素材：`filepath` 只是第一面（P18 实测）
+
+**规则**（作品 JSON → 站点素材文件）：
+
+```jsonc
+// 作品 JSON 里的通道对象（Campfire at night / Wtc3W2，素材 XsX3zn）
+{ "id": "XsX3zn",
+  "filepath": "\/media\/a\/94284d43….png",     // ← 第一面（+X）
+  "previewfilepath": "\/media\/ap\/94284d43….png",
+  "type": "cubemap", "channel": 3 }
+```
+
+- 六面 URL = `filepath`、`<stem>_1<ext>`、`<stem>_2<ext>` … `<stem>_5<ext>`，
+  面序 **+X, -X, +Y, -Y, +Z, -Z**。
+- **第一面没有 `_0` 后缀**；也**不是** `_px/_nx/_py/_ny/_pz/_nz`（那是第三方工具
+  shader-toy 插件的本地约定，站点不用）。
+- 页面加载作品时会自己把这六张都请求一遍，所以 P17 的 CDP 截获天然能拿到——
+  但**抓取端必须把六张都落盘**（页面恰好没采样到某面时会缺），`ShaderToyCaptureStore.MediaPathsOf` 就干这个。
+
+**坑**：`.shaderx` 的通道行早期写的是素材 **id**（`3 = cubemap XsX3zn`），
+加载端只能按 `<id>_px.png` 找，永远找不到 → 黑立方体。现在写的是第一面路径：
+
+```
+3 = cubemap /media/a/94284d43….png mipmap clamp 0
+```
+
+读取端按"像不像媒体路径"（含 `/` 或 `\` 且有扩展名）决定塞回 `Path` 还是 `Id`，
+老文件不会崩，只是提示"找不到立方体贴图 <id>"并退黑色占位——重新抓一次即可。
+
+**验证手法**：删掉 `media/a/<sha>_3.png` 再播，信息条应出现
+`立方体贴图 … 缺第 3 面（<sha>_3.png），用黑色占位`（能打印出来就说明六面规则真的在跑）。
 
 ---
 

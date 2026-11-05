@@ -578,61 +578,69 @@ public sealed class ShaderToyPipeline : IDisposable
     private static readonly string[] s_cubeImageExtensions = [".png", ".jpg", ".jpeg", ".webp"];
 
     /// <summary>
-    /// 临时硬编码：站点 cubemap 资源 id → 本地六面文件（相对搜索目录），面序 +X, -X, +Y, -Y, +Z, -Z。
+    /// 按站点规则加载六面：<paramref name="sitePath"/> 是第一面，其余是
+    /// <c>&lt;stem&gt;_1&lt;ext&gt;</c> … <c>&lt;stem&gt;_5&lt;ext&gt;</c>（P18 实测）。
     /// </summary>
-    /// <remarks>
-    /// TODO(临时)：抓取侧还不会下载 cubemap 资源，先用真实作品（<c>Campfire at night</c> 的 <c>XsX3zn</c>）
-    /// 手工放好的图验证加载与朝向。等 P8 抓取接上后整块删掉。
-    /// </remarks>
-    private static readonly Dictionary<string, string[]> s_cubeResourceOverrides = new(StringComparer.OrdinalIgnoreCase)
+    /// <returns>缺任何一面都返回 null，让调用方继续尝试别的布局。</returns>
+    private Texture? TryLoadSiteCubemap(Slot slot, ShaderPassInput input, string sitePath)
     {
-        ["XsX3zn"] =
-        [
-            "media/a/94284d43be78f00eb6b298e6d78656a1b34e2b91b34940d02f1ca8b22310e8a0.png",
-            "media/a/94284d43be78f00eb6b298e6d78656a1b34e2b91b34940d02f1ca8b22310e8a0_1.png",
-            "media/a/94284d43be78f00eb6b298e6d78656a1b34e2b91b34940d02f1ca8b22310e8a0_2.png",
-            "media/a/94284d43be78f00eb6b298e6d78656a1b34e2b91b34940d02f1ca8b22310e8a0_3.png",
-            "media/a/94284d43be78f00eb6b298e6d78656a1b34e2b91b34940d02f1ca8b22310e8a0_4.png",
-            "media/a/94284d43be78f00eb6b298e6d78656a1b34e2b91b34940d02f1ca8b22310e8a0_5.png",
-        ],
-    };
+        string? first = ResolveTexturePath(sitePath);
+
+        if (first is null)
+        {
+            return null;
+        }
+
+        string directory = Path.GetDirectoryName(first) ?? string.Empty;
+        string stem = Path.GetFileNameWithoutExtension(first);
+        string extension = Path.GetExtension(first);
+
+        var faces = new string[6];
+        faces[0] = first;
+
+        for (var face = 1; face < 6; face++)
+        {
+            string relative = Path.Combine(directory, $"{stem}_{face}{extension}");
+            string? path = ResolveTexturePath(relative);
+
+            if (path is null)
+            {
+                Notes.Add($"{Label(slot.Pass)} 通道 {input.Channel}：立方体贴图 {sitePath} 缺第 {face} 面"
+                    + $"（{stem}_{face}{extension}），用黑色占位。");
+                return null;
+            }
+
+            faces[face] = path;
+        }
+
+        return LoadCubeFaces(slot, input, faces);
+    }
 
     /// <summary>
     /// 加载 cubemap **资源**（站点 Cubemaps 标签页那种环境贴图；<c>mainCubemap</c> 生成的 pass 不走这里）。
     /// </summary>
     /// <remarks>
-    /// 两种本地布局，都在 <see cref="PipelineOptions.TextureSearchPaths"/> 里按顺序找：
+    /// 三种本地布局，都在 <see cref="PipelineOptions.TextureSearchPaths"/> 里按顺序找：
     /// <list type="number">
-    /// <item>六个面：<c>&lt;名字&gt;_px.png</c> … <c>&lt;名字&gt;_nz.png</c>，面序 +X, -X, +Y, -Y, +Z, -Z；</item>
+    /// <item>站点素材：<c>&lt;第一面&gt;.png</c> 加 <c>&lt;第一面&gt;_1.png</c> … <c>_5.png</c>
+    /// （P18 实测规则，面序 +X, -X, +Y, -Y, +Z, -Z）；路径由通道的 <see cref="ShaderPassInput.Path"/> 给出。</item>
+    /// <item>六个面：<c>&lt;名字&gt;_px.png</c> … <c>&lt;名字&gt;_nz.png</c>，面序同上（本地/手放素材）。</item>
     /// <item>单张竖条带：<c>&lt;名字&gt;.png</c>，高 = 6 × 宽，自上而下同面序。</item>
     /// </list>
     /// 都找不到就返回 null —— 调用方会退回 <see cref="BindChannels"/> 先铺的黑色占位立方体。
     /// </remarks>
     private Texture? LoadCubemap(Slot slot, ShaderPassInput input)
     {
+        // 0) 站点素材：filepath 是第一面，其余五面是 <stem>_1.._5
+        if (input.Path is { Length: > 0 } sitePath && TryLoadSiteCubemap(slot, input, sitePath) is { } fromSite)
+        {
+            return fromSite;
+        }
+
         string baseName = NormalizeResourceName(input.Id);
         if (baseName.Length == 0)
         {
             return null;
-        }
-
-        // 0) 临时硬编码的映射（抓取未接前，用真实资源手测）
-        if (s_cubeResourceOverrides.TryGetValue(baseName, out string[]? overrideFiles))
-        {
-            var resolved = new string[6];
-            for (var face = 0; face < 6; face++)
-            {
-                string? path = ResolveTexturePath(overrideFiles[face]);
-                if (path is null)
-                {
-                    Notes.Add($"{Label(slot.Pass)} 通道 {input.Channel}：预置的立方体贴图 {baseName} 缺文件 {overrideFiles[face]}，用黑色占位。");
-                    return null;
-                }
-
-                resolved[face] = path;
-            }
-
-            return LoadCubeFaces(slot, input, resolved);
         }
 
         // 1) 六个面：<名字>_px / _nx / _py / _ny / _pz / _nz

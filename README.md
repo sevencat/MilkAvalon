@@ -65,7 +65,7 @@ Avalonia 12（ANGLE/EGL → D3D11）+ Silk.NET（OpenGL ES 3.0）
 - **音频**：projectM 输入走 WASAPI 环回采集（无声卡时自动退到合成信号）；ShaderToy sound pass 输出按 `WASAPI → waveOut → 静音` 三级降级。
 - **编辑面板**：右侧可拖宽的 AvaloniaEdit 编辑器，行号、语法高亮、补全、参数导航、查找，支持保存（写盘并重载）/ 应用 / 还原 / 弹出为独立窗口；`Ctrl+S` 保存。
 - **AI 分析**：把当前脚本交给 DeepSeek（OpenAI 兼容接口）做流式讲解，结果用 Markdown 渲染；Key 填在设置里，或设环境变量 `DEEPSEEK_API_KEY`。
-- **抓取**：内嵌 WebView2 打开 shadertoy 作品页抓取源码与贴图（落成 `.shaderx` + `media/`）；也可一键把当前画面存成 PNG。
+- **抓取**：内嵌 WebView2 打开 shadertoy 作品页，经 DevTools 协议截获 `/shadertoy` 与全部 `/media/*` 响应（**不往页面注入脚本**），落成 `.shaderx` + `media/`；也可一键把当前画面存成 PNG。
 - **桌面细节**：Material 暗色主题、自绘标题栏、F11 全屏、拖放文件即加载、DPI 自适应、设置持久化。
 
 ## 运行要求
@@ -191,6 +191,7 @@ MilkAvalon/
 
 - 引擎与播放逻辑来自上游 `MilkDropSharp`（GPLv3），本仓库是其 Avalonia UI 移植分支（引擎源码搬入后仅打最小补丁）；
 - 预设与渲染思路源自 [projectM](https://github.com/projectM-visualizer/projectm) / MilkDrop（Winamp）；
-- ShaderToy 相关格式与抓取逻辑对齐 [shadertoy.com](https://www.shadertoy.com/) 的作品结构。
+- ShaderToy 相关格式与抓取逻辑对齐 [shadertoy.com](https://www.shadertoy.com/) 的作品结构；
+- ShaderToy 多 pass / 通道机制的入门理解参考了 [shadertoy-tutorial](https://github.com/iMemento/shadertoy-tutorial)（Shadertoy 教程），在此致谢。
 
 Copyright (C) 2026 sevencat

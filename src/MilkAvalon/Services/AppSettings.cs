@@ -57,7 +57,22 @@ public sealed class AppSettings
     public double UiScale { get; set; } = 1.0;
 
     /// <summary>
-    /// DeepSeek 的 API Key，编辑面板「AI 分析」用（标准 OpenAI 兼容接口）。
+    /// 界面语言（P15）：null/空 = 中文（<see cref="Localization.DefaultLanguage"/>），
+    /// 可选值见 <see cref="Localization.SupportedLanguages"/>。
+    /// </summary>
+    public string? Language { get; set; }
+
+    /// <summary>
+    /// AI 接口地址（OpenAI 兼容协议，编辑面板「AI 分析」用），null/空 = DeepSeek 官方。
+    /// </summary>
+    /// <remarks>
+    /// P14：地址不再是硬编码——用户可以填任何 OpenAI 兼容端点（DeepSeek / 本地 vLLM / 中转站…）。
+    /// 解析请用 <see cref="Services.Ai.ScriptAnalyzer.ResolveBaseUrl"/>，会补协议头、去尾斜杠。
+    /// </remarks>
+    public string? AiBaseUrl { get; set; }
+
+    /// <summary>
+    /// AI 的 API Key（标准 OpenAI 兼容接口）。
     /// </summary>
     /// <remarks>留空时回退读环境变量 <c>DEEPSEEK_API_KEY</c>。</remarks>
     public string? DeepSeekApiKey { get; set; }
@@ -135,6 +150,8 @@ public sealed class AppSettings
         MeshHeight = MeshHeight,
         ShaderToyBufferMode = ShaderToyBufferMode,
         UiScale = UiScale,
+        Language = Language,
+        AiBaseUrl = AiBaseUrl,
         DeepSeekApiKey = DeepSeekApiKey,
         DeepSeekModel = DeepSeekModel,
     };
@@ -152,6 +169,8 @@ public sealed class AppSettings
         MeshHeight = other.MeshHeight;
         ShaderToyBufferMode = other.ShaderToyBufferMode;
         UiScale = other.UiScale;
+        Language = other.Language;
+        AiBaseUrl = other.AiBaseUrl;
         DeepSeekApiKey = other.DeepSeekApiKey;
         DeepSeekModel = other.DeepSeekModel;
     }

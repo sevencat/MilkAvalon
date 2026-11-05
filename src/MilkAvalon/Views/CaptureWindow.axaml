@@ -3,7 +3,7 @@
         xmlns:wv="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls.WebView"
         xmlns:chrome="using:Avalonia.Controls.Chrome"
         x:Class="MilkAvalon.Views.CaptureWindow"
-        Title="抓取 Shadertoy 作品"
+        Title="{DynamicResource capture.title}"
         Icon="/Assets/milkdropsharp.png"
         Width="1120" Height="780"
         MinWidth="820" MinHeight="560"
@@ -20,7 +20,7 @@
             Padding="14,0,4,0"
             chrome:WindowDecorationProperties.ElementRole="TitleBar">
       <Grid ColumnDefinitions="*,Auto" Height="36">
-        <TextBlock Text="抓取 Shadertoy 作品" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+        <TextBlock Text="{DynamicResource capture.title}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
         <Button Grid.Column="1" Classes="caption" Name="CloseButton" Content="✕"
                 Click="OnCaptionCloseClick"
                 chrome:WindowDecorationProperties.ElementRole="User" />
@@ -31,26 +31,26 @@
     <Border DockPanel.Dock="Top" Background="{DynamicResource MaterialToolBarBackgroundBrush}" Padding="12,3">
       <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="6">
         <Button Grid.Column="0" Classes="toolbar" Name="BackButton" Content="←" Height="28" Padding="8,0"
-                Click="OnBackClick" IsEnabled="False" MinWidth="34" ToolTip.Tip="后退" />
+                Click="OnBackClick" IsEnabled="False" MinWidth="34" ToolTip.Tip="{DynamicResource capture.back}" />
         <Button Grid.Column="1" Classes="toolbar" Name="ForwardButton" Content="→" Height="28" Padding="8,0"
-                Click="OnForwardClick" IsEnabled="False" MinWidth="34" ToolTip.Tip="前进" />
+                Click="OnForwardClick" IsEnabled="False" MinWidth="34" ToolTip.Tip="{DynamicResource capture.forward}" />
 
         <TextBox Grid.Column="2" Name="UrlBox" Height="28" FontSize="12" VerticalContentAlignment="Center"
                  PlaceholderText="https://www.shadertoy.com/view/flGyWc"
                  KeyDown="OnUrlKeyDown" />
-        <Button Grid.Column="3" Classes="toolbar" Content="打开" Height="28" Padding="10,0"
+        <Button Grid.Column="3" Classes="toolbar" Content="{DynamicResource capture.open}" Height="28" Padding="10,0"
                 Click="OnOpenClick" MinWidth="60" FontSize="12" />
 
         <!-- 只在浏览器当前页是 /view/<id> 时可用：ID 直接从地址里取，不用手抄 -->
-        <Button Grid.Column="4" Classes="toolbar" Name="GrabCurrentButton" Content="抓取当前页面"
+        <Button Grid.Column="4" Classes="toolbar" Name="GrabCurrentButton" Content="{DynamicResource capture.grabCurrent}"
                 Click="OnGrabCurrentClick" Height="28" Padding="10,0" IsEnabled="False" MinWidth="104" FontSize="12"
-                ToolTip.Tip="当前页面是 shadertoy.com/view/&lt;id&gt; 时可用，ID 自动取自地址栏" />
+                ToolTip.Tip="{DynamicResource capture.grabCurrent.tip}" />
       </Grid>
     </Border>
 
     <!-- 状态栏：站点加载 / Cloudflare 等待 / 下载进度都写在这里 -->
     <Border DockPanel.Dock="Bottom" Background="{DynamicResource MaterialToolBarBackgroundBrush}" Padding="12,6">
-      <TextBlock Name="StatusText" Text="正在加载 shadertoy.com…" FontSize="12" Opacity="0.8"
+      <TextBlock Name="StatusText" Text="{DynamicResource capture.status.loading}" FontSize="12" Opacity="0.8"
                  TextWrapping="Wrap" />
     </Border>
 

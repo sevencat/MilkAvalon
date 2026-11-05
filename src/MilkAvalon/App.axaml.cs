@@ -26,6 +26,10 @@ public partial class App : Application
         {
             // 设置文件先读出来，命令行随后覆盖它（plan.md P7：命令行 > 设置 > 默认）
             AppSettings settings = AppSettings.Load();
+
+            // 语言先定下来，后面的窗口（含日志文案之外的所有 UI）都按它初始化（P15）
+            Localization.Apply(settings.Language);
+
             Console.WriteLine(
                 $"[settings] {AppSettings.DefaultPath} → projectM={settings.ProjectMDataRoot ?? "(默认)"}，"
                 + $"ShaderToy={settings.ShaderToyDataRoot ?? "(默认)"}，脚本={settings.MilkxDirectory ?? "(默认)"}，"

@@ -7,6 +7,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform;
 using Avalonia.Threading;
+using MilkAvalon.Services;
 using MilkAvalon.Services.Capture;
 using MilkDrop.ShaderToy.Import;
 using MilkDrop.ShaderToy.Pass;
@@ -14,19 +15,21 @@ using MilkDrop.ShaderToy.Pass;
 namespace MilkAvalon.Views;
 
 /// <summary>
-/// 抓取窗口：内嵌 WebView2 打开 shadertoy，注入一次 <c>POST /shadertoy</c> 拿工程 JSON，
-/// 然后**只写 <c>presets/&lt;title&gt; [&lt;id&gt;].shaderx</c> + <c>media/</c>**（P13 D13-4，不碰数据库）。
+/// 抓取窗口：内嵌 WebView2 打开 shadertoy，**从 DevTools 协议里截获页面的 <c>/media/*</c> 与
+/// <c>/shadertoy</c> 响应**，拿工程 JSON 与贴图，然后只写
+/// <c>presets/&lt;title&gt; [&lt;id&gt;].shaderx</c> + <c>media/</c>（P13 D13-4）。
 /// </summary>
 /// <remarks>
 /// <para>
-/// 参考 <c>F:\code\ShaderToySnap</c> 的做法，但换掉两处：
-/// ① 控件用官方的 <see cref="Avalonia.Controls.NativeWebView"/>（MIT / AOT 友好 / Avalonia 12 兼容）；
-/// ② 数据落成一个文本文件 + media（作品 = 文本，plan.md P13），不再写 db、也不摊 <c>shaders/</c> 目录。
+/// P17：**不在页面里注入任何脚本**。<see cref="WebViewCdpCapture"/> 连上 WebView2 的
+/// <c>--remote-debugging-port</c>，对命中的请求调 <c>Network.getResponseBody</c> 取正文：
+/// 图片按站点原路径直接落盘，工程 JSON 交给抓取流程解析。用户随便浏览，数据自然攒下来，
+/// 「抓取当前页面」只是把攒到的东西落成 <c>.shaderx</c>。
 /// </para>
 /// <para>
-/// 拿 JSON 的链路：页内 <c>fetch</c> → <c>window.chrome.webview.postMessage(前缀 + 正文)</c> →
-/// C# 侧 <c>WebMessageReceived</c>。**不用** <c>InvokeScript</c> 的返回值扛大 JSON
-/// （字符串要过 JSON 编码，几十 KB 以上容易出问题；实测 postMessage 传 300 KB 无压力）。
+/// 为什么不用 <c>WebResourceRequested</c> 直接截：那个事件参数是 init-only，只能看请求、
+/// 既不能改 URI 也没有响应体入口；而站点对裸 <see cref="System.Net.Http.HttpClient"/> 会按
+/// TLS/bot 指纹返 403 —— 所以只能让浏览器自己取、我们从调试协议里读。
 /// </para>
 /// <para>
 /// Cloudflare：不绕过，靠持久化 profile 里的 cookie 与真实浏览器指纹；真遇到挑战就让用户
@@ -35,27 +38,26 @@ namespace MilkAvalon.Views;
 /// </remarks>
 public partial class CaptureWindow : Window
 {
-    /// <summary>页内脚本回传正文时加的前缀（正文本身可能是任意 JSON）。</summary>
-    private const string MessagePrefix = "@@milkavalon-shader@@";
-
-    /// <summary>抓取出错时页内回传的前缀。</summary>
-    private const string ErrorPrefix = "@@milkavalon-error@@";
-
     private static readonly Regex ViewUrlPattern =
         new(@"shadertoy\.com/view/([A-Za-z0-9_\-]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex IdPattern =
         new(@"^[A-Za-z0-9_\-]{4,64}$", RegexOptions.Compiled);
 
-    /// <summary>页内取图片时回传字节（base64，分块）的前缀。</summary>
-    private const string MediaPrefix = "@@milkavalon-media@@";
-
     private readonly ShaderToyCaptureStore _store;
 
-    private TaskCompletionSource<string>? _pendingMessage;
-    private TaskCompletionSource<bool>? _pendingMedia;
-    private List<string> _mediaUrls = [];
-    private Dictionary<int, string?[]> _mediaChunks = [];
+    /// <summary>浏览器实际请求过的 <c>/media</c> 资源（P18 逆向六面贴图名用，只做记录）。</summary>
+    private readonly HashSet<string> _mediaUrlsSeen = new(StringComparer.Ordinal);
+
+    /// <summary>WebView2 的 DevTools 协议端口（本进程独占，随机挑一个空着的）。</summary>
+    private readonly int CdpPort;
+
+    /// <summary>DevTools 协议观察者：截获 <c>/media</c> 与 <c>/shadertoy</c> 的响应体。</summary>
+    private readonly WebViewCdpCapture _cdp;
+
+    /// <summary>CDP 连上（或连失败）时完成：抓取前要等它，否则会漏掉作品的 JSON 响应。</summary>
+    private readonly TaskCompletionSource<bool> _cdpReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
     private bool _busy;
 
     /// <summary>内嵌浏览器当前地址里解析出的作品 ID（不是 /view/&lt;id&gt; 时为空串）。</summary>
@@ -75,11 +77,13 @@ public partial class CaptureWindow : Window
     public CaptureWindow(string shaderToyRoot, string? initialIdOrUrl = null)
     {
         _store = new ShaderToyCaptureStore(shaderToyRoot);
+        CdpPort = FindFreePort();
+        _cdp = new WebViewCdpCapture(CdpPort, shaderToyRoot);
 
         InitializeComponent();
 
         Web.EnvironmentRequested += OnEnvironmentRequested;
-        Web.WebMessageReceived += OnWebMessageReceived;
+        Web.WebResourceRequested += OnWebResourceRequested;
         Web.NavigationCompleted += OnNavigationCompleted;
         Web.NavigationStarted += OnNavigationStarted;
 
@@ -98,8 +102,28 @@ public partial class CaptureWindow : Window
         Opened += (_, _) => _locationTimer.Start();
         Closed += (_, _) => _locationTimer.Stop();
 
-        SetStatus($"数据根：{_store.Root}（只写 presets/*.shaderx 与 media/）");
+        SetStatus(Localization.F("capture.status.root", _store.Root));
         Web.Navigate(new Uri(HomeUrl));
+
+        // 导航一起就尝试连 DevTools 协议：连上之后页面再取的资源才收得到
+        _ = ConnectCdpAsync();
+    }
+
+    /// <summary>连 CDP（失败只记日志，抓取时会再报一次带提示的错误）。</summary>
+    private async Task ConnectCdpAsync()
+    {
+        try
+        {
+            await _cdp.ConnectAsync(CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("[capture] DevTools 协议连接失败：" + ex.Message);
+        }
+        finally
+        {
+            _cdpReady.TrySetResult(true);
+        }
     }
 
     /// <summary>抓取成功（已落盘）时触发：主窗口据此切到 ShaderToy 页并直接播放。</summary>
@@ -126,10 +150,11 @@ public partial class CaptureWindow : Window
 
         if (id.Length == 0)
         {
-            throw new InvalidOperationException("ID 无效：请输入形如 flGyWc 的短 ID 或完整的 view 链接。");
+            throw new InvalidOperationException(Localization.T("capture.invalidId"));
         }
 
-        SetStatus($"正在打开 {id} …");
+        SetStatus(Localization.F("capture.opening", id));
+
         Web.Navigate(new Uri($"https://www.shadertoy.com/view/{id}"));
         await Task.Delay(1200, cancellationToken);
 
@@ -137,32 +162,50 @@ public partial class CaptureWindow : Window
 
         if (title is null)
         {
-            throw new TimeoutException("站点一直停在人机验证页：请在这个窗口里手动完成验证后再点「抓取当前页面」。");
+            throw new TimeoutException(Localization.T("capture.challengeTimeout"));
         }
 
-        SetStatus($"页面已就绪（{title}），正在请求工程 JSON…");
+        SetStatus(Localization.F("capture.pageReady", title));
 
-        string body = await FetchShaderJsonAsync(id, cancellationToken);
+        // 页面打开作品时会自己 POST /shadertoy；DevTools 协议把响应体截下来（P17：不注入脚本）
+        await _cdpReady.Task.WaitAsync(TimeSpan.FromSeconds(25), cancellationToken);
+
+        string? body = await _cdp.WaitForJsonAsync(id, TimeSpan.FromSeconds(25), cancellationToken);
+
+        if (body is null)
+        {
+            throw new TimeoutException(Localization.T("capture.interceptTimeout"));
+        }
 
         if (!ShaderToyJsonImporter.TryParse(body, out ShaderToyProject? project, out string? parseError))
         {
-            throw new InvalidOperationException("抓到的内容不是可用的 ShaderToy 工程：" + (parseError ?? "解析失败"));
+            throw new InvalidOperationException(
+                Localization.F("capture.parseFailed", parseError ?? "parse error"));
         }
 
-        SetStatus($"解析成功：{project.Metadata.Name}（{project.Passes.Count} 个 pass），开始取图片…");
+        SetStatus(Localization.F("capture.parsed", project.Metadata.Name, project.Passes.Count));
 
-        // 图片必须由页面去取：站点对裸 HttpClient 返 403（缺指纹），页内 fetch 天然带 cookie/UA/Referer
-        Dictionary<string, byte[]> media = await FetchMediaAsync(project, cancellationToken);
+        // 贴图同样经浏览器下载、由 CDP 落盘：等它安静下来再写 .shaderx，
+        // 已落盘的图 SaveAsync 直接复用，缺的才走 HttpClient 兜底
+        SetStatus(Localization.T("capture.waitingMedia"));
+        await _cdp.WaitForMediaQuietAsync(
+            TimeSpan.FromSeconds(1.5), TimeSpan.FromSeconds(15), cancellationToken);
 
-        string? cookieHeader = await GetCookieHeaderAsync();
+        string? cookieHeader = await RefreshCookieAsync();
 
         var progress = new Progress<string>(SetStatus);
-        ShaderToyCaptureResult result = await _store.SaveAsync(project, media, cookieHeader, progress, cancellationToken);
+        ShaderToyCaptureResult result = await _store.SaveAsync(
+            project, fetchedMedia: null, cookieHeader, progress, cancellationToken);
 
-        string summary = $"已保存 {result.ShaderId}「{result.Name}」：{result.PassCount} 个 pass，"
-            + $"图片 新下载 {result.MediaSaved} / 失败 {result.MediaFailed}"
-            + (result.Replaced ? "（覆盖旧文件）" : string.Empty)
-            + $" → {Path.GetFileName(result.PresetPath)}";
+        string summary = Localization.F(
+            "capture.summary",
+            result.ShaderId,
+            result.Name,
+            result.PassCount,
+            result.MediaSaved,
+            result.MediaFailed,
+            result.Replaced ? Localization.T("capture.summaryReplaced") : string.Empty,
+            Path.GetFileName(result.PresetPath));
 
         Console.WriteLine("[capture] " + summary);
         SetStatus(summary);
@@ -189,8 +232,8 @@ public partial class CaptureWindow : Window
             }
 
             SetStatus(clock.Elapsed.TotalSeconds < 20
-                ? "站点正在加载 / 等待人机验证…（如卡住请在本窗口内手动完成验证）"
-                : "仍在等待人机验证…（完成验证后会自动继续）");
+                ? Localization.T("capture.waitingPage")
+                : Localization.T("capture.waitingChallenge"));
 
             await Task.Delay(700, cancellationToken);
         }
@@ -218,242 +261,38 @@ public partial class CaptureWindow : Window
         }
     }
 
-    /// <summary>注入一次 <c>POST /shadertoy</c>，正文通过 postMessage 回来。</summary>
-    private async Task<string> FetchShaderJsonAsync(string id, CancellationToken cancellationToken)
-    {
-        var pending = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _pendingMessage = pending;
-
-        string script = BuildFetchScript(id);
-        string? scriptResult = await Web.InvokeScript(script);
-        Console.WriteLine($"[capture] 页内 fetch 返回：{scriptResult}");
-
-        Task completed = await Task.WhenAny(pending.Task, Task.Delay(TimeSpan.FromSeconds(25), cancellationToken));
-
-        if (!ReferenceEquals(completed, pending.Task))
-        {
-            _pendingMessage = null;
-            throw new TimeoutException("等待站点响应超时（25 秒）。可先在窗口里手动打开这个作品再抓。");
-        }
-
-        _pendingMessage = null;
-        return await pending.Task;
-    }
-
-    private static string BuildFetchScript(string id)
-    {
-        // 端点与 body 照 ShaderToySnap（agents.md 里抓包原文）：站点私有接口，不是 /api/v1
-        return $$"""
-            (async () => {
-              const id = '{{id}}';
-              const body = 's=' + encodeURIComponent('{ "shaders" : ["' + id + '"] }') + '&nt=1&nl=1&np=1';
-              try {
-                const resp = await fetch('https://www.shadertoy.com/shadertoy', {
-                  method: 'POST',
-                  mode: 'cors',
-                  credentials: 'include',
-                  referrer: 'https://www.shadertoy.com/view/' + id,
-                  headers: { 'accept': '*/*', 'content-type': 'application/x-www-form-urlencoded' },
-                  body: body
-                });
-                const text = await resp.text();
-                if (window.chrome && window.chrome.webview) {
-                  window.chrome.webview.postMessage('{{MessagePrefix}}' + text);
-                }
-                return resp.status + ':' + text.length;
-              } catch (e) {
-                if (window.chrome && window.chrome.webview) {
-                  window.chrome.webview.postMessage('{{ErrorPrefix}}' + (e && e.message ? e.message : String(e)));
-                }
-                return 'error';
-              }
-            })()
-            """;
-    }
 
     /// <summary>
-    /// 让页面自己去取图片（站点拒绝裸 HttpClient：403）。字节以 base64 分块回传，C# 侧拼回去。
+    /// 从内嵌浏览器取一次 cookie，交给代理带上上游请求（站点对无 cookie 的请求返 403）。
     /// </summary>
-    /// <returns>键 = JSON 里的原始路径（<c>/media/a/x.png</c>）。</returns>
-    private async Task<Dictionary<string, byte[]>> FetchMediaAsync(
-        ShaderToyProject project,
-        CancellationToken cancellationToken)
+    /// <returns>拼好的 <c>a=1; b=2</c>，取不到返回 null。</returns>
+    private async Task<string?> RefreshCookieAsync()
     {
-        var urls = new List<string>();
+        string? header = null;
 
-        foreach (ShaderPass pass in project.Passes)
-        {
-            foreach (ShaderPassInput input in pass.Inputs)
-            {
-                if (input.Type is not (ShaderInputType.Texture or ShaderInputType.Cubemap))
-                {
-                    continue;
-                }
-
-                string path = input.Path ?? string.Empty;
-
-                if (path.Length == 0 || _store.HasLocalMedia(path) || urls.Contains(path, StringComparer.Ordinal))
-                {
-                    continue;
-                }
-
-                urls.Add(path);
-            }
-        }
-
-        var result = new Dictionary<string, byte[]>(StringComparer.Ordinal);
-
-        if (urls.Count == 0)
-        {
-            return result;
-        }
-
-        _mediaUrls = urls;
-        _mediaChunks = [];
-        var pending = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _pendingMedia = pending;
-
-        SetStatus($"页面内下载 {urls.Count} 张图片…");
-
-        await Web.InvokeScript(BuildMediaScript(urls));
-
-        Task completed = await Task.WhenAny(pending.Task, Task.Delay(TimeSpan.FromSeconds(90), cancellationToken));
-        _pendingMedia = null;
-
-        if (!ReferenceEquals(completed, pending.Task))
-        {
-            Console.WriteLine("[capture] 图片下载超时，按已收到的部分落盘");
-        }
-
-        foreach ((int index, string?[] parts) in _mediaChunks)
-        {
-            if (index < 0 || index >= urls.Count || parts.Any(part => part is null))
-            {
-                continue;
-            }
-
-            try
-            {
-                result[urls[index]] = Convert.FromBase64String(string.Concat(parts));
-            }
-            catch (FormatException ex)
-            {
-                Console.WriteLine($"[capture] 图片数据损坏：{urls[index]} → {ex.Message}");
-            }
-        }
-
-        Console.WriteLine($"[capture] 页内取图完成：{result.Count}/{urls.Count} 张");
-        return result;
-    }
-
-    private static string BuildMediaScript(List<string> urls)
-    {
-        // 每块 256 KB：postMessage 单条太大时 WebView2 侧会慢，分块之后既稳又能显示进度
-        string[] absoluteUrls = urls.Select(url =>
-            url.StartsWith("http", StringComparison.OrdinalIgnoreCase)
-                ? url
-                : "https://www.shadertoy.com" + (url.StartsWith('/') ? url : "/" + url)).ToArray();
-
-        string listJson = JsonSerializer.Serialize(absoluteUrls, CaptureJsonContext.Default.StringArray);
-
-        return $$"""
-            (async () => {
-              const list = {{listJson}};
-              const post = (s) => { if (window.chrome && window.chrome.webview) window.chrome.webview.postMessage('{{MediaPrefix}}' + s); };
-              for (let i = 0; i < list.length; i++) {
-                try {
-                  const resp = await fetch(list[i], { credentials: 'include', referrer: location.href });
-                  if (!resp.ok) {
-                    post(JSON.stringify({ i: i, error: 'HTTP ' + resp.status }));
-                    continue;
-                  }
-                  const buffer = new Uint8Array(await resp.arrayBuffer());
-                  let binary = '';
-                  const STEP = 3072;
-                  for (let k = 0; k < buffer.length; k += STEP) {
-                    binary += String.fromCharCode.apply(null, buffer.subarray(k, k + STEP));
-                  }
-                  const base64 = btoa(binary);
-                  const SIZE = 262144;
-                  const parts = Math.max(1, Math.ceil(base64.length / SIZE));
-                  for (let p = 0; p < parts; p++) {
-                    post(JSON.stringify({ i: i, p: p, parts: parts, d: base64.slice(p * SIZE, (p + 1) * SIZE) }));
-                  }
-                } catch (e) {
-                  post(JSON.stringify({ i: i, error: (e && e.message) ? e.message : String(e) }));
-                }
-              }
-              post('DONE');
-            })()
-            """;
-    }
-
-    /// <summary>收到一条媒体分块（页内 base64）；<c>DONE</c> 表示全部结束。</summary>
-    private void OnMediaMessage(string payload)
-    {
-        if (payload == "DONE")
-        {
-            _pendingMedia?.TrySetResult(true);
-            return;
-        }
-
-        try
-        {
-            using JsonDocument document = JsonDocument.Parse(payload);
-            JsonElement root = document.RootElement;
-
-            if (root.TryGetProperty("error", out JsonElement error))
-            {
-                Console.WriteLine($"[capture] 图片失败：{_mediaUrls[root.GetProperty("i").GetInt32()]} → {error}");
-                return;
-            }
-
-            int index = root.GetProperty("i").GetInt32();
-            int part = root.GetProperty("p").GetInt32();
-            int parts = root.GetProperty("parts").GetInt32();
-
-            if (!_mediaChunks.TryGetValue(index, out string?[]? chunks))
-            {
-                chunks = new string?[parts];
-                _mediaChunks[index] = chunks;
-            }
-
-            if (part >= 0 && part < chunks.Length)
-            {
-                chunks[part] = root.GetProperty("d").GetString();
-            }
-        }
-        catch (Exception ex) when (ex is JsonException or KeyNotFoundException or InvalidOperationException)
-        {
-            Console.WriteLine("[capture] 媒体分块解析失败：" + ex.Message);
-        }
-    }
-
-    private async Task<string?> GetCookieHeaderAsync()
-    {
         try
         {
             NativeWebViewCookieManager? manager = Web.TryGetCookieManager();
 
-            if (manager is null)
+            if (manager is not null)
             {
-                return null;
+                IReadOnlyList<Cookie> cookies = await manager.GetCookiesAsync();
+
+                if (cookies.Count > 0)
+                {
+                    header = string.Join("; ", cookies.Select(cookie => cookie.Name + "=" + cookie.Value));
+
+                    Console.WriteLine(
+                        "[capture] cookie：" + string.Join(", ", cookies.Select(cookie => cookie.Name)));
+                }
             }
-
-            IReadOnlyList<Cookie> cookies = await manager.GetCookiesAsync();
-
-            if (cookies.Count == 0)
-            {
-                return null;
-            }
-
-            return string.Join("; ", cookies.Select(cookie => cookie.Name + "=" + cookie.Value));
         }
         catch (Exception ex)
         {
-            Console.WriteLine("[capture] 读取 cookie 失败（图片下载可能被站点拒绝）：" + ex.Message);
-            return null;
+            Console.WriteLine("[capture] 读取 cookie 失败（站点可能拒绝请求）：" + ex.Message);
         }
+
+        return header;
     }
 
     // ---- 事件 ----
@@ -470,41 +309,56 @@ public partial class CaptureWindow : Window
         windows.UserDataFolder = ProfileDirectory;
         windows.EnableDevTools = true;
 
+        // 开 DevTools 协议端口：抓取靠它读网络响应（不往页面里塞脚本）
+        windows.AdditionalBrowserArguments = "--remote-debugging-port=" + CdpPort;
+
         Console.WriteLine("[capture] WebView2 用户数据目录：" + ProfileDirectory);
+        Console.WriteLine("[capture] DevTools 端口：" + CdpPort);
     }
 
-    private void OnWebMessageReceived(object? sender, WebMessageReceivedEventArgs e)
+    /// <summary>
+    /// 记录浏览器实际请求的 <c>/media</c> 资源。
+    /// </summary>
+    /// <remarks>
+    /// 这个事件只能看不能改（<c>Request</c> 与 <c>Uri</c> 都是 init-only，也没有响应体入口），
+    /// 所以抓取本身走 <see cref="ShaderToyCaptureStore.FetchShaderJsonAsync"/> 直连站点；
+    /// 这里只留一份"站点到底请求了哪些图"的记录，六面贴图名与 URL 的对应关系要从这里看（P18）。
+    /// </remarks>
+    private void OnWebResourceRequested(object? sender, WebResourceRequestedEventArgs e)
     {
-        string body = e.Body ?? string.Empty;
+        Uri? uri = e.Request?.Uri;
 
-        if (body.StartsWith(ErrorPrefix, StringComparison.Ordinal))
-        {
-            string error = body[ErrorPrefix.Length..];
-            Console.WriteLine("[capture] 页内 fetch 失败：" + error);
-            _pendingMessage?.TrySetException(new InvalidOperationException("页内请求失败：" + error));
-            return;
-        }
-
-        if (body.StartsWith(MediaPrefix, StringComparison.Ordinal))
-        {
-            OnMediaMessage(body[MediaPrefix.Length..]);
-            return;
-        }
-
-        if (!body.StartsWith(MessagePrefix, StringComparison.Ordinal))
+        if (uri is null || !uri.Host.Contains("shadertoy.com", StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
 
-        string json = body[MessagePrefix.Length..];
-
-        if (json.Trim() is "[]" or "")
+        if (uri.AbsolutePath.StartsWith("/media/", StringComparison.OrdinalIgnoreCase))
         {
-            _pendingMessage?.TrySetException(new InvalidOperationException("站点返回空结果（可能作品不存在或需要登录）。"));
+            if (_mediaUrlsSeen.Add(uri.AbsolutePath))
+            {
+                Console.WriteLine($"[capture] 页面请求贴图：{uri.AbsolutePath}");
+            }
+
             return;
         }
 
-        _pendingMessage?.TrySetResult(json);
+        if (uri.AbsolutePath.Equals("/shadertoy", StringComparison.OrdinalIgnoreCase))
+        {
+            // 站点私有接口：把浏览器实际用的头打出来，C# 侧照抄才不会 403
+            Console.WriteLine($"[capture] 页面请求接口：{e.Request!.Method} {uri.AbsolutePath}");
+
+            if (e.Request.Headers is { } headers)
+            {
+                foreach (string name in new[] { "content-type", "accept", "origin", "referer", "x-requested-with" })
+                {
+                    if (headers.TryGetValue(name, out string? value))
+                    {
+                        Console.WriteLine($"[capture]   {name}: {value}");
+                    }
+                }
+            }
+        }
     }
 
     private void OnNavigationStarted(object? sender, WebViewNavigationEventArgs e)
@@ -514,7 +368,7 @@ public partial class CaptureWindow : Window
             return;
         }
 
-        SetStatus("正在打开 " + e.Request);
+        SetStatus(Localization.F("capture.navigating", e.Request));
     }
 
     private void OnNavigationCompleted(object? sender, WebViewNavigationCompletedEventArgs e)
@@ -524,7 +378,9 @@ public partial class CaptureWindow : Window
             return;
         }
 
-        SetStatus(e.IsSuccess ? "页面已加载。要保存就在作品页点「抓取当前页面」。" : "页面加载失败，可重试或换网络。");
+        SetStatus(e.IsSuccess
+            ? Localization.T("capture.navDone")
+            : Localization.T("capture.navFailed"));
 
         // 导航一结束就刷新一次，不用等定时器那一拍
         UpdateHistoryState();
@@ -551,13 +407,13 @@ public partial class CaptureWindow : Window
 
         if (url.Length == 0)
         {
-            SetStatus("链接无效：请输入 https://www.shadertoy.com/view/<id> 这样的地址。");
+            SetStatus(Localization.T("capture.invalidUrl"));
             return;
         }
 
         UrlBox.Text = url;
         Web.Navigate(new Uri(url));
-        SetStatus("正在打开 " + url + " …");
+        SetStatus(Localization.F("capture.opening", url));
     }
 
     /// <summary>浏览历史：后退 / 前进。</summary>
@@ -614,7 +470,7 @@ public partial class CaptureWindow : Window
 
         if (_currentPageId.Length == 0)
         {
-            SetStatus("当前页面不是作品页（需要 https://www.shadertoy.com/view/<id>），先打开一个作品。");
+            SetStatus(Localization.T("capture.notShaderPage"));
             return;
         }
 
@@ -642,7 +498,7 @@ public partial class CaptureWindow : Window
         catch (Exception ex)
         {
             Console.WriteLine("[capture] 失败：" + ex);
-            SetStatus("抓取失败：" + ex.Message);
+            SetStatus(Localization.F("capture.grabFailed", ex.Message));
         }
         finally
         {
@@ -675,7 +531,7 @@ public partial class CaptureWindow : Window
                 if (id.Length > 0)
                 {
                     Console.WriteLine($"[capture] 当前页面可抓取：{id}（{url}）");
-                    SetStatus($"当前页面是 {id}，可以点「抓取当前页面」。");
+                    SetStatus(Localization.F("capture.canGrab", id));
                 }
                 else if (url.Length > 0)
                 {
@@ -699,7 +555,9 @@ public partial class CaptureWindow : Window
     {
         bool canGrab = !_busy && _currentPageId.Length > 0;
         GrabCurrentButton.IsEnabled = canGrab;
-        GrabCurrentButton.Content = canGrab ? $"抓取当前页面（{_currentPageId}）" : "抓取当前页面";
+        GrabCurrentButton.Content = canGrab
+            ? Localization.F("capture.grabCurrentWith", _currentPageId)
+            : Localization.T("capture.grabCurrent");
     }
 
     /// <summary>从页面地址里取作品 ID：只认 shadertoy 域名下的 <c>/view/&lt;id&gt;</c>，其余返回空串。</summary>
@@ -735,10 +593,37 @@ public partial class CaptureWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         base.OnClosed(e);
+
+        // CDP 连接是每个窗口一条：关窗就断，别在后台留着
+        _ = _cdp.DisposeAsync();
+
         Console.WriteLine("[capture] 抓取窗口已关闭");
     }
 
     private void SetStatus(string text) => StatusText.Text = text;
+
+    /// <summary>挑一个当前没人监听的本地端口给 DevTools 用（挑完就释放，交给 WebView2 绑）。</summary>
+    private static int FindFreePort()
+    {
+        for (var attempt = 0; attempt < 20; attempt++)
+        {
+            var port = Random.Shared.Next(49200, 49900);
+
+            try
+            {
+                var probe = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, port);
+                probe.Start();
+                probe.Stop();
+                return port;
+            }
+            catch (System.Net.Sockets.SocketException)
+            {
+                // 被占了，换一个
+            }
+        }
+
+        return 49222;
+    }
 
     /// <summary>
     /// 把输入框里的内容变成可导航的地址：完整链接原样、只粘域名时补 <c>https://</c>、

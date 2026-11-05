@@ -1,0 +1,305 @@
+<!--
+  中文资源字典（P15 / 里程碑 A）。
+  键约定：ui.* 主界面；settings.* 设置窗口。后续窗口按 editor.* / ai.* / capture.* 续编。
+  两份字典（zh-CN / en-US）键必须完全一致——Localization.Apply 直接整本替换。
+-->
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- 主窗口：工具栏 -->
+  <x:String x:Key="ui.toolbar.library">收起 / 展开左栏</x:String>
+  <x:String x:Key="ui.toolbar.prev">上一个</x:String>
+  <x:String x:Key="ui.toolbar.pause">暂停 / 继续</x:String>
+  <x:String x:Key="ui.toolbar.next">下一个</x:String>
+  <x:String x:Key="ui.toolbar.random">随机</x:String>
+  <x:String x:Key="ui.toolbar.reload">重载当前</x:String>
+  <x:String x:Key="ui.toolbar.edit">编辑当前预设（.milk / .milkx / .shaderx）</x:String>
+  <x:String x:Key="ui.toolbar.ai">AI 分析当前脚本（流式输出）</x:String>
+  <x:String x:Key="ui.toolbar.capture">抓取：保存当前画面 / 抓取站点作品</x:String>
+  <x:String x:Key="ui.toolbar.fullscreen">全屏（F11，Esc 退出）</x:String>
+  <x:String x:Key="ui.toolbar.info">显示 / 隐藏底部信息条（预设、进度、尺寸、音频）</x:String>
+  <x:String x:Key="ui.toolbar.settings">设置</x:String>
+
+  <!-- 主窗口：抓取菜单 -->
+  <x:String x:Key="ui.menu.saveFrame">保存当前画面…</x:String>
+  <x:String x:Key="ui.menu.grabSite">抓取站点作品…</x:String>
+
+  <!-- 主窗口：页签 -->
+  <x:String x:Key="ui.tab.projectm.tip">projectM（再点一次重建当前页）</x:String>
+  <x:String x:Key="ui.tab.milkx.tip">milkx（.milkx 脚本预设，再点一次重建当前页）</x:String>
+  <x:String x:Key="ui.tab.shadertoy.tip">ShaderToy（再点一次重建当前页）</x:String>
+
+  <!-- 主窗口：窗口按钮 / 状态栏 / 空态 -->
+  <x:String x:Key="ui.caption.minimize">最小化</x:String>
+  <x:String x:Key="ui.caption.maximize">最大化 / 还原</x:String>
+  <x:String x:Key="ui.caption.close">关闭</x:String>
+  <x:String x:Key="ui.status.ready">就绪</x:String>
+  <x:String x:Key="ui.empty.title">没有可用的数据</x:String>
+  <x:String x:Key="ui.empty.pickFolder">选择目录…</x:String>
+  <x:String x:Key="ui.empty.openSettings">打开设置</x:String>
+
+  <!-- 设置窗口：标题与底部 -->
+  <x:String x:Key="settings.title">设置</x:String>
+  <x:String x:Key="settings.close.tip">关闭（等同取消）</x:String>
+  <x:String x:Key="settings.cancel">取消</x:String>
+  <x:String x:Key="settings.save">保存</x:String>
+  <x:String x:Key="settings.bottomHint">保存后立即生效：当前页面会被重建（切页逻辑同点 Tab），不会退出播放。配置文件：exe 旁的 milkavalon.json。</x:String>
+
+  <!-- 设置窗口：数据根 -->
+  <x:String x:Key="settings.section.dataRoot">数据根</x:String>
+  <x:String x:Key="settings.label.milkx">脚本（.milkx）</x:String>
+  <x:String x:Key="settings.browse">浏览…</x:String>
+  <x:String x:Key="settings.rootHint">projectM 根目录下放 presets/ 与 textures/；ShaderToy 根目录下放 presets/*.shaderx 与 media/；脚本目录放导入生成的 *.milkx。留空 = 用 exe 旁的默认目录。命令行 --projectm-data/--shadertoy-data/--milkx-data 优先级更高。</x:String>
+
+  <!-- 设置窗口：渲染 -->
+  <x:String x:Key="settings.section.render">渲染</x:String>
+  <x:String x:Key="settings.mesh.hint">（预设里的 nGridX/nGridY 会覆盖它）</x:String>
+  <x:String x:Key="settings.buffer.viewport">跟随视口</x:String>
+  <x:String x:Key="settings.buffer.fixed">固定 1024×256</x:String>
+  <x:String x:Key="settings.buffer.half">视口 0.5×</x:String>
+  <x:String x:Key="settings.vsync">垂直同步</x:String>
+  <x:String x:Key="settings.vsync.note">开启（当前由 Avalonia 合成器决定，仅记录）</x:String>
+  <x:String x:Key="settings.scale">界面缩放</x:String>
+  <x:String x:Key="settings.scale.system">跟随系统</x:String>
+  <x:String x:Key="settings.label.language">语言 / Language</x:String>
+  <x:String x:Key="lang.zh">中文</x:String>
+  <x:String x:Key="lang.en">English</x:String>
+
+  <!-- 设置窗口：AI -->
+  <x:String x:Key="settings.section.ai">AI 分析（OpenAI 兼容接口）</x:String>
+  <x:String x:Key="settings.ai.baseUrl">接口地址</x:String>
+  <x:String x:Key="settings.ai.baseUrlWatermark">https://api.deepseek.com/v1</x:String>
+  <x:String x:Key="settings.ai.apiKey">API Key</x:String>
+  <x:String x:Key="settings.ai.keyPlaceholder">留空 = 读环境变量 DEEPSEEK_API_KEY</x:String>
+  <x:String x:Key="settings.ai.model">模型</x:String>
+  <x:String x:Key="settings.ai.modelPlaceholder">deepseek-chat（可选 deepseek-reasoner）</x:String>
+  <x:String x:Key="settings.ai.hint">任何 OpenAI 兼容端点都可以（DeepSeek / 本地 vLLM / 中转站…），接口地址留空 = https://api.deepseek.com/v1。Key 会明文写进 exe 旁的 milkavalon.json；也可以只放在环境变量里。</x:String>
+
+  <!-- 设置窗口：C# 侧（Localization.T / F 取用） -->
+  <x:String x:Key="settings.pick.projectM">选择 projectM 数据根（含 presets/ 的目录）</x:String>
+  <x:String x:Key="settings.pick.shaderToy">选择 ShaderToy 数据根（含 presets/*.shaderx 的目录）</x:String>
+  <x:String x:Key="settings.pick.milkx">选择脚本预设目录（放 .milkx 的目录）</x:String>
+  <x:String x:Key="settings.error.mesh">网格尺寸要是 8–256 之间的整数。</x:String>
+  <x:String x:Key="settings.error.pickFolder">选择目录失败：{0}</x:String>
+
+  <!-- 编辑面板：标题栏 / 工具条 -->
+  <x:String x:Key="editor.title">预设编辑</x:String>
+  <x:String x:Key="editor.popOut">弹出</x:String>
+  <x:String x:Key="editor.dockBack">收回</x:String>
+  <x:String x:Key="editor.popOut.tip">放进独立窗口，可以随便拉大（再点一次收回右侧）</x:String>
+  <x:String x:Key="editor.popOut.tip.popped">贴回窗口右侧</x:String>
+  <x:String x:Key="editor.close">关闭</x:String>
+  <x:String x:Key="editor.save">保存</x:String>
+  <x:String x:Key="editor.save.tip">写回 .milk 并重载引擎（Ctrl+S）</x:String>
+  <x:String x:Key="editor.apply">应用</x:String>
+  <x:String x:Key="editor.apply.tip">不写盘，只把当前文本重载进引擎（试参数用）</x:String>
+  <x:String x:Key="editor.revert">还原</x:String>
+  <x:String x:Key="editor.revert.tip">丢弃未保存的改动，重新从磁盘读取</x:String>
+  <x:String x:Key="editor.open">打开…</x:String>
+  <x:String x:Key="editor.open.tip">编辑另一个 .milk 文件</x:String>
+  <x:String x:Key="editor.ai">AI 分析</x:String>
+  <x:String x:Key="editor.ai.tip">把当前脚本交给 AI 分析（结果显示在独立窗口）</x:String>
+  <x:String x:Key="editor.filterParams">过滤参数</x:String>
+
+  <!-- 编辑面板：C# 侧状态与校验 -->
+  <x:String x:Key="editor.target.empty">还没有可编辑的内容：先播一个预设（.milk / .milkx），或在 ShaderToy 页选一个作品</x:String>
+  <x:String x:Key="editor.target.unsupported">只支持编辑 .milk / .milkx / .shaderx：{0}</x:String>
+  <x:String x:Key="editor.dirtySwitch">有未保存的改动，仍在编辑 {0}（当前播放已换到 {1}）</x:String>
+  <x:String x:Key="editor.loaded">已载入 {0}：{1} 个参数，{2} 行，{3}</x:String>
+  <x:String x:Key="editor.loadFailed">打开失败：{0}</x:String>
+  <x:String x:Key="editor.fileMissing">文件不存在：{0}</x:String>
+  <x:String x:Key="editor.loadedShaderx">已载入 {0}：{1} 行（.shaderx 原文，Ctrl+S 保存并重新编译）</x:String>
+  <x:String x:Key="editor.noFile">没有打开的文件</x:String>
+  <x:String x:Key="editor.saveFailed">保存失败：{0}</x:String>
+  <x:String x:Key="editor.savedShaderx">已保存 {0}（{1} 行）</x:String>
+  <x:String x:Key="editor.savedShaderxApplied">，并已重新编译</x:String>
+  <x:String x:Key="editor.err.empty">内容为空</x:String>
+  <x:String x:Key="editor.err.nul.shaderx">内容里有 NUL 字符，读回来会变成乱码</x:String>
+  <x:String x:Key="editor.err.nul.milk">内容里有 NUL 字符，引擎会当成二进制拒绝加载</x:String>
+  <x:String x:Key="editor.err.noPass">没有任何 [shadertoy.&lt;角色&gt;] 段，这个文件播放不了</x:String>
+  <x:String x:Key="editor.err.noSection">没有任何 [段名]，不是有效的 .milkx</x:String>
+  <x:String x:Key="editor.err.noKeyValue">一行 key=value 都没有，引擎会拒绝这个文件</x:String>
+  <x:String x:Key="editor.err.tooBig">超过 {0} KiB，引擎会拒绝加载</x:String>
+  <x:String x:Key="editor.saved">已保存 {0}（{1} 个参数，{2}）</x:String>
+  <x:String x:Key="editor.savedAppliedSuffix">，并已让引擎重载</x:String>
+  <x:String x:Key="editor.appliedShaderx">已把当前文本重新编译（未写盘；Ctrl+S 才保存）</x:String>
+  <x:String x:Key="editor.applied">已把当前文本应用到引擎（未写盘；Ctrl+S 才保存）</x:String>
+  <x:String x:Key="editor.paramCount">{0} 个参数</x:String>
+  <x:String x:Key="editor.noAnalysisTarget">还没有可分析的脚本：先打开一个 .milk / .milkx / .shaderx</x:String>
+  <x:String x:Key="editor.emptyScript">脚本是空的，没什么可分析的</x:String>
+  <x:String x:Key="editor.discardWarning">注意：{0} 的未保存改动被丢弃</x:String>
+  <x:String x:Key="editor.openFile.title">打开 .milk / .milkx / .shaderx</x:String>
+  <x:String x:Key="editor.pick.all">全部支持的格式</x:String>
+  <x:String x:Key="editor.pick.milk">MilkDrop 预设</x:String>
+  <x:String x:Key="editor.pick.shaderx">ShaderToy 作品</x:String>
+  <x:String x:Key="editor.pickFailed">选择文件失败：{0}</x:String>
+
+  <!-- 编辑弹出窗口 -->
+  <x:String x:Key="editorwindow.title">MilkAvalon 编辑</x:String>
+  <x:String x:Key="editorwindow.close.tip">关闭（面板收回右侧）</x:String>
+
+  <!-- AI 分析窗口 -->
+  <x:String x:Key="ai.title">AI 分析</x:String>
+  <x:String x:Key="ai.prompt.placeholder">用户提示词（可改）</x:String>
+  <x:String x:Key="ai.analyze">分析</x:String>
+  <x:String x:Key="ai.cancel">取消</x:String>
+  <x:String x:Key="ai.cancel.tip">中止这次请求（关窗也会中止）</x:String>
+  <x:String x:Key="ai.save">保存</x:String>
+  <x:String x:Key="ai.save.tip">把分析结果保存到脚本同目录（&lt;文件名&gt;.ai.md）</x:String>
+  <x:String x:Key="ai.status.default">系统提示词按文件类型自动选择（shadertoy / milkdrop）</x:String>
+  <x:String x:Key="ai.missingKey">还没有 API Key：到「设置 → AI 分析」里填，或设环境变量 DEEPSEEK_API_KEY。</x:String>
+  <x:String x:Key="ai.waiting">正在请求（{0}）… 已等待 {1:F0} 秒</x:String>
+  <x:String x:Key="ai.receiving">正在接收（{0}）：{1} 字符，已等待 {2:F0} 秒</x:String>
+  <x:String x:Key="ai.ready">就绪：{0}｜{1}｜脚本 {2} 字符。回车或点「分析」开始。</x:String>
+  <x:String x:Key="ai.loadedSaved">已载入上次的分析：{0}（{1} 字符）。点「分析」重新请求。</x:String>
+  <x:String x:Key="ai.cancelling">正在取消…</x:String>
+  <x:String x:Key="ai.noSavePath">没有源文件路径，无法确定保存位置。</x:String>
+  <x:String x:Key="ai.nothingToSave">还没有分析结果可保存。</x:String>
+  <x:String x:Key="ai.saved">已保存 {0}（{1} 字符）。</x:String>
+  <x:String x:Key="ai.saveFailed">保存失败：{0}</x:String>
+  <x:String x:Key="ai.noScript">没有可分析的脚本内容。</x:String>
+  <x:String x:Key="ai.requesting">正在请求（{0}，流式）… 已等待 0 秒</x:String>
+  <x:String x:Key="ai.doneTitle">（完成 {0} 字符）</x:String>
+  <x:String x:Key="ai.done">完成：{0} 字符。点「保存」写到脚本同目录。</x:String>
+  <x:String x:Key="ai.cancelled">已取消。</x:String>
+  <x:String x:Key="ai.timeout">请求超时（已等 {0:F0} 秒）：AI 没在时限内回完。可以换更快的模型（deepseek-chat），或缩小脚本再试。</x:String>
+  <x:String x:Key="ai.failed">分析失败：{0}</x:String>
+
+  <!-- 抓取窗口 -->
+  <x:String x:Key="capture.title">抓取 Shadertoy 作品</x:String>
+  <x:String x:Key="capture.back">后退</x:String>
+  <x:String x:Key="capture.forward">前进</x:String>
+  <x:String x:Key="capture.open">打开</x:String>
+  <x:String x:Key="capture.grabCurrent">抓取当前页面</x:String>
+  <x:String x:Key="capture.grabCurrentWith">抓取当前页面（{0}）</x:String>
+  <x:String x:Key="capture.grabCurrent.tip">当前页面是 shadertoy.com/view/&lt;id&gt; 时可用，ID 自动取自地址栏</x:String>
+  <x:String x:Key="capture.status.loading">正在加载 shadertoy.com…</x:String>
+  <x:String x:Key="capture.status.root">数据根：{0}（只写 presets/*.shaderx 与 media/）</x:String>
+  <x:String x:Key="capture.invalidId">ID 无效：请输入形如 flGyWc 的短 ID 或完整的 view 链接。</x:String>
+  <x:String x:Key="capture.opening">正在打开 {0} …</x:String>
+  <x:String x:Key="capture.challengeTimeout">站点一直停在人机验证页：请在这个窗口里手动完成验证后再点「抓取当前页面」。</x:String>
+  <x:String x:Key="capture.pageReady">页面已就绪（{0}），正在请求工程 JSON…</x:String>
+  <x:String x:Key="capture.interceptTimeout">没有截获到作品数据：页面可能还没加载完，或站点改版了。</x:String>
+  <x:String x:Key="capture.waitingMedia">等待页面把贴图加载完…</x:String>
+  <x:String x:Key="capture.parseFailed">抓到的内容不是可用的 ShaderToy 工程：{0}</x:String>
+  <x:String x:Key="capture.parsed">解析成功：{0}（{1} 个 pass），开始取图片…</x:String>
+  <x:String x:Key="capture.summary">已保存 {0}「{1}」：{2} 个 pass，图片 新下载 {3} / 失败 {4}{5} → {6}</x:String>
+  <x:String x:Key="capture.summaryReplaced">（覆盖旧文件）</x:String>
+  <x:String x:Key="capture.waitingPage">站点正在加载 / 等待人机验证…（如卡住请在本窗口内手动完成验证）</x:String>
+  <x:String x:Key="capture.waitingChallenge">仍在等待人机验证…（完成验证后会自动继续）</x:String>
+  <x:String x:Key="capture.navigating">正在打开 {0}</x:String>
+  <x:String x:Key="capture.navDone">页面已加载。要保存就在作品页点「抓取当前页面」。</x:String>
+  <x:String x:Key="capture.navFailed">页面加载失败，可重试或换网络。</x:String>
+  <x:String x:Key="capture.invalidUrl">链接无效：请输入 https://www.shadertoy.com/view/&lt;id&gt; 这样的地址。</x:String>
+  <x:String x:Key="capture.notShaderPage">当前页面不是作品页（需要 https://www.shadertoy.com/view/&lt;id&gt;），先打开一个作品。</x:String>
+  <x:String x:Key="capture.grabFailed">抓取失败：{0}</x:String>
+  <x:String x:Key="capture.canGrab">当前页面是 {0}，可以点「抓取当前页面」。</x:String>
+
+  <!-- 主窗口：C# 侧状态栏 / 消息 -->
+  <x:String x:Key="ui.status.loaded">已加载 {0}</x:String>
+  <x:String x:Key="ui.status.loadedScript">已加载脚本 {0}</x:String>
+  <x:String x:Key="ui.status.loadFailed">加载失败：{0}</x:String>
+  <x:String x:Key="ui.status.appliedEdit">已应用编辑：{0}</x:String>
+  <x:String x:Key="ui.editor.noReloadable">当前页没有可重载的预设，改动没法应用</x:String>
+  <x:String x:Key="ui.status.aiAnalyzing">AI 分析：{0}</x:String>
+  <x:String x:Key="ui.status.noAnalysisTarget">没有可分析的脚本：先播一个预设，或打开编辑器</x:String>
+  <x:String x:Key="ui.status.readFailed">读取脚本失败：{0}</x:String>
+  <x:String x:Key="ui.status.settingsNotSaved">设置没能写入磁盘（只对本次运行生效）</x:String>
+  <x:String x:Key="ui.status.pickFolderFailed">选择目录失败：{0}</x:String>
+  <x:String x:Key="ui.status.cliRootOverrides">注意：命令行给了数据根，设置里的值会被它盖住</x:String>
+  <x:String x:Key="ui.status.nothingToSave">还没有可保存的画面</x:String>
+  <x:String x:Key="ui.saveFrame.title">保存当前画面</x:String>
+  <x:String x:Key="ui.saveFrame.pngType">PNG 图片</x:String>
+  <x:String x:Key="ui.status.frameSaved">已保存 {0}</x:String>
+  <x:String x:Key="ui.status.captureWindowFailed">抓取窗口打不开：{0}</x:String>
+  <x:String x:Key="ui.status.captured">已保存 {0}「{1}」</x:String>
+  <x:String x:Key="ui.empty.shaderToy">当前数据根：{0}&#10;这里需要有 presets/*.shaderx（作品文本）和 media/（media/media/a/&lt;hash&gt;.png）。&#10;用下面的按钮换个目录，或用 --shadertoy-data 指定。</x:String>
+  <x:String x:Key="ui.empty.script">当前脚本目录：{0}&#10;这里需要有 *.milkx；用左栏「导入目录…」把老 .milk 转过来。&#10;也可以用 --milkx-data 指定目录。</x:String>
+  <x:String x:Key="ui.empty.projectM">当前数据根：{0}&#10;这里需要有 presets/*.milk（预设贴图放 textures/）。&#10;用下面的按钮换个目录，或用 --projectm-data 指定。</x:String>
+  <x:String x:Key="ui.status.notLoaded">（未加载）</x:String>
+  <x:String x:Key="ui.status.audioNone">音频 —</x:String>
+  <x:String x:Key="ui.status.audioSynth">合成音频</x:String>
+
+  <!-- 页面：projectM / milkx -->
+  <x:String x:Key="page.pm.filter">过滤预设（文件名）</x:String>
+  <x:String x:Key="page.pm.rescan">重新扫描</x:String>
+  <x:String x:Key="page.pm.rescan.tip">忽略索引文件，重新扫描磁盘上的 .milk，并更新 presets.index.json</x:String>
+  <x:String x:Key="page.pm.importFolder">导入目录…</x:String>
+  <x:String x:Key="page.pm.importFolder.tip">递归转换目录里的 .milk → .milkx（保留子目录层级）</x:String>
+  <x:String x:Key="page.pm.importFiles">导入文件…</x:String>
+  <x:String x:Key="page.pm.importFiles.tip">选择若干 .milk 转成 .milkx（平铺到脚本目录）</x:String>
+  <x:String x:Key="page.pm.scanning">正在扫描预设…</x:String>
+  <x:String x:Key="page.pm.initializing">正在初始化引擎…</x:String>
+  <x:String x:Key="page.pm.loadingScripts">加载脚本清单… {0}</x:String>
+  <x:String x:Key="page.pm.loadingPresets">加载预设清单… {0}</x:String>
+  <x:String x:Key="page.pm.label.scripts">脚本清单</x:String>
+  <x:String x:Key="page.pm.label.presets">预设清单</x:String>
+  <x:String x:Key="page.pm.rescanning">重新扫描中… {0}</x:String>
+  <x:String x:Key="page.pm.loading">加载{0}… {1}</x:String>
+  <x:String x:Key="page.pm.loadFailed">{0}装载失败：{1}</x:String>
+  <x:String x:Key="page.pm.loaded">{0} 个{1} · {2} · {3} ms&#10;{4}</x:String>
+  <x:String x:Key="page.pm.item.scripts">脚本</x:String>
+  <x:String x:Key="page.pm.item.presets">预设</x:String>
+  <x:String x:Key="page.pm.emptyScripts">没有找到任何 .milkx 脚本。</x:String>
+  <x:String x:Key="page.pm.emptyScriptsHint">点左栏「导入 .milk…」把老预设转成 .milkx，或用 --milkx-data 指定目录。</x:String>
+  <x:String x:Key="page.pm.emptyPresets">没有找到任何 .milk 预设。</x:String>
+  <x:String x:Key="page.pm.emptyPresetsHint">请把预设放到 exe 旁的 projectm\presets\，或用 --projectm-data 指定目录。</x:String>
+  <x:String x:Key="page.pm.pickImportFolder">选择要导入的 .milk 预设目录（递归转换，保留子目录）</x:String>
+  <x:String x:Key="page.pm.pickImportFiles">选择要导入的 .milk 预设</x:String>
+  <x:String x:Key="page.pm.pickFailedFolder">选择目录失败：{0}</x:String>
+  <x:String x:Key="page.pm.pickFailedFiles">选择文件失败：{0}</x:String>
+  <x:String x:Key="page.pm.converting">正在转换… {0}</x:String>
+  <x:String x:Key="page.pm.importFailed">导入失败：{0}</x:String>
+  <x:String x:Key="page.pm.importFailures">⚠ 转换失败 {0} 个（多为原预设 EEL 本身有问题）：&#10;{1}</x:String>
+  <x:String x:Key="page.pm.imported">已导入：{0}</x:String>
+  <x:String x:Key="page.pm.source.cache">内存缓存</x:String>
+  <x:String x:Key="page.pm.source.index">索引文件</x:String>
+  <x:String x:Key="page.pm.source.scan">本次扫描</x:String>
+  <x:String x:Key="page.pm.source.dir">目录 {0}</x:String>
+  <x:String x:Key="page.pm.source.files">{0} 个文件</x:String>
+  <x:String x:Key="page.pm.info.preset">预设 : {0}</x:String>
+  <x:String x:Key="page.pm.info.script">milkx : {0}</x:String>
+  <x:String x:Key="page.pm.info.progress">进度 : {0:F0}%  ({1}/{2})  {3}</x:String>
+  <x:String x:Key="page.pm.info.locked">已锁定</x:String>
+  <x:String x:Key="page.pm.info.auto">自动切换</x:String>
+  <x:String x:Key="page.pm.info.size">尺寸 : {0}×{1}  网格 {2}×{3}  {4} FPS</x:String>
+  <x:String x:Key="page.pm.info.engine">引擎 : {0:F2} ms/帧（CPU 侧，FPS 会被合成器节奏压住）</x:String>
+  <x:String x:Key="page.pm.info.audio">音频 : {0}</x:String>
+  <x:String x:Key="page.warning">⚠ {0}</x:String>
+
+  <!-- 页面：ShaderToy -->
+  <x:String x:Key="page.st.filter">过滤作品（标题/作者/ID）</x:String>
+  <x:String x:Key="page.st.buffer.tip">非「跟随视口」会改变 buffer 分辨率：按 iResolution 逐像素寻址 buffer 的作品（数据纹理类）会错位、偏黑。</x:String>
+  <x:String x:Key="page.st.buffer.viewport">buffer：跟随视口</x:String>
+  <x:String x:Key="page.st.buffer.fixed">buffer：固定 1024×256</x:String>
+  <x:String x:Key="page.st.buffer.half">buffer：视口 0.5×</x:String>
+  <x:String x:Key="page.st.scanning">正在读取作品库…</x:String>
+  <x:String x:Key="page.st.loading">读取中… {0}</x:String>
+  <x:String x:Key="page.st.loaded">{0} 个作品（{1}）{2}</x:String>
+  <x:String x:Key="page.st.empty">作品库是空的。</x:String>
+  <x:String x:Key="page.st.emptyHint">数据根下既没有 presets/*.shaderx 也没有 shadertoy.db（当前：{0}）。把 .shaderx（或 db + media/）放到 exe 旁的 shadertoy\，或用 --shadertoy-data 指定目录。</x:String>
+  <x:String x:Key="page.st.changeNoPass">⚠ 改动里没有可播放的 pass，已保留当前画面</x:String>
+  <x:String x:Key="page.st.info.loading">作品 : {0}（读取中…）</x:String>
+  <x:String x:Key="page.st.info.failed">作品 : {0}（加载失败）</x:String>
+  <x:String x:Key="page.st.info.none">作品 : （还没有加载）</x:String>
+  <x:String x:Key="page.st.info.shader">作品 : {0}  [{1}]  {2}</x:String>
+  <x:String x:Key="page.st.info.time">时间 : {0:F2} s  帧 {1}</x:String>
+  <x:String x:Key="page.st.info.size">尺寸 : {0}×{1}  {2} FPS</x:String>
+  <x:String x:Key="page.st.info.sizeBuffer">尺寸 : {0}×{1}  {2} FPS  buffer {3}</x:String>
+  <x:String x:Key="page.st.info.passNone">pass : —</x:String>
+  <x:String x:Key="page.st.info.pass">pass : {0} 个（buffer {1}）  {2}</x:String>
+  <x:String x:Key="page.st.info.audioNone">音频 : —</x:String>
+  <x:String x:Key="page.st.info.audio">音频 : {0}</x:String>
+  <x:String x:Key="page.st.info.underrun">（欠载 {0}）</x:String>
+  <x:String x:Key="page.st.compileFailures">⚠ {0} 个 pass 编译失败：</x:String>
+  <x:String x:Key="page.st.err.line"> 第 {0} 行</x:String>
+  <x:String x:Key="page.st.err.unknown">未知原因</x:String>
+
+  <!-- 音频后端描述（UI/日志用） -->
+  <x:String x:Key="audio.wasapi.loopback">WASAPI 环回 {0} Hz / {1} ch</x:String>
+  <x:String x:Key="audio.wasapi.loopbackOff">WASAPI 环回（未启动）</x:String>
+  <x:String x:Key="audio.wasapi.shared">WASAPI 共享 {0} Hz / 2 ch / 16 bit</x:String>
+  <x:String x:Key="audio.waveout">waveOut {0} Hz / 2 ch / 16 bit</x:String>
+  <x:String x:Key="audio.synthetic">合成音频 {0} Hz / {1} ch</x:String>
+  <x:String x:Key="audio.synthetic.fallback">合成音频 {0} Hz / {1} ch（WASAPI 不可用：{2}）</x:String>
+</ResourceDictionary>

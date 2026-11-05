@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using MilkAvalon.Services;
 
 namespace MilkAvalon.Views;
 
@@ -31,7 +32,8 @@ public partial class EditorWindow : Window
     /// <param name="fileName">当前编辑的文件名（null = 只显示 "MilkAvalon 编辑"）。</param>
     public void SetCaption(string? fileName)
     {
-        string caption = string.IsNullOrWhiteSpace(fileName) ? "MilkAvalon 编辑" : "MilkAvalon 编辑 — " + fileName;
+        string baseTitle = Localization.T("editorwindow.title");
+        string caption = string.IsNullOrWhiteSpace(fileName) ? baseTitle : baseTitle + " — " + fileName;
 
         Title = caption;
         CaptionText.Text = caption;
