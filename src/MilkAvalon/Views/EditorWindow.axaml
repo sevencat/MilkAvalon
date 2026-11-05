@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:chrome="using:Avalonia.Controls.Chrome"
+        xmlns:views="using:MilkAvalon.Views"
         x:Class="MilkAvalon.Views.EditorWindow"
         Title="{DynamicResource editorwindow.title}"
         Icon="/Assets/milkdropsharp.png"
@@ -47,7 +48,7 @@
       P16：左编辑 + 右 AI，两栏并列（原来是"编辑停右侧 + AI 单独开窗"，看代码和看分析要来回切）。
       左栏放的是同一个 EditorPanel 实例（见 MainWindow.OpenEditorWindow），光标/滚动/未保存改动都跟着走。
     -->
-    <Grid ColumnDefinitions="*,4,360">
+    <Grid ColumnDefinitions="*,4,*">
       <ContentControl Name="BodyHost" Grid.Column="0" />
 
       <GridSplitter Grid.Column="1" Width="4" ResizeDirection="Columns"

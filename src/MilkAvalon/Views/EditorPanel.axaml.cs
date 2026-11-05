@@ -157,9 +157,15 @@ public partial class EditorPanel : UserControl, IEditorPanel
 
     public bool IsOpen => IsVisible;
 
-    /// <summary>宿主把面板塞进独立窗口（true）或贴回右侧（false）之后调，只切按钮文案。</summary>
+    /// <summary>
+    /// 面板是否处在独立窗口里（P16 起只有这一种形态）。
+    /// </summary>
+    /// <remarks>
+    /// 独立窗口里"弹出/收回"没有意义，直接把按钮藏掉，标题行只留「关闭」。
+    /// </remarks>
     public void SetPoppedOut(bool popped)
     {
+        PopOutButton.IsVisible = !popped;
         PopOutButton.Content = popped ? Localization.T("editor.dockBack") : Localization.T("editor.popOut");
         ToolTip.SetTip(PopOutButton, Localization.T(popped ? "editor.popOut.tip.popped" : "editor.popOut.tip"));
     }

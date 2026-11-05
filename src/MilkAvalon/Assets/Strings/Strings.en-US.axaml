@@ -14,7 +14,6 @@
   <x:String x:Key="ui.toolbar.random">Random</x:String>
   <x:String x:Key="ui.toolbar.reload">Reload current</x:String>
   <x:String x:Key="ui.toolbar.edit">Edit current preset (.milk / .milkx / .shaderx)</x:String>
-  <x:String x:Key="ui.toolbar.ai">Analyze the current script with AI (streaming)</x:String>
   <x:String x:Key="ui.toolbar.capture">Capture: save frame / grab shader from shadertoy</x:String>
   <x:String x:Key="ui.toolbar.fullscreen">Fullscreen (F11, Esc to exit)</x:String>
   <x:String x:Key="ui.toolbar.info">Show / hide the info bar (preset, progress, size, audio)</x:String>
@@ -202,8 +201,6 @@
   <x:String x:Key="ui.status.appliedEdit">Applied edit: {0}</x:String>
   <x:String x:Key="ui.editor.noReloadable">This page has nothing to reload; the change cannot be applied</x:String>
   <x:String x:Key="ui.status.aiAnalyzing">AI analysis: {0}</x:String>
-  <x:String x:Key="ui.status.noAnalysisTarget">Nothing to analyze: play a preset or open the editor first</x:String>
-  <x:String x:Key="ui.status.readFailed">Failed to read the script: {0}</x:String>
   <x:String x:Key="ui.status.settingsNotSaved">Settings could not be written to disk (applies to this run only)</x:String>
   <x:String x:Key="ui.status.pickFolderFailed">Failed to pick a folder: {0}</x:String>
   <x:String x:Key="ui.status.cliRootOverrides">Note: a data root was given on the command line and overrides the settings value</x:String>

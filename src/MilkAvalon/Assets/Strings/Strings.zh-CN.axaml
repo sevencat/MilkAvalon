@@ -14,7 +14,6 @@
   <x:String x:Key="ui.toolbar.random">随机</x:String>
   <x:String x:Key="ui.toolbar.reload">重载当前</x:String>
   <x:String x:Key="ui.toolbar.edit">编辑当前预设（.milk / .milkx / .shaderx）</x:String>
-  <x:String x:Key="ui.toolbar.ai">AI 分析当前脚本（流式输出）</x:String>
   <x:String x:Key="ui.toolbar.capture">抓取：保存当前画面 / 抓取站点作品</x:String>
   <x:String x:Key="ui.toolbar.fullscreen">全屏（F11，Esc 退出）</x:String>
   <x:String x:Key="ui.toolbar.info">显示 / 隐藏底部信息条（预设、进度、尺寸、音频）</x:String>
@@ -202,8 +201,6 @@
   <x:String x:Key="ui.status.appliedEdit">已应用编辑：{0}</x:String>
   <x:String x:Key="ui.editor.noReloadable">当前页没有可重载的预设，改动没法应用</x:String>
   <x:String x:Key="ui.status.aiAnalyzing">AI 分析：{0}</x:String>
-  <x:String x:Key="ui.status.noAnalysisTarget">没有可分析的脚本：先播一个预设，或打开编辑器</x:String>
-  <x:String x:Key="ui.status.readFailed">读取脚本失败：{0}</x:String>
   <x:String x:Key="ui.status.settingsNotSaved">设置没能写入磁盘（只对本次运行生效）</x:String>
   <x:String x:Key="ui.status.pickFolderFailed">选择目录失败：{0}</x:String>
   <x:String x:Key="ui.status.cliRootOverrides">注意：命令行给了数据根，设置里的值会被它盖住</x:String>

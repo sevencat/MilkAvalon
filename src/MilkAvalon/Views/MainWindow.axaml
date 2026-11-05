@@ -157,9 +157,6 @@
             <Button Classes="toolbar segFirst" Name="EditButton" Content="✎"
                     Click="OnEditClick" ToolTip.Tip="{DynamicResource ui.toolbar.edit}" MinWidth="40" />
 
-            <Button Classes="toolbar" Name="AnalyzeButton" Content="AI"
-                    Click="OnAnalyzeToolbarClick" ToolTip.Tip="{DynamicResource ui.toolbar.ai}" MinWidth="36" />
-
             <Button Classes="toolbar" Name="CaptureButton" Content="⧉"
                     ToolTip.Tip="{DynamicResource ui.toolbar.capture}" MinWidth="40">
               <Button.Flyout>
@@ -263,8 +260,6 @@
     <Grid Name="PageArea">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*" MinWidth="320" />
-        <ColumnDefinition Width="Auto" />
-        <ColumnDefinition Width="0" />
       </Grid.ColumnDefinitions>
 
       <Grid Grid.Column="0" Name="PageSurface">
@@ -290,19 +285,6 @@
           </StackPanel>
         </Border>
       </Grid>
-
-      <!-- 拖这个分隔条改编辑面板宽度（面板太窄时最直接的解法） -->
-      <GridSplitter Grid.Column="1" Name="EditorSplitter" Width="6"
-                    IsVisible="False"
-                    ResizeDirection="Columns"
-                    Background="Transparent" />
-
-      <!--
-        右侧编辑面板：编辑当前 .milk / .milkx / .shaderx 原文（参数导航 + 保存/应用），
-        不建 GL 资源。宽度由 PageArea 第 3 列决定（关掉时列宽归 0）；
-        点面板里的「弹出」会把它摘到独立窗口，见 MainWindow.PopOutEditor。
-      -->
-      <views:EditorPanel Grid.Column="2" Name="Editor" MinWidth="360" />
     </Grid>
   </DockPanel>
 

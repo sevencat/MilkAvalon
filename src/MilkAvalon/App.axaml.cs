@@ -162,8 +162,8 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// <c>--ai &lt;脚本&gt;</c>：开「AI 分析」窗口、自动点一次「分析」、等结果出来后截图并退出。
-    /// 用来无人值守验证 DeepSeek 链路 + MarkView 渲染，不依赖人手点按钮。
+    /// <c>--ai &lt;脚本&gt;</c>：开编辑器窗口、让它右栏自动分析一次、等结果出来后截图并退出。
+    /// 用来无人值守验证 AI 链路 + MarkView 渲染，不依赖人手点按钮。
     /// </summary>
     private static void AiCheckAfterStartup(
         Window window,
@@ -180,39 +180,47 @@ public partial class App : Application
                 string full = Path.GetFullPath(scriptPath);
                 string text = File.ReadAllText(full);
 
-                var ai = new AiAnalysisWindow(full, text, options.Settings);
-                ai.Show(window);
+                var editor = new EditorPanel();
+                editor.Open(full);
+
+                // P16：AI 不再是独立窗口，是编辑器右栏那块
+                var editorWindow = new EditorWindow
+                {
+                    Width = 1400,
+                    Height = 860,
+                    Body = editor,
+                    Settings = options.Settings,
+                };
+
+                editorWindow.SetCaption(Path.GetFileName(full));
+                editorWindow.Show(window);
 
                 await Task.Delay(1200);
 
-                ai.FindControl<Button>("AnalyzeButton")?.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                editorWindow.Analyze(full, text);
 
+                AiChatPanel panel = editorWindow.Ai;
                 var clock = Stopwatch.StartNew();
-                while (clock.Elapsed < TimeSpan.FromSeconds(150))
+
+                // 先等这一轮真的开跑（否则 IsBusy 一上来就是 false）
+                while (clock.Elapsed < TimeSpan.FromSeconds(20) && !panel.IsBusy)
                 {
-                    await Task.Delay(500);
+                    await Task.Delay(200);
+                }
 
-                    string status = ai.FindControl<TextBlock>("StatusText")?.Text ?? string.Empty;
-
-                    if ((ai.Title?.Contains("完成", StringComparison.Ordinal) ?? false)
-                        || status.StartsWith("分析失败", StringComparison.Ordinal)
-                        || status.StartsWith("已取消", StringComparison.Ordinal))
-                    {
-                        break;
-                    }
+                while (clock.Elapsed < TimeSpan.FromSeconds(150) && panel.IsBusy)
+                {
+                    await Task.Delay(300);
                 }
 
                 await Task.Delay(800);
 
-                Console.WriteLine("[ai-check] 标题：" + ai.Title);
-                Console.WriteLine("[ai-check] 状态：" + (ai.FindControl<TextBlock>("StatusText")?.Text ?? "<null>"));
-                Console.WriteLine(
-                    "[ai-check] Markdown 长度："
-                    + (ai.FindControl<MarkView.Avalonia.MarkdownViewer>("Viewer")?.Markdown?.Length.ToString() ?? "<null>"));
+                Console.WriteLine("[ai-check] 状态：" + panel.StatusMessage);
+                Console.WriteLine("[ai-check] Markdown 长度：" + panel.MarkdownLength);
 
                 if (options.ShotPath is { Length: > 0 } shot)
                 {
-                    SaveWindowShot(ai, shot);
+                    SaveWindowShot(editorWindow, shot);
                 }
             }
             catch (Exception ex)
@@ -276,6 +284,14 @@ public partial class App : Application
 
                     main.RequestGlCapture(Path.Combine(shotDirectory, stem + "-gl-resized.png"));
                     await Task.Delay(500);
+
+                    // --editor：编辑面板现在在独立窗口里（左编辑右 AI），单独截一张
+                    if (options.OpenEditor && main.EditorWindowForCheck is { } editorWindow)
+                    {
+                        await Task.Delay(900);
+                        SaveWindowShot(editorWindow, Path.Combine(shotDirectory, stem + "-editor.png"));
+                        Console.WriteLine("[shot] 编辑器窗口已截：" + stem + "-editor.png");
+                    }
 
                     // --settings：顺手把设置窗口也截一张（非模态打开，截完就关）
                     if (options.OpenSettings)

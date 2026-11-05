@@ -115,7 +115,7 @@ uniform sampler2D|samplerCube|sampler3D iChannel0..3;
 | 键盘通道 256×3 + JS keyCode | 支持 | 支持（`BrowserKeyMap`） | ✅ |
 | music / musicstream 通道（512×2） | 支持 | 支持（由 sound pass 产出驱动） | ✅ |
 | volume / 3D 纹理通道 | 支持 | **只用占位纹理**（`BindChannels` 里显式提示） | ❌ |
-| cubemap 资源通道（站点 Cubemaps 标签页） | 支持 | 六面图 / 竖条带都能加载；资源仍需手动放（抓取未接） | 🟡 |
+| cubemap 资源通道（站点 Cubemaps 标签页） | 支持 | 支持：站点素材按 `filepath`（第一面）+ `_1`…`_5` 取六面（P18 实测规则），本地素材支持 `_px/_nx/…` 六面与 6:1 竖条带；抓取时六面会自动落盘 | ✅ |
 | 自带 cubemap pass（Cube A）+ 被当 `samplerCube` 采样 | 支持 | 支持 | ✅ |
 | video / webcam / 麦克风通道 | 支持 | 没有对应 `ShaderInputType`，按未绑定处理（黑） | ❌（预期内） |
 | `texelFetch` / `textureLod` / `texture2D` 旧名 | 支持 | 支持（ES3 + 兼容宏） | ✅ |

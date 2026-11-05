@@ -41,14 +41,14 @@ Avalonia 12（ANGLE/EGL → D3D11）+ Silk.NET（OpenGL ES 3.0）
   <img src="docs/ScreenShot_2026-11-04_220303_429.png" alt="ShaderToy 页与 .shaderx 编辑器" width="900" />
 </p>
 <p align="center">
-  <sub>ShaderToy 页在播 <code>.shaderx</code> 作品；右侧是可拖宽的编辑面板（行号 / 语法高亮 / 参数导航 / 可弹出成独立窗口），左下角实时显示尺寸、FPS、pass 与音频状态</sub>
+  <sub>ShaderToy 页在播 <code>.shaderx</code> 作品；左下角实时显示尺寸、FPS、pass 与音频状态，点工具栏「✎」打开编辑器窗口（左编辑 / 右 AI）</sub>
 </p>
 
 <p align="center">
-  <img src="docs/ScreenShot_2026-11-04_220743_723.png" alt="AI 分析窗口" width="900" />
+  <img src="docs/ScreenShot_2026-11-04_220743_723.png" alt="编辑器窗口（左编辑 / 右 AI）" width="900" />
 </p>
 <p align="center">
-  <sub>「AI 分析」把当前脚本交给 DeepSeek，流式返回 Markdown 讲解，可保存成 <code>.md</code>；背后是同一个 <code>.shaderx</code> 工程在实时渲染</sub>
+  <sub>编辑器窗口：左边改脚本、右边「AI 分析」流式返回 Markdown 讲解（可存成 <code>.ai.md</code>）；背后是同一个 <code>.shaderx</code> 工程在实时渲染</sub>
 </p>
 
 ## 功能
@@ -63,8 +63,8 @@ Avalonia 12（ANGLE/EGL → D3D11）+ Silk.NET（OpenGL ES 3.0）
 
 - **切页即整页销毁重建**：GL 控件、引擎、音频一起拆掉再建，靠 `PageState` 快照续上时间与预设，重建后 GL 对象计数归零、不泄漏。
 - **音频**：projectM 输入走 WASAPI 环回采集（无声卡时自动退到合成信号）；ShaderToy sound pass 输出按 `WASAPI → waveOut → 静音` 三级降级。
-- **编辑面板**：右侧可拖宽的 AvaloniaEdit 编辑器，行号、语法高亮、补全、参数导航、查找，支持保存（写盘并重载）/ 应用 / 还原 / 弹出为独立窗口；`Ctrl+S` 保存。
-- **AI 分析**：把当前脚本交给 DeepSeek（OpenAI 兼容接口）做流式讲解，结果用 Markdown 渲染；Key 填在设置里，或设环境变量 `DEEPSEEK_API_KEY`。
+- **编辑器窗口**：独立窗口、左编辑右 AI，AvaloniaEdit 提供行号、语法高亮、补全、参数导航、查找，支持保存（写盘并重载）/ 应用 / 还原；`Ctrl+S` 保存。
+- **AI 分析**：编辑器右栏直接看讲解——把当前脚本交给 DeepSeek（任意 OpenAI 兼容接口，地址/模型/Key 都在设置里）流式返回 Markdown，可存成 `.ai.md`；Key 也可用环境变量 `DEEPSEEK_API_KEY`。
 - **抓取**：内嵌 WebView2 打开 shadertoy 作品页，经 DevTools 协议截获 `/shadertoy` 与全部 `/media/*` 响应（**不往页面注入脚本**），落成 `.shaderx` + `media/`；也可一键把当前画面存成 PNG。
 - **桌面细节**：Material 暗色主题、自绘标题栏、F11 全屏、拖放文件即加载、DPI 自适应、设置持久化。
 

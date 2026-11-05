@@ -11,28 +11,26 @@ using MilkAvalon.Services.Ai;
 namespace MilkAvalon.Views;
 
 /// <summary>
-/// 「AI 分析」结果窗口：上面是用户提示词（可改），下面是 <see cref="ScriptAnalyzer"/> 流式返回的 Markdown。
+/// 编辑器右栏的 AI 面板：上面是用户提示词（可改），下面是 <see cref="ScriptAnalyzer"/> 流式返回的 Markdown。
 /// </summary>
 /// <remarks>
-/// 非模态：分析进行中照样能操作主窗口，关窗即取消请求。
-/// 脚本原文在打开窗口那一刻就定下来（用户随后继续改编辑器不受影响）。
-/// 打开时若同目录已有 <c>&lt;文件名&gt;.ai.md</c> 会先显示上次的结果，点「分析」才清掉重来。
+/// P16 起它不再是独立窗口（原 <c>AiAnalysisWindow</c> 已删除），而是挂在
+/// <see cref="EditorWindow"/> 右侧的一栏：左编辑、右 AI，看代码和看分析不用来回切窗口。
+/// 分析对象由宿主通过 <see cref="SetTarget"/> 给（编辑器里的当前文本，含未保存改动）。
+/// 同目录已有 <c>&lt;文件名&gt;.ai.md</c> 时会先显示上次的结果，点「分析」才清掉重来。
 /// </remarks>
-public partial class AiAnalysisWindow : Window
+public partial class AiChatPanel : UserControl
 {
     private static readonly IBrush NormalBrush = new SolidColorBrush(Color.Parse("#B4B4B4"));
     private static readonly IBrush ErrorBrush = new SolidColorBrush(Color.Parse("#FF8A65"));
 
-    private readonly string _scriptText;
-    private readonly string _language;
-    private readonly string _systemPrompt;
-    private readonly string _baseUrl;
-    private readonly string? _apiKey;
-    private readonly string _model;
-    private readonly string? _sourcePath;
-
-    /// <summary>标题原文（成功后会在后面追加结果长度，便于一眼确认到底有没有拿到东西）。</summary>
-    private readonly string _caption;
+    private string _scriptText = string.Empty;
+    private string _language = "text";
+    private string _systemPrompt = string.Empty;
+    private string _baseUrl = string.Empty;
+    private string? _apiKey;
+    private string _model = string.Empty;
+    private string? _sourcePath;
 
     /// <summary>当前展示/可保存的完整 Markdown（流式结束后才有值）。</summary>
     private string _markdown = string.Empty;
@@ -47,29 +45,8 @@ public partial class AiAnalysisWindow : Window
     private readonly Stopwatch _clock = new();
     private readonly DispatcherTimer _ticker = new() { Interval = TimeSpan.FromSeconds(1) };
 
-    /// <summary>设计器用。</summary>
-    public AiAnalysisWindow()
-        : this(null, string.Empty, new AppSettings())
+    public AiChatPanel()
     {
-    }
-
-    /// <param name="path">脚本文件路径（决定标题、代码块语言、以及分析结果的保存位置；可为 null）。</param>
-    /// <param name="scriptText">要分析的脚本原文。</param>
-    /// <param name="settings">用来取 API Key 与模型名。</param>
-    public AiAnalysisWindow(string? path, string scriptText, AppSettings settings)
-    {
-        ArgumentNullException.ThrowIfNull(settings);
-
-        _scriptText = scriptText;
-        _language = LanguageFor(path);
-
-        // 系统提示词跟着脚本类型走：.shaderx → shadertoy，其余 → milkdrop
-        _systemPrompt = ScriptAnalyzer.SystemPromptFor(path);
-        _baseUrl = ScriptAnalyzer.ResolveBaseUrl(settings.AiBaseUrl);
-        _apiKey = ScriptAnalyzer.ResolveApiKey(settings.DeepSeekApiKey);
-        _model = ScriptAnalyzer.ResolveModel(settings.DeepSeekModel);
-        _sourcePath = string.IsNullOrWhiteSpace(path) ? null : SafeFullPath(path);
-
         InitializeComponent();
 
         PromptBox.Text = ScriptAnalyzer.DefaultUserPrompt;
@@ -84,15 +61,42 @@ public partial class AiAnalysisWindow : Window
             }
         };
 
-        _caption = _sourcePath is null
-            ? Localization.T("ai.title")
-            : Localization.T("ai.title") + " — " + Path.GetFileName(_sourcePath);
-        Title = _caption;
-        CaptionText.Text = _caption;
+        SetStatus(Localization.T("ai.status.default"));
+    }
+
+    /// <summary>分析结果落盘的位置：脚本同目录、同名 + <c>.ai.md</c>（没有源文件时为 null）。</summary>
+    private string? SavedAnalysisPath
+        => _sourcePath is null ? null : Path.ChangeExtension(_sourcePath, ".ai.md");
+
+    /// <summary>
+    /// 换分析对象：编辑器切文件 / 点「AI 分析」时调用。
+    /// </summary>
+    /// <param name="path">脚本文件路径（决定代码块语言与结果保存位置；可为 null）。</param>
+    /// <param name="scriptText">要分析的脚本原文。</param>
+    /// <param name="settings">用来取接口地址 / API Key / 模型名。</param>
+    public void SetTarget(string? path, string scriptText, AppSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+
+        // 正在跑就先把上一轮掐掉，免得两轮输出糊在一起
+        Cancel();
+
+        _scriptText = scriptText ?? string.Empty;
+        _language = LanguageFor(path);
+        _systemPrompt = ScriptAnalyzer.SystemPromptFor(path);
+        _baseUrl = ScriptAnalyzer.ResolveBaseUrl(settings.AiBaseUrl);
+        _apiKey = ScriptAnalyzer.ResolveApiKey(settings.DeepSeekApiKey);
+        _model = ScriptAnalyzer.ResolveModel(settings.DeepSeekModel);
+        _sourcePath = string.IsNullOrWhiteSpace(path) ? null : SafeFullPath(path);
+
+        _markdown = string.Empty;
+        _received = 0;
+        Viewer.Markdown = string.Empty;
 
         Console.WriteLine(
-            $"[ai] 打开分析窗口：{_caption}，key {(_apiKey is null ? "缺失" : $"{_apiKey.Length} 字符")}，"
-            + $"model={_model}，脚本 {scriptText.Length} 字符");
+            $"[ai] 面板换对象：{Path.GetFileName(_sourcePath ?? "—")}，"
+            + $"key {(_apiKey is null ? "缺失" : $"{_apiKey.Length} 字符")}，"
+            + $"model={_model}，脚本 {_scriptText.Length} 字符");
 
         if (_apiKey is null)
         {
@@ -100,15 +104,31 @@ public partial class AiAnalysisWindow : Window
             return;
         }
 
-        SetStatus(Localization.F("ai.ready", _model, _systemPrompt, scriptText.Length));
+        SetStatus(Localization.F("ai.ready", _model, _systemPrompt, _scriptText.Length));
 
         // 先显示上次的分析（同目录的 <文件名>.ai.md）
         LoadSavedAnalysis();
     }
 
-    /// <summary>分析结果落盘的位置：脚本同目录、同名 + <c>.ai.md</c>（没有源文件时为 null）。</summary>
-    private string? SavedAnalysisPath
-        => _sourcePath is null ? null : Path.ChangeExtension(_sourcePath, ".ai.md");
+    /// <summary>这一轮是否还在跑（<c>--ai</c> 自检靠它判断什么时候收工）。</summary>
+    public bool IsBusy => _busy;
+
+    /// <summary>状态行当前文案（自检输出用）。</summary>
+    public string StatusMessage => StatusText.Text ?? string.Empty;
+
+    /// <summary>当前 Markdown 长度（自检输出用）。</summary>
+    public int MarkdownLength => _markdown.Length;
+
+    /// <summary>中止本轮请求（关窗 / 换对象时调）。</summary>
+    public void Cancel()
+    {
+        if (!_busy)
+        {
+            return;
+        }
+
+        _cts?.Cancel();
+    }
 
     private static string? SafeFullPath(string path)
     {
@@ -122,7 +142,7 @@ public partial class AiAnalysisWindow : Window
         }
     }
 
-    /// <summary>打开时把上次保存的分析贴上来（没有就什么都不做）。</summary>
+    /// <summary>换对象时把上次保存的分析贴上来（没有就什么都不做）。</summary>
     private void LoadSavedAnalysis()
     {
         string? saved = SavedAnalysisPath;
@@ -167,8 +187,6 @@ public partial class AiAnalysisWindow : Window
         return "text";
     }
 
-    private void OnCaptionCloseClick(object? sender, RoutedEventArgs e) => Close();
-
     private void OnPromptKeyDown(object? sender, KeyEventArgs e)
     {
         if (e.Key != Key.Enter)
@@ -180,19 +198,10 @@ public partial class AiAnalysisWindow : Window
         OnAnalyzeClick(sender, new RoutedEventArgs());
     }
 
-    private async void OnAnalyzeClick(object? sender, RoutedEventArgs e) => await AnalyzeAsync();
+    private void OnAnalyzeClick(object? sender, RoutedEventArgs e) => _ = RunAsync();
 
     /// <summary>「取消」：本轮请求还在飞就中止（等太久时的出口）。</summary>
-    private void OnCancelClick(object? sender, RoutedEventArgs e)
-    {
-        if (!_busy)
-        {
-            return;
-        }
-
-        SetStatus(Localization.T("ai.cancelling"));
-        _cts?.Cancel();
-    }
+    private void OnCancelClick(object? sender, RoutedEventArgs e) => Cancel();
 
     /// <summary>「保存」：分析结果写到脚本同目录的 <c>&lt;文件名&gt;.ai.md</c>（覆盖旧文件）。</summary>
     private void OnSaveClick(object? sender, RoutedEventArgs e)
@@ -223,7 +232,8 @@ public partial class AiAnalysisWindow : Window
         }
     }
 
-    private async Task AnalyzeAsync()
+    /// <summary>跑一轮分析（编辑器里点「AI 分析」时由宿主调）。</summary>
+    public async Task RunAsync()
     {
         if (_busy)
         {
@@ -283,7 +293,6 @@ public partial class AiAnalysisWindow : Window
                 _cts.Token);
 
             _markdown = markdown;
-            Title = _caption + Localization.F("ai.doneTitle", markdown.Length);
             SetStatus(Localization.F("ai.done", markdown.Length));
             Console.WriteLine($"[ai] 分析完成：{markdown.Length} 字符（{_model}）");
         }
@@ -326,14 +335,5 @@ public partial class AiAnalysisWindow : Window
     {
         StatusText.Text = message;
         StatusText.Foreground = isError ? ErrorBrush : NormalBrush;
-        Console.WriteLine("[ai] " + message);
-    }
-
-    /// <summary>关窗：请求还在飞就取消掉（不取消会继续占着连接）。</summary>
-    protected override void OnClosed(EventArgs e)
-    {
-        base.OnClosed(e);
-        _ticker.Stop();
-        _cts?.Cancel();
     }
 }

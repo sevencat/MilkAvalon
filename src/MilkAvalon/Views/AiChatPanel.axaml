@@ -1,0 +1,35 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mv="using:MarkView.Avalonia"
+             x:Class="MilkAvalon.Views.AiChatPanel">
+
+  <!--
+    编辑器右栏的 AI 面板（P16：原来独立的 AiAnalysisWindow 并进来）。
+    上面是提示词 + 状态，下面是 ScriptAnalyzer 流式返回的 Markdown。
+  -->
+  <DockPanel Background="{DynamicResource MaterialToolBarBackgroundBrush}">
+
+    <Border DockPanel.Dock="Top" Padding="8,8,8,4">
+      <StackPanel Spacing="4">
+        <TextBlock Text="{DynamicResource ai.title}" FontSize="12" FontWeight="SemiBold" Opacity="0.8" />
+        <TextBox Name="PromptBox" Height="26" FontSize="12" VerticalContentAlignment="Center"
+                 PlaceholderText="{DynamicResource ai.prompt.placeholder}"
+                 KeyDown="OnPromptKeyDown" />
+        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+          <Button Grid.Column="0" Name="AnalyzeButton" Classes="toolbar" Content="{DynamicResource ai.analyze}"
+                  Height="26" Click="OnAnalyzeClick" Padding="12,0" FontSize="12" />
+          <Button Grid.Column="1" Name="CancelButton" Classes="toolbar" Content="{DynamicResource ai.cancel}"
+                  Height="26" IsEnabled="False" Click="OnCancelClick" Padding="8,0" FontSize="12" MinWidth="52"
+                  ToolTip.Tip="{DynamicResource ai.cancel.tip}" />
+          <Button Grid.Column="2" Name="SaveButton" Classes="toolbar" Content="{DynamicResource ai.save}"
+                  Height="26" Click="OnSaveClick" Padding="8,0" FontSize="12" MinWidth="52"
+                  ToolTip.Tip="{DynamicResource ai.save.tip}" />
+        </Grid>
+        <TextBlock Name="StatusText" FontSize="10" Opacity="0.65" TextWrapping="Wrap"
+                   Text="{DynamicResource ai.status.default}" />
+      </StackPanel>
+    </Border>
+
+    <mv:MarkdownViewer Name="Viewer" Margin="8,2,8,8" />
+  </DockPanel>
+</UserControl>

@@ -40,14 +40,11 @@ public partial class MainWindow : Window
     /// <summary>抓取窗口（懒建：只有点「抓取站点作品」才加载 WebView2）。</summary>
     private CaptureWindow? _captureWindow;
 
-    /// <summary>编辑面板弹出后的独立窗口（null = 贴在右侧）。</summary>
+    /// <summary>编辑器窗口（P16 起编辑面板只以独立窗口形态出现）。</summary>
     private EditorWindow? _editorWindow;
 
-    /// <summary>「AI 分析」窗口（每次点都开新的；这里只留引用，防止打开期间被回收）。</summary>
-    private AiAnalysisWindow? _aiWindow;
-
-    /// <summary>贴回右侧时用的宽度（拖过分隔条/弹出前的宽度，关面板也记着）。</summary>
-    private double _editorDockWidth = 560;
+    /// <summary>编辑面板本体：不再停靠主窗口，只在编辑器窗口打开时被塞进去。</summary>
+    private readonly EditorPanel _editor = new() { MinWidth = 360 };
 
     private ProjectMPage? _projectMPage;
     private ProjectMPage? _scriptPage;
@@ -83,10 +80,9 @@ public partial class MainWindow : Window
         // 再点当前页芯片 = 重建：ListBox 点同一项不会触发 SelectionChanged，只能在隧道阶段自己抓
         PageTabList.AddHandler(PointerPressedEvent, OnPageTabPointerPressed, RoutingStrategies.Tunnel);
 
-        Editor.CloseRequested += OnEditorCloseRequested;
-        Editor.ApplyRequested += OnEditorApplyRequested;
-        Editor.PopOutRequested += OnEditorPopOutRequested;
-        Editor.AnalyzeRequested += OnEditorAnalyzeRequested;
+        _editor.CloseRequested += OnEditorCloseRequested;
+        _editor.ApplyRequested += OnEditorApplyRequested;
+        _editor.AnalyzeRequested += OnEditorAnalyzeRequested;
 
         // P8：F11 全屏 / Esc 退出；画面双击也能切
         AddHandler(KeyDownEvent, OnWindowKeyDown, RoutingStrategies.Tunnel);
@@ -115,10 +111,11 @@ public partial class MainWindow : Window
             TryLoadFile(dropPath);
         }
 
-        // --editor：自检截图时把右侧面板打开（P6 验收用）
+        // --editor：自检时把编辑器窗口打开（P16 验收用）；
+        // 必须等主窗口可见——子窗口的 owner 不可见时 Show 会抛
         if (options.OpenEditor)
         {
-            OnEditClick(this, new RoutedEventArgs());
+            Opened += (_, _) => OnEditClick(this, new RoutedEventArgs());
         }
 
         // --fullscreen：自检全屏路径（工具栏/标签条/状态栏应当都隐藏）
@@ -130,6 +127,9 @@ public partial class MainWindow : Window
 
     /// <summary>启动参数与设置（自检/设置窗口用）。</summary>
     public AppOptions Options => _options;
+
+    /// <summary>当前打开的编辑器窗口（没开为 null；<c>--editor --shot</c> 自检要截它）。</summary>
+    public EditorWindow? EditorWindowForCheck => _editorWindow;
 
     /// <summary>当前 Tab 的 GL 控件（自检/工具条用）。</summary>
     public GlControlBase? CurrentGlView => _pageIndex switch
@@ -584,70 +584,50 @@ public partial class MainWindow : Window
         return false;
     }
 
-    /// <summary>「编辑」按钮：开/关右侧面板（P6 只开占位面板，实装见 P10）。</summary>
+    /// <summary>「编辑」按钮：开/关编辑器窗口（P16 起只有这一种形态，不再贴主窗口右侧）。</summary>
     private void OnEditClick(object? sender, RoutedEventArgs e)
     {
-        if (Editor.IsOpen)
+        if (_editorWindow is not null)
         {
             CloseEditor();
             return;
         }
 
-        Editor.Open(BuildEditorTarget());
-        EditButton.Content = CloseGlyph;
-        ShowEditorColumn(true);
-
-        Console.WriteLine("[editor] 打开编辑面板，目标：" + (BuildEditorTarget() ?? "—"));
+        OpenEditorWindow();
     }
 
     private void OnEditorCloseRequested() => CloseEditor();
 
-    /// <summary>「弹出 / 收回」：把面板摘到独立窗口，或收回右侧（<see cref="_editorWindow"/> 是开关）。</summary>
-    private void OnEditorPopOutRequested()
-    {
-        if (_editorWindow is not null)
-        {
-            _editorWindow.Close();
-            return;
-        }
-
-        PopOutEditor();
-    }
-
     /// <summary>
-    /// 把编辑面板从右侧栏摘出来放进独立窗口（大屏/长 GLSL 用）。面板实例是同一个，
-    /// 所以光标、滚动位置、未保存的改动都跟着走。
+    /// 打开编辑器窗口：左编辑、右 AI（<see cref="EditorWindow"/>）。
+    /// 面板实例只有这一个，所以关窗再开还是同一个光标/滚动位置。
     /// </summary>
-    private void PopOutEditor()
+    private void OpenEditorWindow()
     {
-        if (!Editor.IsOpen)
-        {
-            return;
-        }
-
-        RememberEditorWidth();
-        PageArea.Children.Remove(Editor);
-        ShowEditorColumn(false);
+        string? target = BuildEditorTarget();
+        _editor.Open(target);
 
         // 外观跟主窗口一套（自绘标题栏 + logo + 窗口按钮），见 EditorWindow.axaml
         var window = new EditorWindow
         {
-            Width = Math.Max(920, _editorDockWidth * 1.5),
-            Height = 820,
-            Body = Editor,
+            Width = 1400,
+            Height = 860,
+            Body = _editor,
+            Settings = _options.Settings,
         };
 
-        window.SetCaption(Editor.CurrentPath is { Length: > 0 } path ? Path.GetFileName(path) : null);
+        window.SetCaption(_editor.CurrentPath is { Length: > 0 } path ? Path.GetFileName(path) : null);
         window.Closed += OnEditorWindowClosed;
 
         _editorWindow = window;
         window.Show(this);
-        Editor.SetPoppedOut(true);
+        _editor.SetPoppedOut(true);
+        EditButton.Content = CloseGlyph;
 
-        Console.WriteLine($"[editor] 弹出为独立窗口（{window.Width:F0}×{window.Height:F0}）：{window.Title}");
+        Console.WriteLine($"[editor] 打开编辑器窗口：{window.Title}（目标 {target ?? "—"}）");
     }
 
-    /// <summary>独立窗口被关掉（点 X 或「收回」）→ 面板贴回右侧，保持打开状态。</summary>
+    /// <summary>编辑器窗口被关掉（点 X 或工具栏「编辑」）→ 一并关掉编辑面板、复位按钮。</summary>
     private void OnEditorWindowClosed(object? sender, EventArgs e)
     {
         if (_editorWindow is null)
@@ -659,42 +639,15 @@ public partial class MainWindow : Window
         _editorWindow.Body = null;
         _editorWindow = null;
 
-        PageArea.Children.Add(Editor);
-        Grid.SetColumn(Editor, 2);
-        Editor.SetPoppedOut(false);
+        _editor.Close();
+        EditButton.Content = EditGlyph;
 
-        ShowEditorColumn(Editor.IsOpen);
-
-        Console.WriteLine("[editor] 收回右侧：" + (Editor.CurrentPath ?? "—"));
+        Console.WriteLine("[editor] 编辑器窗口已关闭");
     }
 
-    /// <summary>
-    /// 右侧编辑栏的列宽：开 = 用记着的宽度（拖分隔条可改），关 = 0（页面占满）。
-    /// 弹出状态下这一列也是 0/隐藏的。
-    /// </summary>
-    private void ShowEditorColumn(bool show)
-    {
-        bool docked = show && _editorWindow is null;
-        PageArea.ColumnDefinitions[2].Width = docked
-            ? new GridLength(Math.Max(_editorDockWidth, Editor.MinWidth), GridUnitType.Pixel)
-            : new GridLength(0);
-        EditorSplitter.IsVisible = docked;
-    }
-
-    /// <summary>弹出窗口的标题跟着当前文件走（换预设/换作品时调）。</summary>
+    /// <summary>窗口标题跟着当前文件走（换预设/换作品时调）。</summary>
     private void UpdateEditorWindowTitle() =>
-        _editorWindow?.SetCaption(Editor.CurrentPath is { Length: > 0 } path ? Path.GetFileName(path) : null);
-
-    /// <summary>把当前列宽记下来（关面板/弹出/收回都用它恢复）。</summary>
-    private void RememberEditorWidth()
-    {
-        double width = PageArea.ColumnDefinitions[2].Width.Value;
-
-        if (_editorWindow is null && width >= Editor.MinWidth)
-        {
-            _editorDockWidth = width;
-        }
-    }
+        _editorWindow?.SetCaption(_editor.CurrentPath is { Length: > 0 } path ? Path.GetFileName(path) : null);
 
     /// <summary>编辑面板点了「保存 / 应用」：把文本交给当前页重载（不碰 GL 线程）。</summary>
     private void OnEditorApplyRequested(string path, string text)
@@ -709,7 +662,7 @@ public partial class MainWindow : Window
 
         if (ActivePresetPage is not { } page)
         {
-            Editor.ReportEngineWarning(Localization.T("ui.editor.noReloadable"));
+            _editor.ReportEngineWarning(Localization.T("ui.editor.noReloadable"));
             return;
         }
 
@@ -718,70 +671,30 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// 编辑面板点了「AI 分析」：把当前文本交给 DeepSeek（标准 OpenAI 兼容接口），结果显示在独立窗口里
-    /// （MarkView 流式渲染）。Key / 模型都从设置里取，没有 Key 时窗口自己提示去设置。
+    /// 编辑面板点了「AI 分析」：把当前文本交给右侧 AI 面板（标准 OpenAI 兼容接口，MarkView 流式渲染）。
+    /// Key / 模型都从设置里取，没有 Key 时面板自己提示去设置。
     /// </summary>
     private void OnEditorAnalyzeRequested(string path, string text)
     {
-        var window = new AiAnalysisWindow(path, text, _options.Settings);
-
-        window.Closed += (_, _) =>
+        if (_editorWindow is null)
         {
-            if (ReferenceEquals(_aiWindow, window))
-            {
-                _aiWindow = null;
-            }
-        };
+            return;
+        }
 
-        _aiWindow = window;
-        window.Show(this);
-        window.Activate();
-
+        _editorWindow.Analyze(path, text);
         StatusText.Text = Localization.F("ui.status.aiAnalyzing", Path.GetFileName(path));
-    }
-
-    /// <summary>
-    /// 工具栏「AI」：优先分析编辑器里当前的文本（可能是未保存的改动）；
-    /// 编辑器没开就按"当前正在播的预设文件"读盘。
-    /// </summary>
-    private void OnAnalyzeToolbarClick(object? sender, RoutedEventArgs e)
-    {
-        if (Editor.IsOpen && Editor.TryGetAnalysisTarget(out string editorPath, out string editorText))
-        {
-            OnEditorAnalyzeRequested(editorPath, editorText);
-            return;
-        }
-
-        string? target = BuildEditorTarget();
-
-        if (target is null || !File.Exists(target))
-        {
-            StatusText.Text = Localization.T("ui.status.noAnalysisTarget");
-            return;
-        }
-
-        try
-        {
-            OnEditorAnalyzeRequested(target, File.ReadAllText(target));
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            StatusText.Text = Localization.F("ui.status.readFailed", ex.Message);
-        }
     }
 
     private void CloseEditor()
     {
-        RememberEditorWidth();
-
         if (_editorWindow is not null)
         {
-            // 关掉独立窗口（Closed 里会先把面板贴回来），再统一隐藏
+            // 关窗即可：OnEditorWindowClosed 里统一关面板、复位按钮
             _editorWindow.Close();
+            return;
         }
 
-        Editor.Close();
-        ShowEditorColumn(false);
+        _editor.Close();
         EditButton.Content = EditGlyph;
     }
 
@@ -920,16 +833,16 @@ public partial class MainWindow : Window
         PauseButton.Content = control.IsLocked ? ResumeGlyph : PausedGlyph;
 
         // 面板开着的时候换了目标：跟着刷新，别显示上一个预设的路径
-        if (Editor.IsOpen)
+        if (_editor.IsOpen)
         {
-            Editor.Open(BuildEditorTarget());
+            _editor.Open(BuildEditorTarget());
             UpdateEditorWindowTitle();
 
             // 编辑的就是正在播的这个文件：把引擎的降级/失败信息回灌到面板（正常时不动状态栏）
             string? current = ActivePresetPage?.CurrentPresetPath;
-            if (current is not null && string.Equals(current, Editor.CurrentPath, StringComparison.OrdinalIgnoreCase))
+            if (current is not null && string.Equals(current, _editor.CurrentPath, StringComparison.OrdinalIgnoreCase))
             {
-                Editor.ReportEngineWarning(control.LastWarning);
+                _editor.ReportEngineWarning(control.LastWarning);
             }
         }
 
@@ -938,9 +851,9 @@ public partial class MainWindow : Window
 
     private void OnShaderLoaded(ShaderToyControl control)
     {
-        if (Editor.IsOpen)
+        if (_editor.IsOpen)
         {
-            Editor.Open(BuildEditorTarget());
+            _editor.Open(BuildEditorTarget());
             UpdateEditorWindowTitle();
         }
 
